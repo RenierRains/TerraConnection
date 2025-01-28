@@ -1,0 +1,25 @@
+{
+    "development": {
+      "username": "attendance_user",
+      "password": "admin",
+      "database": "attendance_db_dev",
+      "host": "127.0.0.1",
+      "dialect": "mysql"
+    },
+    "test": {
+      "username": "attendance_user",
+      "password": "test",
+      "database": "attendance_db_test",
+      "host": "127.0.0.1",
+      "dialect": "mysql"
+    },
+    "production": {
+      "username": "attendance_user",
+      "password": "prodadmin",
+      "database": "attendance_db_prod",
+      "host": "127.0.0.1",
+      "dialect": "mysql"
+    }
+  }
+
+  
