@@ -74,6 +74,22 @@ module.exports = (sequelize, DataTypes) => {
     User.hasMany(models.Audit_Log, {
       foreignKey: 'user_id'
     });
+
+    // If the user is a guardian, they can be linked to many students:
+    User.belongsToMany(models.User, {
+      through: models.Guardian_Student,
+      as: 'StudentsMonitored',
+      foreignKey: 'guardian_id',
+      otherKey: 'student_id'
+    });
+
+    // If the user is a student, they can be linked to many guardians:
+    User.belongsToMany(models.User, {
+      through: models.Guardian_Student,
+      as: 'Guardians',
+      foreignKey: 'student_id',
+      otherKey: 'guardian_id'
+    });
   };
 
   return User;

@@ -19,7 +19,8 @@ module.exports = (sequelize, DataTypes) => {
   Entry_Exit_Log.associate = function(models) {
     // many logs -> 1 User
     Entry_Exit_Log.belongsTo(models.User, {
-      foreignKey: 'user_id'
+      foreignKey: 'user_id',
+      as: 'User'
     });
   };
 

@@ -12,7 +12,10 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Class_Enrollment.associate = function(models) {
-    // no direct associations usually
+    Class_Enrollment.belongsTo(models.User, {
+      foreignKey: 'student_id',
+      as: 'studentData'
+    });
   };
 
   return Class_Enrollment;
