@@ -24,9 +24,9 @@ exports.getClassAttendance = async (req, res) => {
     }
 
     const { date, classId } = req.query;
-    // e.g. GET /api/professor/attendance?date=2025-01-01&classId=3
+    // sample: GET /api/professor/attendance?date=2025-01-01&classId=3
 
-    // Step 1: Validate professor has access to that class
+    // validate professor has access to that class
     const classProfessor = await db.Class_Professor.findOne({
       where: { class_id: classId, professor_id: req.user.userId }
     });
@@ -34,15 +34,15 @@ exports.getClassAttendance = async (req, res) => {
       return res.status(403).json({ error: 'You do not manage this class' });
     }
 
-    // Step 2: Find all students in that class
+    // find all students in that class
     const enrollments = await db.Class_Enrollment.findAll({ 
       where: { class_id: classId },
-      include: [{ model: db.User, as: 'studentData' }] // We'll define an alias in association or do manual approach
+      include: [{ model: db.User, as: 'studentData' }] 
     });
     const studentIds = enrollments.map(e => e.student_id);
 
-    // Step 3: Check entry logs for that day
-    // We'll check logs with a timestamp "same day" logic; simplistic approach
+    // check entry logs for that day
+    // check logs with a timestamp "same day" logic; simple approach
     const startOfDay = new Date(date);
     startOfDay.setHours(0,0,0,0);
     const endOfDay = new Date(date);
@@ -58,7 +58,7 @@ exports.getClassAttendance = async (req, res) => {
       include: [{ model: db.User, as: 'user'}] // to get user details
     });
 
-    // Step 4: Check GPS sharing for those students
+    // check GPS sharing for those students
     const gpsRecords = await db.GPS_Location.findAll({
       where: {
         user_id: { [Op.in]: studentIds },

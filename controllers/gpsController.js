@@ -1,7 +1,7 @@
 const db = require('../models');
 const jwt = require('jsonwebtoken');
 
-// Middleware to verify JWT
+// verify JWT middleware
 function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No token provided' });

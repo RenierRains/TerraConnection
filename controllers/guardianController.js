@@ -15,7 +15,7 @@ function verifyToken(req, res, next) {
 
 exports.verifyToken = verifyToken;
 
-// Example: Guardian queries child by userId (or some other relationship).
+// guardian queries child by userId and checks relaton
 exports.getChildStatus = async (req, res) => {
   try {
     if (req.user.role !== 'guardian' && req.user.role !== 'admin') {
@@ -31,7 +31,7 @@ exports.getChildStatus = async (req, res) => {
         return res.status(403).json({ error: 'You are not a guardian for this student' });
     }
 
-    // 1. Check last entry/exit log
+    // last entry/exit log
     const lastLog = await db.Entry_Exit_Log.findOne({
       where: { user_id: studentId },
       order: [['timestamp', 'DESC']]
@@ -42,7 +42,7 @@ exports.getChildStatus = async (req, res) => {
       onCampus = (lastLog.type === 'entry');
     }
 
-    // 2. Optional: check last known GPS
+    // check last known GPS
     const lastGPS = await db.GPS_Location.findOne({
       where: { user_id: studentId },
       order: [['timestamp', 'DESC']]
