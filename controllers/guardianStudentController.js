@@ -4,7 +4,7 @@ exports.linkGuardianToStudent = async (req, res) => {
   try {
     const { guardianId, studentId } = req.body;
 
-    // ensure roles
+    // Ensure roles
     const guardian = await db.User.findByPk(guardianId);
     const student = await db.User.findByPk(studentId);
 
@@ -15,9 +15,7 @@ exports.linkGuardianToStudent = async (req, res) => {
       return res.status(400).json({ error: 'Invalid or non-student user for studentId' });
     }
 
-    // Use Sequelize's belongsToMany method
-    // add the student to the Guardian's "StudentsMonitored" alias
-    // then inserts a record in Guardian_Students
+    // Use the belongsToMany association
     await guardian.addStudentsMonitored(student);
 
     return res.json({ message: 'Guardian linked to student successfully.' });

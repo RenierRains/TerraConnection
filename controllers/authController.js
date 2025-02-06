@@ -61,5 +61,19 @@ exports.login = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
+  } 
+};
+
+exports.getMe = async (req, res) => {
+  try {
+    // Assume req.user is set by auth middleware after verifying JWT
+    const user = await db.User.findByPk(req.user.userId, {
+      attributes: { exclude: ['password_hash'] }
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve user info' });
   }
 };

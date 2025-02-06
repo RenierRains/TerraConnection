@@ -1,17 +1,15 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
   const Guardian_Student = sequelize.define('Guardian_Student', {
-    // If  'id' and 'created_at' in the table, omit fields
-    // Sequelize map auto if  column match
+    //NOTE: no specific fields needed kung match ung migration columns (id, guardian_id, student_id, created_at)
   }, {
-    tableName: 'Guardian_Student',
+    tableName: 'Guardian_Students',  
     underscored: true,
-    timestamps: false 
+    timestamps: false  
   });
 
   Guardian_Student.associate = function(models) {
-    // Typically bridging tables don’t need direct associations themselves,
-    // but you could define belongsTo if you want direct references.
+    // no need
   };
 
   return Guardian_Student;

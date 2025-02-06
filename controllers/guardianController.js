@@ -18,20 +18,25 @@ exports.verifyToken = verifyToken;
 // guardian queries child by userId and checks relaton
 exports.getChildStatus = async (req, res) => {
   try {
+    // Verify that the user is a guardian (or admin)
     if (req.user.role !== 'guardian' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
+    // get guardianId from the token (req.user)
+    const guardianId = req.user.userId;  // NOTE: test
+
     const { studentId } = req.params;
 
+    // verify guardian is linked to the student
     const relation = await db.Guardian_Student.findOne({
-        where: { guardian_id: guardianId, student_id: studentId }
-      });
-      if (!relation) {
-        return res.status(403).json({ error: 'You are not a guardian for this student' });
+      where: { guardian_id: guardianId, student_id: studentId }
+    });
+    if (!relation) {
+      return res.status(403).json({ error: 'You are not a guardian for this student' });
     }
 
-    // last entry/exit log
+    // get last RFID scan
     const lastLog = await db.Entry_Exit_Log.findOne({
       where: { user_id: studentId },
       order: [['timestamp', 'DESC']]
@@ -42,7 +47,7 @@ exports.getChildStatus = async (req, res) => {
       onCampus = (lastLog.type === 'entry');
     }
 
-    // check last known GPS
+    // get last GPS location
     const lastGPS = await db.GPS_Location.findOne({
       where: { user_id: studentId },
       order: [['timestamp', 'DESC']]
