@@ -18,7 +18,7 @@ exports.verifyToken = verifyToken;
 // guardian queries child by userId and checks relaton
 exports.getChildStatus = async (req, res) => {
   try {
-    // Verify that the user is a guardian (or admin)
+    // verify
     if (req.user.role !== 'guardian' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Not authorized' });
     }
@@ -28,7 +28,7 @@ exports.getChildStatus = async (req, res) => {
 
     const { studentId } = req.params;
 
-    // verify guardian is linked to the student
+    // verify link
     const relation = await db.Guardian_Student.findOne({
       where: { guardian_id: guardianId, student_id: studentId }
     });

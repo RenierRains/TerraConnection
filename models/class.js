@@ -4,6 +4,22 @@ module.exports = (sequelize, DataTypes) => {
     class_name: {
       type: DataTypes.STRING(255),
       allowNull: false
+    },
+    room: {
+      type: DataTypes.STRING(100),
+      allowNull: false
+    },
+    start_time: {
+      type: DataTypes.TIME,
+      allowNull: false
+    },
+    end_time: {
+      type: DataTypes.TIME,
+      allowNull: false
+    },
+    schedule: {
+      type: DataTypes.STRING(255),
+      allowNull: true
     }
   }, {
     tableName: 'Classes',
@@ -11,14 +27,11 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Class.associate = function(models) {
-    // Class <-> many professors
     Class.belongsToMany(models.User, {
       through: models.Class_Professor,
       as: 'professors',
       foreignKey: 'class_id'
     });
-
-    // Class <-> many students
     Class.belongsToMany(models.User, {
       through: models.Class_Enrollment,
       as: 'students',

@@ -5,8 +5,10 @@ const authController = require('../controllers/authController');
 router.post('/login', authController.login);
 
 // GET /api/auth/me
-//NOTE: Assumes a middleware that verifies token; can use the same function from authController
-const { verifyToken } = require('../controllers/authController'); // IF not defined separately, can copy the verifyToken from another file
+const { verifyToken } = require('../controllers/authController'); 
 router.get('/me', verifyToken, authController.getMe);
+
+router.post('/register-admin', authController.registerAdmin);
+
 
 module.exports = router;

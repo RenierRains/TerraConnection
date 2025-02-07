@@ -2,6 +2,23 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
 
+exports.verifyToken = (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'SuperSecretKey');
+    req.user = decoded;
+    next();
+  } catch (err) {
+    console.error(err);
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
 exports.register = async (req, res) => {
   try {
     const { first_name, last_name, username, email, password, role, school_id } = req.body;
@@ -34,12 +51,35 @@ exports.register = async (req, res) => {
   }
 };
 
+exports.registerAdmin = async (req, res) => {
+  try {
+    // Check if any admin account exists
+    const adminExists = await db.User.findOne({ where: { role: 'admin' } });
+    if (adminExists) {
+      return res.status(400).json({ error: 'Admin account already exists.' });
+    }
+    const { first_name, last_name, email, password } = req.body;
+    const password_hash = await bcrypt.hash(password, 10);
+    const admin = await db.User.create({
+      first_name,
+      last_name,
+      email,
+      password_hash,
+      role: 'admin'
+    });
+    res.status(201).json({ message: 'Admin account created', admin });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to create admin account' });
+  }
+};
+
 exports.login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
     // find
-    const user = await db.User.findOne({ where: { username } });
+    const user = await db.User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -66,7 +106,6 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    // Assume req.user is set by auth middleware after verifying JWT
     const user = await db.User.findByPk(req.user.userId, {
       attributes: { exclude: ['password_hash'] }
     });

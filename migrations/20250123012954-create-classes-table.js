@@ -11,6 +11,22 @@ module.exports = {
         type: Sequelize.STRING(255),
         allowNull: false
       },
+      room: {                        // NOTE test
+        type: Sequelize.STRING(100),
+        allowNull: false
+      },
+      start_time: {                  // NOTE start test
+        type: Sequelize.TIME,
+        allowNull: false
+      },
+      end_time: {                    // NOTE start test
+        type: Sequelize.TIME,
+        allowNull: false
+      },
+      schedule: {
+        type: Sequelize.STRING(255),
+        allowNull: true
+      },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
