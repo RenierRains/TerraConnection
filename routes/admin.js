@@ -13,6 +13,7 @@ router.post('/classes', adminController.createClass);
 router.get('/classes', adminController.getClasses);
 router.put('/classes/:id', adminController.updateClass);
 router.delete('/classes/:id', adminController.deleteClass);
+router.post('/classes/enroll', adminController.enrollStudentsToClass);
 
 router.get('/audit-logs', adminController.getAuditLogs);
 

@@ -57,17 +57,21 @@ exports.deleteUser = async (req, res) => {
 //classes
 exports.createClass = async (req, res) => {
   try {
-    const { class_name, schedule, professorIds } = req.body;
-    // create the class record
-    const newClass = await db.Class.create({ class_name, schedule });
-    // link professors  NOTE: for mobile: triple check if professorIds is an array)
+
+    console.log('incoming body: ',req.body);
+
+    const { class_name, room, start_time, end_time, schedule, professorIds } = req.body;
+    const newClass = await db.Class.create({ class_name, room, start_time, end_time, schedule });
+    
+    // If there are professorIds, associate the professors with this class.
     if (professorIds && professorIds.length > 0) {
       await newClass.setProfessors(professorIds);
     }
+    
     res.status(201).json({ message: 'Class created', class: newClass });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to create class' });
+    res.status(500).json({ error: 'Failed to create class', details: err.message });
   }
 };
 
@@ -108,6 +112,24 @@ exports.deleteClass = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete class' });
+  }
+};
+
+exports.enrollStudentsToClass = async (req, res) => {
+  try {
+    const { classId, studentIds } = req.body;
+
+    const theClass = await db.Class.findByPk(classId);
+    if (!theClass) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
+    await theClass.setStudents(studentIds);
+
+    res.json({ message: 'Students enrolled successfully', classId, studentIds });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to enroll students' });
   }
 };
 

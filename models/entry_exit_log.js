@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
     // many logs -> 1 User
     Entry_Exit_Log.belongsTo(models.User, {
       foreignKey: 'user_id',
-      as: 'User'
+      as: 'user'
     });
   };
 

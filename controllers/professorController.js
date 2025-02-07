@@ -33,7 +33,6 @@ exports.getAttendance = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
     const { date, classId } = req.query;
-    // validate that the professor is assigned to the class
     const classRecord = await db.Class.findByPk(classId);
     if (!classRecord) {
       return res.status(404).json({ error: 'Class not found' });
@@ -41,7 +40,7 @@ exports.getAttendance = async (req, res) => {
 
     // TODO:  verify professor access via a join table check
 
-    // get student enrollments for the class
+    // get student
     const enrollments = await db.Class_Enrollment.findAll({ where: { class_id: classId } });
     const studentIds = enrollments.map(e => e.student_id);
 

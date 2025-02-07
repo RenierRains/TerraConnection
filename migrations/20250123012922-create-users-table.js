@@ -22,7 +22,7 @@ module.exports = {
       },
       school_id: {
         type: Sequelize.STRING(50),
-        allowNull: true // Guardians can have null
+        allowNull: true
       },
       password_hash: {
         type: Sequelize.STRING(255),

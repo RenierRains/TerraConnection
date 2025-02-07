@@ -6,13 +6,11 @@ exports.processScan = async (req, res) => {
     const { card_uid, scan_type, location } = req.body; 
     // scan_type: 'entry' or 'exit'
 
-    // find the user by card UID
     const rfidCard = await db.RFID_Card.findOne({ where: { card_uid } });
     if (!rfidCard || !rfidCard.is_active) {
       return res.status(400).json({ error: 'Invalid or inactive card' });
     }
 
-    // create log entry
     const log = await db.Entry_Exit_Log.create({
       user_id: rfidCard.user_id,
       card_uid,
