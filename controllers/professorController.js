@@ -3,7 +3,6 @@ const db = require('../models');
 const jwt = require('jsonwebtoken');
 
 exports.verifyToken = (req, res, next) => {
-  // Same token verification as before
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No token provided' });
   const token = authHeader.split(' ')[1];

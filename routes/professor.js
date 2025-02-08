@@ -7,7 +7,7 @@ router.get('/classes', professorController.verifyToken, professorController.getC
 // GET /api/professor/attendance?date=YYYY-MM-DD&classId=X
 router.get('/attendance', professorController.verifyToken, professorController.getAttendance);
 
-// POST /api/professor/notification
+// POST /api/professor/notification TODO: test 
 router.post('/notification', professorController.verifyToken, professorController.sendNotification);
 
 module.exports = router;

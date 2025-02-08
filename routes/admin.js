@@ -15,6 +15,8 @@ router.put('/classes/:id', adminController.updateClass);
 router.delete('/classes/:id', adminController.deleteClass);
 router.post('/classes/enroll', adminController.enrollStudentsToClass);
 
+
+//TODO: change 
 router.get('/audit-logs', adminController.getAuditLogs);
 
 router.post('/rfid-cards', adminController.createRFIDCard);

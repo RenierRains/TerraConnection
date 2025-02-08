@@ -2,7 +2,7 @@ const router = require('express').Router();
 const guardianController = require('../controllers/guardianController');
 const guardianStudentController = require('../controllers/guardianStudentController');  
 
-// linking controller separate
+// TODO: FIX
 router.post('/link', guardianStudentController.linkGuardianToStudent);
 
 // For getting child status
