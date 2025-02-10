@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard - RFID Attendance</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <% include ../partials/header.ejs %>
+  <div class="container mt-5">
+    <h2>Admin Dashboard</h2>
+    <p>Welcome, <%= admin.first_name %>!</p>
+    <ul>
+      <li><a href="/admin/users">Manage Users</a></li>
+      <li><a href="/admin/classes">Manage Classes</a></li>
+      <li><a href="/admin/rfid-cards">Manage RFID Cards</a></li>
+      <li><a href="/admin/audit-logs">View Audit Logs</a></li>
+      <li><a href="/admin/guardian-link">Link Guardian to Student</a></li>
+    </ul>
+    <a href="/admin/logout" class="btn btn-secondary mt-3">Logout</a>
+  </div>
+  <% include ../partials/footer.ejs %>
+</body>
+</html>
