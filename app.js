@@ -17,6 +17,19 @@ const guardianRoutes = require('./routes/guardian');
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.set('view engine', 'ejs');
+
+app.set('views', path.join(__dirname, 'views'));
+
+app.use(expressLayouts);
+
+app.use(session({
+  secret: 'JkdsJGJdsfuJasdM3893024p@**($&%',
+  resave: false,
+  saveUninitialized: false
+}));
 
 // use mount
 app.use('/api/auth', authRoutes);
@@ -27,18 +40,6 @@ app.use('/api/gps', gpsRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/professor', professorRoutes);
 app.use('/api/guardian', guardianRoutes);
-
-app.set('view engine', 'ejs');
-
-app.set('views', path.join(__dirname, 'views'));
-
-app.use(expressLayouts);
-
-app.use(session({
-  secret: 'yourSecretKey',
-  resave: false,
-  saveUninitialized: false
-}));
 
 
 
