@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const adminController = require('../controllers/adminController');
 const { verifyToken } = require('../controllers/authController');
+const guardianStudentController = require('../controllers/guardianStudentController');
 
 router.use(verifyToken, adminController.verifyAdmin);
 
@@ -8,6 +9,8 @@ router.post('/users', adminController.createUser);
 router.get('/users', adminController.getUsers);
 router.put('/users/:id', adminController.updateUser);
 router.delete('/users/:id', adminController.deleteUser);
+
+router.post('/link', guardianStudentController.linkGuardianToStudent);
 
 router.post('/classes', adminController.createClass);
 router.get('/classes', adminController.getClasses);
