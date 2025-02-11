@@ -7,23 +7,39 @@ module.exports = {
         autoIncrement: true,
         primaryKey: true
       },
-      class_name: {
-        type: Sequelize.STRING(255),
-        allowNull: false
-      },
-      room: {                        // NOTE test
+      class_code: {               
         type: Sequelize.STRING(100),
         allowNull: false
       },
-      start_time: {                  // NOTE start test
+      class_name: {               
+        type: Sequelize.STRING(255),
+        allowNull: false
+      },
+      course: { 
+        type: Sequelize.STRING(100),
+        allowNull: false
+      },
+      year: {        
+        type: Sequelize.INTEGER,
+        allowNull: false
+      },
+      section: {                  
+        type: Sequelize.STRING(50),
+        allowNull: false
+      },
+      room: {                  
+        type: Sequelize.STRING(100),
+        allowNull: false
+      },
+      start_time: {              
         type: Sequelize.TIME,
         allowNull: false
       },
-      end_time: {                    // NOTE start test
+      end_time: {                
         type: Sequelize.TIME,
         allowNull: false
       },
-      schedule: {
+      schedule: {                  // e.g. "Sat" or "Mon,Wed,Fri"
         type: Sequelize.STRING(255),
         allowNull: true
       },

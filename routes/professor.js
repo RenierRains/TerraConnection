@@ -4,6 +4,9 @@ const professorController = require('../controllers/professorController');
 // GET /api/professor/classes
 router.get('/classes', professorController.verifyToken, professorController.getClasses);
 
+// GET /api/professor/schedule
+router.get('/schedule', professorController.verifyToken, professorController.getSchedule);
+
 // GET /api/professor/attendance?date=YYYY-MM-DD&classId=X
 router.get('/attendance', professorController.verifyToken, professorController.getAttendance);
 

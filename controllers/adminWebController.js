@@ -22,7 +22,6 @@ exports.login = async (req, res) => {
 };
 
 exports.dashboard = (req, res) => {
-  // Ensure admin is logged in
   if (!req.session.admin) {
     return res.redirect('/admin/login');
   }

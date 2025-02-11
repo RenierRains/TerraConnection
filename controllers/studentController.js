@@ -32,3 +32,33 @@ exports.getAttendance = async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve attendance records' });
   }
 };
+
+exports.getSchedule = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    let date = req.query.date ? new Date(req.query.date) : new Date();
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayAbbrev = days[date.getDay()];
+    
+    const enrollments = await db.Class_Enrollment.findAll({
+      where: { student_id: userId },
+      include: [{
+        model: db.Class,
+        as: 'classData',
+        where: {
+          schedule: { [Op.like]: `%${dayAbbrev}%` }
+        }
+      }]
+    });
+    
+    const classes = enrollments.map(enrollment => enrollment.classData);
+    
+    res.json({
+      date: date.toISOString().slice(0,10),
+      schedule: classes
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get student schedule' });
+  }
+};

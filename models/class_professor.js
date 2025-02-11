@@ -8,11 +8,14 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     tableName: 'Class_Professors',
     underscored: true,
-    timestamps: false // no created_at/updated_at needed unless need..?
+    timestamps: false 
   });
 
   Class_Professor.associate = function(models) {
-    // no direct associations typical
+    Class_Professor.belongsTo(models.Class, {
+      foreignKey: 'class_id',
+      as: 'classData'
+    });
   };
 
   return Class_Professor;

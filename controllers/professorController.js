@@ -37,8 +37,6 @@ exports.getAttendance = async (req, res) => {
       return res.status(404).json({ error: 'Class not found' });
     }
 
-    // TODO:  verify professor access via a join table check
-
     // get student
     const enrollments = await db.Class_Enrollment.findAll({ where: { class_id: classId } });
     const studentIds = enrollments.map(e => e.student_id);
@@ -91,5 +89,37 @@ exports.sendNotification = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to send notification' });
+  }
+};
+
+exports.getSchedule = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    let date = req.query.date ? new Date(req.query.date) : new Date();
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayAbbrev = days[date.getDay()]; 
+    
+    const assignments = await db.Class_Professor.findAll({
+      where: { professor_id: userId },
+      include: [{
+        model: db.Class,
+        as: 'classData',
+        where: {
+          schedule: {
+            [Op.like]: `%${dayAbbrev}%`
+          }
+        }
+      }]
+    });
+    
+    const classes = assignments.map(assignment => assignment.classData);
+    
+    res.json({
+      date: date.toISOString().slice(0,10),
+      schedule: classes
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get professor schedule' });
   }
 };

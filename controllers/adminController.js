@@ -60,10 +60,10 @@ exports.createClass = async (req, res) => {
 
     console.log('incoming body: ',req.body);
 
-    const { class_name, room, start_time, end_time, schedule, professorIds } = req.body;
-    const newClass = await db.Class.create({ class_name, room, start_time, end_time, schedule });
+    const { class_code, class_name, course, year, section, room, start_time, end_time, schedule, professorIds } = req.body;
+    const newClass = await db.Class.create({ class_code, class_name, course, year, section, room, start_time, end_time, schedule });
     
-    // If there are professorIds, associate the professors with this class.
+    // associate
     if (professorIds && professorIds.length > 0) {
       await newClass.setProfessors(professorIds);
     }
@@ -90,9 +90,9 @@ exports.getClasses = async (req, res) => {
 exports.updateClass = async (req, res) => {
   try {
     const classId = req.params.id;
-    const { class_name, schedule, professorIds } = req.body;
-    await db.Class.update({ class_name, schedule }, { where: { id: classId } });
-    // Update professors if provided
+    const { class_code, class_name,course, year, section, room, start_time, end_time, schedule, professorIds } = req.body;
+    await db.Class.update({ class_code,class_name, course, year, section, room, start_time, end_time, schedule }, { where: { id: classId } });
+
     if (professorIds) {
       const theClass = await db.Class.findByPk(classId);
       await theClass.setProfessors(professorIds);

@@ -16,6 +16,10 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'student_id',
       as: 'studentData'
     });
+    Class_Enrollment.belongsTo(models.Class, {
+      foreignKey: 'class_id',
+      as: 'classData'
+    });
   };
 
   return Class_Enrollment;
