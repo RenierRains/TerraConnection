@@ -2,7 +2,7 @@ require('dotenv').config();
 const app = require('./app');
 const db = require('./models');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 console.log({
   DB_HOST: process.env.DB_HOST,
   DB_USER: process.env.DB_USER,
@@ -19,7 +19,7 @@ db.sequelize
     return db.sequelize.sync({ alter: true });
   })
   .then(() => {
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0',  () => {
       console.log(`Server listening on port ${PORT}`);
     });
   })

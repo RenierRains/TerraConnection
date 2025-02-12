@@ -41,6 +41,8 @@ app.use('/api/student', studentRoutes);
 app.use('/api/professor', professorRoutes);
 app.use('/api/guardian', guardianRoutes);
 
-
+app.get('/', (req, res) => {
+  res.send('Welcome to the RFID Attendance API');
+});
 
 module.exports = app;
