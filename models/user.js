@@ -27,7 +27,8 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('student','professor','guardian','admin'),
       allowNull: false,
       defaultValue: 'student'
-    }
+    },
+    profile_picture: { type: DataTypes.STRING, allowNull: true }
   }, {
     tableName: 'Users',
     underscored: true

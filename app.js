@@ -14,6 +14,7 @@ const gpsRoutes = require('./routes/gps');
 const studentRoutes = require('./routes/student');
 const professorRoutes = require('./routes/professor');
 const guardianRoutes = require('./routes/guardian');
+const userRoutes = require('./routes/user');
 
 app.use(cors());
 app.use(express.json());
@@ -40,9 +41,11 @@ app.use('/api/gps', gpsRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/professor', professorRoutes);
 app.use('/api/guardian', guardianRoutes);
+app.use('/api/user', userRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
-  res.send('Welcome to the RFID Attendance API');
+  res.redirect('/admin/login');
 });
 
 module.exports = app;
