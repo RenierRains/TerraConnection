@@ -2,25 +2,28 @@
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    // get all class
     const [classes] = await queryInterface.sequelize.query(
-      `SELECT id FROM Classes WHERE class_code = 'ITE309' LIMIT 1;`
+      `SELECT id FROM Classes;`
     );
-    if (classes.length === 0) {
-      throw new Error("Class ITE309 not found");
-    }
-    const classId = classes[0].id;
-
+    
+    // get all student
     const [students] = await queryInterface.sequelize.query(
-      `SELECT id FROM Users WHERE school_id = 'BSIT3-06' AND role = 'student';`
+      `SELECT id FROM Users WHERE role = 'student';`
     );
-
-    // create enrollment record
-    const enrollments = students.map(student => ({
-      class_id: classId,
-      student_id: student.id,
-      enrolled_at: new Date()
-    }));
-
+    
+    // create enrollment record for each student in class
+    const enrollments = [];
+    classes.forEach(cls => {
+      students.forEach(student => {
+        enrollments.push({
+          class_id: cls.id,
+          student_id: student.id,
+          enrolled_at: new Date()
+        });
+      });
+    });
+    
     return queryInterface.bulkInsert('Class_Enrollments', enrollments, {});
   },
 
