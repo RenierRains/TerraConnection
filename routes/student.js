@@ -5,6 +5,6 @@ const studentController = require('../controllers/studentController');
 router.get('/attendance', studentController.verifyToken, studentController.getAttendance);
 
 // GET /api/student/schedule
-router.get('/attendance', studentController.verifyToken, studentController.getAttendance);
+router.get('/schedule', studentController.verifyToken, studentController.getSchedule);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const db = require('../models');
+const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
 
 exports.verifyToken = (req, res, next) => {
