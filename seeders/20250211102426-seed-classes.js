@@ -12,7 +12,7 @@ module.exports = {
         room: 'TBA',
         start_time: '07:30:00',
         end_time: '09:00:00',
-        schedule: 'Thu',
+        schedule: 'Fri',
         created_at: new Date(),
         updated_at: new Date()
       },
