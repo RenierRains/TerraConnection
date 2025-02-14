@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edit Class</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="container mt-5">
+    <h2>Edit Class</h2>
+    <form action="/admin/classes/<%= class.id %>?_method=PUT" method="POST">
+      <div class="form-group">
+        <label for="class_code">Class Code</label>
+        <input type="text" name="class_code" id="class_code" class="form-control" value="<%= class.class_code %>" required>
+      </div>
+      <div class="form-group mt-2">
+        <label for="class_name">Class Name</label>
+        <input type="text" name="class_name" id="class_name" class="form-control" value="<%= class.class_name %>" required>
+      </div>
+      <div class="form-group mt-2">
+        <label for="course">Course</label>
+        <input type="text" name="course" id="course" class="form-control" value="<%= class.course %>" required>
+      </div>
+      <div class="form-group mt-2">
+        <label for="year">Year</label>
+        <input type="number" name="year" id="year" class="form-control" value="<%= class.year %>" required>
+      </div>
+      <div class="form-group mt-2">
+        <label for="section">Section</label>
+        <input type="text" name="section" id="section" class="form-control" value="<%= class.section %>" required>
+      </div>
+      <div class="form-group mt-2">
+        <label for="room">Room</label>
+        <input type="text" name="room" id="room" class="form-control" value="<%= class.room %>" required>
+      </div>
+      <div class="form-group mt-2">
+        <label for="start_time">Start Time</label>
+        <input type="time" name="start_time" id="start_time" class="form-control" value="<%= class.start_time %>" required>
+      </div>
+      <div class="form-group mt-2">
+        <label for="end_time">End Time</label>
+        <input type="time" name="end_time" id="end_time" class="form-control" value="<%= class.end_time %>" required>
+      </div>
+      <div class="form-group mt-2">
+        <label for="schedule">Schedule</label>
+        <input type="text" name="schedule" id="schedule" class="form-control" value="<%= class.schedule %>" required>
+      </div>
+      <!-- Professor assignment may be handled separately -->
+      <button type="submit" class="btn btn-primary mt-3">Update Class</button>
+    </form>
+  </div>
+</body>
+</html>

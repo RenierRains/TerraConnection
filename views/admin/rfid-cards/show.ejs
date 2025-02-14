@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RFID Card Details</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="container mt-5">
+    <h2>RFID Card Details</h2>
+    <p><strong>ID:</strong> <%= card.id %></p>
+    <p><strong>Card UID:</strong> <%= card.card_uid %></p>
+    <p><strong>User ID:</strong> <%= card.user_id %></p>
+    <p><strong>Active:</strong> <%= card.is_active ? 'Yes' : 'No' %></p>
+    <p><strong>Issued At:</strong> <%= card.issued_at %></p>
+    <a href="/admin/rfid-cards/<%= card.id %>/edit" class="btn btn-warning">Edit</a>
+    <a href="/admin/rfid-cards" class="btn btn-secondary">Back</a>
+  </div>
+</body>
+</html>

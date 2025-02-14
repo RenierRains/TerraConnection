@@ -1,10 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="/css/app.css">
+  <meta charset="UTF-8">
+  <title><%= title || "Admin Panel" %></title>
+  <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-    <%- body %>
+  <%- include('partials/header.ejs') %>
+  
+  <div class="admin-body-container">
+    <div class="admin-sidebar">
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link" href="/admin/dashboard">Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/admin/users">Manage Users</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/admin/classes">Manage Classes</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/admin/rfid-cards">Manage RFID Cards</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/admin/audit-logs">Audit Logs</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/admin/guardian-link">Guardian Link</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/admin/logout">Logout</a>
+        </li>
+      </ul>
+    </div>
+    
+    <div class="admin-content">
+      <%- body %>
+    </div>
+  </div>
+  
+  <%- include('partials/footer.ejs') %>
 </body>
 </html>

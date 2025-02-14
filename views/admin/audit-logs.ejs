@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Audit Logs</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="container mt-5">
+    <h2>Audit Logs</h2>
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>User ID</th>
+          <th>Action Type</th>
+          <th>Details</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% logs.forEach(function(log) { %>
+          <tr>
+            <td><%= log.id %></td>
+            <td><%= log.user_id %></td>
+            <td><%= log.action_type %></td>
+            <td><%= log.details %></td>
+            <td><%= log.timestamp %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+    <a href="/admin/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+  </div>
+</body>
+</html>

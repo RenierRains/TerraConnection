@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Class Details</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="container mt-5">
+    <h2>Class Details</h2>
+    <p><strong>ID:</strong> <%= class.id %></p>
+    <p><strong>Class Code:</strong> <%= class.class_code %></p>
+    <p><strong>Class Name:</strong> <%= class.class_name %></p>
+    <p><strong>Course:</strong> <%= class.course %></p>
+    <p><strong>Year:</strong> <%= class.year %></p>
+    <p><strong>Section:</strong> <%= class.section %></p>
+    <p><strong>Room:</strong> <%= class.room %></p>
+    <p><strong>Start Time:</strong> <%= class.start_time %></p>
+    <p><strong>End Time:</strong> <%= class.end_time %></p>
+    <p><strong>Schedule:</strong> <%= class.schedule %></p>
+    <a href="/admin/classes/<%= class.id %>/edit" class="btn btn-warning">Edit</a>
+    <a href="/admin/classes" class="btn btn-secondary">Back</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Manage Classes</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="container mt-5">
+    <h2>Classes</h2>
+    <a href="/admin/classes/create" class="btn btn-success mb-3">Add New Class</a>
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Class Code</th>
+          <th>Class Name</th>
+          <th>Course</th>
+          <th>Year</th>
+          <th>Section</th>
+          <th>Room</th>
+          <th>Schedule</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% classes.forEach(function(cls) { %>
+          <tr>
+            <td><%= cls.id %></td>
+            <td><%= cls.class_code %></td>
+            <td><%= cls.class_name %></td>
+            <td><%= cls.course %></td>
+            <td><%= cls.year %></td>
+            <td><%= cls.section %></td>
+            <td><%= cls.room %></td>
+            <td><%= cls.schedule %></td>
+            <td>
+              <a href="/admin/classes/<%= cls.id %>" class="btn btn-info btn-sm">View</a>
+              <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-warning btn-sm">Edit</a>
+              <form action="/admin/classes/<%= cls.id %>?_method=DELETE" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

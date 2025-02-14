@@ -6,9 +6,8 @@
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-  <%- include('../partials/header.ejs') %>
   <div class="container mt-5">
-    <h2>Admin Login</h2>
+    <h2>TerraConnection</h2>
     <% if (typeof error !== 'undefined') { %>
       <div class="alert alert-danger"><%= error %></div>
     <% } %>
@@ -24,6 +23,5 @@
       <button type="submit" class="btn btn-primary mt-3">Login</button>
     </form>
   </div>
-  <%- include('../partials/footer.ejs') %>
 </body>
 </html>
