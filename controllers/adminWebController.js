@@ -1,7 +1,6 @@
 const db = require('../models');
 const bcrypt = require('bcrypt');
 
-// ========= Auth & Dashboard =========
 exports.showLoginForm = (req, res) => {
   res.render('admin/login', { title: 'Admin Login', layout: false});
 };
@@ -11,13 +10,13 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
     const admin = await db.User.findOne({ where: { email, role: 'admin' } });
     if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
-      return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login' });
+      return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login', layout: false});
     }
     req.session.admin = admin;
     res.redirect('/admin/dashboard');
   } catch (err) {
     console.error(err);
-    res.render('admin/login', { error: 'Login failed', title: 'Admin Login' });
+    res.render('admin/login', { error: 'Login failed', title: 'Admin Login', layout: false });
   }
 };
 
