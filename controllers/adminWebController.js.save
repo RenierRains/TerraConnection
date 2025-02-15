@@ -173,7 +173,7 @@ exports.classesEdit = async (req, res) => {
 exports.classesShow = async (req, res) => {
   try {
     const cls = await db.Class.findByPk(req.params.id);
-    res.render('admin/classes/show', { cls, title: 'Class Details' });
+    res.render('admin/classes/show', { class: cls, title: 'Class Details' });
   } catch (err) {
     res.status(500).send('Error retrieving class');
   }
