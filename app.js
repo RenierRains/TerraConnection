@@ -5,6 +5,7 @@ const path = require('path');
 const app = express();
 const expressLayouts = require('express-ejs-layouts');
 const session = require('express-session');
+const methodOverride = require('method-override');
 
 const adminWebRoutes = require('./routes/adminWeb');
 const authRoutes = require('./routes/auth');
@@ -19,6 +20,8 @@ const userRoutes = require('./routes/user');
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(methodOverride('_method'));
 
 app.set('view engine', 'ejs');
 
