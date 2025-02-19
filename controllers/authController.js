@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
+const { logUserEvent } = require('./auditLogger');
 
 exports.verifyToken = (req, res, next) => {
   try {
@@ -51,42 +52,22 @@ exports.register = async (req, res) => {
   }
 };
 
-exports.registerAdmin = async (req, res) => {
-  try {
-    // Check if any admin account exists
-    const adminExists = await db.User.findOne({ where: { role: 'admin' } });
-    if (adminExists) {
-      return res.status(400).json({ error: 'Admin account already exists.' });
-    }
-    const { first_name, last_name, email, password } = req.body;
-    const password_hash = await bcrypt.hash(password, 10);
-    const admin = await db.User.create({
-      first_name,
-      last_name,
-      email,
-      password_hash,
-      role: 'admin'
-    });
-    res.status(201).json({ message: 'Admin account created', admin });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to create admin account' });
-  }
-};
-
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     // find
     const user = await db.User.findOne({ where: { email } });
+
     if (!user) {
+      await logUserEvent(null, 'LOGIN_FAILED', { email, reason: 'User not found' });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // compre password
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
+      await logUserEvent(user.id, 'LOGIN_FAILED', { email, reason: 'Invalid password' });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -96,6 +77,8 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET || 'SuperSecretKey',
       { expiresIn: '8h' }
     );
+
+    await logUserAudit(user.id, 'LOGIN_SUCCESS', { email });
 
     res.json({ message: 'Login successful', token });
   } catch (err) {
@@ -114,5 +97,17 @@ exports.getMe = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to retrieve user info' });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    if (req.user && req.user.userId) {
+      await logUserEvent(req.user.userId, 'USER_LOGOUT', { email: req.user.email });
+    }
+    res.json({ message: 'Logged out successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Logout failed' });
   }
 };

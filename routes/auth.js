@@ -8,7 +8,5 @@ router.post('/login', authController.login);
 const { verifyToken } = require('../controllers/authController'); 
 router.get('/me', verifyToken, authController.getMe);
 
-router.post('/register-admin', authController.registerAdmin);
-
 
 module.exports = router;

@@ -1,5 +1,9 @@
 const db = require('../models');
 const bcrypt = require('bcrypt');
+const { logAuditEvent } = require('./auditLogger');
+const { logDataAudit } = require('./auditLogger');
+const { logUserAudit } = require('./auditLogger');
+//TODO: god fix imports on all and test
 
 exports.showLoginForm = (req, res) => {
   res.render('admin/login', { title: 'Admin Login', layout: false});
@@ -10,9 +14,12 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
     const admin = await db.User.findOne({ where: { email, role: 'admin' } });
     if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
+      await logAuditEvent(null, 'ADMIN_LOGIN_FAILED', { email, reason: 'Invalid credentials' });
       return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login', layout: false});
     }
     req.session.admin = admin;
+    //TODO: FIX AUDIT TYPE
+    await logAuditEvent(admin.id, 'ADMIN_LOGIN_SUCCESS', { email });
     res.redirect('/admin/dashboard');
   } catch (err) {
     console.error(err);
@@ -21,6 +28,9 @@ exports.login = async (req, res) => {
 };
 
 exports.logout = (req, res) => {
+  if (req.session.admin) {
+    logAuditEvent(req.session.admin.id, 'ADMIN_LOGOUT', { email: req.session.admin.email });
+  }
   req.session.destroy(() => {
     res.redirect('/admin/login');
   });
@@ -58,6 +68,16 @@ exports.usersCreate = async (req, res) => {
       school_id,
       password_hash: hashedPassword
     });
+    //TODO: FIX AUDIT TYPE
+    const { logAuditEvent } = require('./auditLogger');
+    await logAuditEvent(newUser.id, 'USER_CREATED', {
+      first_name,
+      last_name,
+      email,
+      role,
+      school_id
+    });
+
     res.redirect('/admin/users');
   } catch (err) {
     res.status(500).send('Error creating user');
@@ -80,6 +100,16 @@ exports.usersEdit = async (req, res) => {
       { first_name, last_name, email, role, school_id },
       { where: { id: req.params.id } }
     );
+    //TODO: FIX AUDIT TYPE
+    const { logAuditEvent } = require('./auditLogger');
+    await logAuditEvent(req.params.id, 'USER_UPDATED', {
+      first_name,
+      last_name,
+      email,
+      role,
+      school_id
+    });
+    
     res.redirect('/admin/users');
   } catch (err) {
     res.status(500).send('Error updating user');
@@ -97,6 +127,19 @@ exports.usersShow = async (req, res) => {
 
 exports.usersDelete = async (req, res) => {
   try {
+
+    const userToDelete = await db.User.findByPk(req.params.id);
+    const { logAuditEvent } = require('./auditLogger');
+
+
+    //TODO: FIX AUDIT TYPE
+    await logAuditEvent(req.params.id, 'USER_DELETED', {
+      first_name: userToDelete.first_name,
+      last_name: userToDelete.last_name,
+      email: userToDelete.email,
+      role: userToDelete.role
+    });
+
     await db.User.destroy({ where: { id: req.params.id } });
     res.redirect('/admin/users');
   } catch (err) {
@@ -131,8 +174,21 @@ exports.classesCreate = async (req, res) => {
       room,
       start_time,
       end_time,
+      schedule  
+    });
+
+    await logDataAudit(req.session.admin.id, 'CLASS_CREATED', {
+      class_code,
+      class_name,
+      course,
+      year,
+      section,
+      room,
+      start_time,
+      end_time,
       schedule
     });
+
     if (professorIds) {
       const ids = professorIds.split(',').map(x => parseInt(x.trim()));
       await newClass.setProfessors(ids);
@@ -154,21 +210,39 @@ exports.classesEditForm = async (req, res) => {
 
 exports.classesEdit = async (req, res) => {
   try {
+    const original = await db.Class.findByPk(req.params.id);
+    if (!original) {
+      return res.status(404).send('Class not found');
+    }
+
     const { class_code, class_name, course, year, section, room, start_time, end_time, schedule, professorIds } = req.body;
+  
     await db.Class.update(
       { class_code, class_name, course, year, section, room, start_time, end_time, schedule },
       { where: { id: req.params.id } }
     );
-    const cls = await db.Class.findByPk(req.params.id);
+    
+    const updated = await db.Class.findByPk(req.params.id);
+
     if (professorIds) {
       const ids = professorIds.split(',').map(x => parseInt(x.trim()));
-      await cls.setProfessors(ids);
+      await updated.setProfessors(ids);
     }
+    
+    const { logDataAudit } = require('./auditLogger');
+    await logDataAudit(req.session.admin.id, 'CLASS_UPDATED', {
+      id: req.params.id,
+      original: original.toJSON(),
+      updated: updated.toJSON()
+    });
+    
     res.redirect('/admin/classes');
   } catch (err) {
+    console.error(err);
     res.status(500).send('Error updating class');
   }
 };
+
 
 exports.classesShow = async (req, res) => {
   try {
@@ -181,9 +255,17 @@ exports.classesShow = async (req, res) => {
 
 exports.classesDelete = async (req, res) => {
   try {
+    const cls = await db.Class.findByPk(req.params.id);
+    const { logDataAudit } = require('./auditLogger');
+    await logDataAudit(req.session.admin.id, 'CLASS_DELETED', {
+      id: cls.id,
+      class_code: cls.class_code,
+      class_name: cls.class_name
+    });
     await db.Class.destroy({ where: { id: req.params.id } });
     res.redirect('/admin/classes');
   } catch (err) {
+    console.error(err);
     res.status(500).send('Error deleting class');
   }
 };
@@ -212,6 +294,15 @@ exports.rfidCardsCreate = async (req, res) => {
       is_active: is_active === 'true',
       issued_at: new Date()
     });
+
+    //TODO: FIX AUDIT TYPE
+    const { logAuditEvent } = require('./auditLogger');
+    await logAuditEvent(req.session.admin.id, 'ADMIN_RFID_CREATED', {
+      card_uid,
+      user_id,
+      is_active: is_active === 'true'
+    });
+
     res.redirect('/admin/rfid-cards');
   } catch (err) {
     res.status(500).send('Error creating RFID card');
@@ -234,6 +325,16 @@ exports.rfidCardsEdit = async (req, res) => {
       { card_uid, user_id, is_active: is_active === 'true' },
       { where: { id: req.params.id } }
     );
+
+    //TODO: FIX AUDIT TYPE
+    const { logAuditEvent } = require('./auditLogger');
+    await logAuditEvent(req.session.admin.id, 'ADMIN_RFID_UPDATED', {
+      id: req.params.id,
+      card_uid,
+      user_id,
+      is_active: is_active === 'true'
+    });
+
     res.redirect('/admin/rfid-cards');
   } catch (err) {
     res.status(500).send('Error updating RFID card');
@@ -252,6 +353,17 @@ exports.rfidCardsShow = async (req, res) => {
 exports.rfidCardsDelete = async (req, res) => {
   try {
     await db.RFID_Card.destroy({ where: { id: req.params.id } });
+
+    const card = await db.RFID_Card.findByPk(req.params.id);
+    
+    //TODO: FIX AUDIT TYPE
+    const { logAuditEvent } = require('./auditLogger');
+    await logAuditEvent(req.session.admin.id, 'ADMIN_RFID_DELETED', {
+      id: card.id,
+      card_uid: card.card_uid,
+      user_id: card.user_id
+    });
+
     res.redirect('/admin/rfid-cards');
   } catch (err) {
     res.status(500).send('Error deleting RFID card');
