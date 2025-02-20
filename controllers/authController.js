@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const db = require('../models');
 const { logUserEvent } = require('./auditLogger');
 
+const loginFailures = {};
+
 exports.verifyToken = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -53,6 +55,7 @@ exports.register = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
+  const ip = req.ip;
   try {
     const { email, password } = req.body;
 
@@ -60,16 +63,26 @@ exports.login = async (req, res) => {
     const user = await db.User.findOne({ where: { email } });
 
     if (!user) {
-      await logUserEvent(null, 'LOGIN_FAILED', { email, reason: 'User not found' });
+      loginFailures[ip] = (loginFailures[ip] || 0) + 1;
+      await logSecurityAudit(null, 'LOGIN_FAILED', { email, ip, reason: 'User not found' });
+      if (loginFailures[ip] > 5) {
+        await logAnomalyAudit(ip, 'MULTIPLE_LOGIN_FAILURES', { ip, count: loginFailures[ip] });
+      }
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // compre password
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      await logUserEvent(user.id, 'LOGIN_FAILED', { email, reason: 'Invalid password' });
+      loginFailures[ip] = (loginFailures[ip] || 0) + 1;
+      await logSecurityAudit(user.id, 'LOGIN_FAILED', { email, ip, reason: 'Invalid password' });
+      if (loginFailures[ip] > 5) {
+        await logAnomalyAudit(ip, 'MULTIPLE_LOGIN_FAILURES', { ip, count: loginFailures[ip] });
+      }
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    loginFailures[ip] = 0;
 
     // generate JWT
     const token = jwt.sign(
@@ -77,6 +90,7 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET || 'SuperSecretKey',
       { expiresIn: '8h' }
     );
+    
 
     await logUserAudit(user.id, 'LOGIN_SUCCESS', { email });
 

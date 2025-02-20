@@ -23,8 +23,8 @@ async function logDataAudit(userId, action, original, updated) {
 async function logSecurityAudit(userId, action, details) {
   await logAuditEvent(userId, 'SECURITY_' + action, details);
 }
-async function logAnomalyAudit(userId, action, details) {
-  await logAuditEvent(userId, 'ANOMALY_' + action, details);
+async function logAnomalyAudit(identifier, action, details) {
+  await logAuditEvent(identifier, 'ANOMALY_' + action, details);
 }
 
 module.exports = { logAuditEvent, logUserAudit, logDataAudit, logSecurityAudit, logAnomalyAudit };

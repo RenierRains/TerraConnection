@@ -15,12 +15,12 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
     const admin = await db.User.findOne({ where: { email, role: 'admin' } });
     if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
-      await logSecurityAudit(null, 'ADMIN_LOGIN_FAILED', { email, reason: 'Invalid credentials' });
+      await logSecurityAudit(req.user ? req.user.userId : null, 'UNAUTHORIZED_ACCESS', { url: req.originalUrl, method: req.method });
       return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login', layout: false});
     }
     req.session.admin = admin;
 
-    await logSecurityAudit(admin.id, 'ADMIN_LOGIN_SUCCESS', { email });
+    await logUserAudit(admin.id, 'ADMIN_LOGIN_SUCCESS', { email });
     res.redirect('/admin/dashboard');
   } catch (err) {
     console.error(err);
@@ -30,7 +30,7 @@ exports.login = async (req, res) => {
 
 exports.logout = (req, res) => {
   if (req.session.admin) {
-    logSecurityEvent(req.session.admin.id, 'ADMIN_LOGOUT', { email: req.session.admin.email });
+    logUserAudit(req.session.admin.id, 'ADMIN_LOGOUT', { email: req.session.admin.email });
   }
   req.session.destroy(() => {
     res.redirect('/admin/login');
@@ -69,6 +69,7 @@ exports.usersCreate = async (req, res) => {
       school_id,
       password_hash: hashedPassword
     });
+    
     await logDataAudit(newUser.id, 'USER_CREATED', {
       first_name,
       last_name,
