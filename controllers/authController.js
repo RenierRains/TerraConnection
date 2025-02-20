@@ -103,7 +103,7 @@ exports.getMe = async (req, res) => {
 exports.logout = async (req, res) => {
   try {
     if (req.user && req.user.userId) {
-      await logUserEvent(req.user.userId, 'USER_LOGOUT', { email: req.user.email });
+      await logUserEvent(req.user.userId, 'LOGOUT', { email: req.user.email });
     }
     res.json({ message: 'Logged out successfully' });
   } catch (err) {

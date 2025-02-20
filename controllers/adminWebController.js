@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const { logAuditEvent } = require('./auditLogger');
 const { logDataAudit } = require('./auditLogger');
 const { logUserAudit } = require('./auditLogger');
+const { logSecurityAudit } = require('./auditLogger');
 //TODO: god fix imports on all and test
 
 exports.showLoginForm = (req, res) => {
@@ -14,12 +15,12 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
     const admin = await db.User.findOne({ where: { email, role: 'admin' } });
     if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
-      await logAuditEvent(null, 'ADMIN_LOGIN_FAILED', { email, reason: 'Invalid credentials' });
+      await logSecurityAudit(null, 'ADMIN_LOGIN_FAILED', { email, reason: 'Invalid credentials' });
       return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login', layout: false});
     }
     req.session.admin = admin;
-    //TODO: FIX AUDIT TYPE
-    await logAuditEvent(admin.id, 'ADMIN_LOGIN_SUCCESS', { email });
+
+    await logSecurityAudit(admin.id, 'ADMIN_LOGIN_SUCCESS', { email });
     res.redirect('/admin/dashboard');
   } catch (err) {
     console.error(err);
@@ -29,7 +30,7 @@ exports.login = async (req, res) => {
 
 exports.logout = (req, res) => {
   if (req.session.admin) {
-    logAuditEvent(req.session.admin.id, 'ADMIN_LOGOUT', { email: req.session.admin.email });
+    logSecurityEvent(req.session.admin.id, 'ADMIN_LOGOUT', { email: req.session.admin.email });
   }
   req.session.destroy(() => {
     res.redirect('/admin/login');
@@ -68,9 +69,7 @@ exports.usersCreate = async (req, res) => {
       school_id,
       password_hash: hashedPassword
     });
-    //TODO: FIX AUDIT TYPE
-    const { logAuditEvent } = require('./auditLogger');
-    await logAuditEvent(newUser.id, 'USER_CREATED', {
+    await logDataAudit(newUser.id, 'USER_CREATED', {
       first_name,
       last_name,
       email,
@@ -100,9 +99,8 @@ exports.usersEdit = async (req, res) => {
       { first_name, last_name, email, role, school_id },
       { where: { id: req.params.id } }
     );
-    //TODO: FIX AUDIT TYPE
-    const { logAuditEvent } = require('./auditLogger');
-    await logAuditEvent(req.params.id, 'USER_UPDATED', {
+
+    await logDataAudit(req.params.id, 'USER_UPDATED', {
       first_name,
       last_name,
       email,
@@ -129,11 +127,8 @@ exports.usersDelete = async (req, res) => {
   try {
 
     const userToDelete = await db.User.findByPk(req.params.id);
-    const { logAuditEvent } = require('./auditLogger');
 
-
-    //TODO: FIX AUDIT TYPE
-    await logAuditEvent(req.params.id, 'USER_DELETED', {
+    await logDataAudit(req.params.id, 'USER_DELETED', {
       first_name: userToDelete.first_name,
       last_name: userToDelete.last_name,
       email: userToDelete.email,
@@ -229,7 +224,6 @@ exports.classesEdit = async (req, res) => {
       await updated.setProfessors(ids);
     }
     
-    const { logDataAudit } = require('./auditLogger');
     await logDataAudit(req.session.admin.id, 'CLASS_UPDATED', {
       id: req.params.id,
       original: original.toJSON(),
@@ -256,7 +250,7 @@ exports.classesShow = async (req, res) => {
 exports.classesDelete = async (req, res) => {
   try {
     const cls = await db.Class.findByPk(req.params.id);
-    const { logDataAudit } = require('./auditLogger');
+
     await logDataAudit(req.session.admin.id, 'CLASS_DELETED', {
       id: cls.id,
       class_code: cls.class_code,
@@ -295,9 +289,7 @@ exports.rfidCardsCreate = async (req, res) => {
       issued_at: new Date()
     });
 
-    //TODO: FIX AUDIT TYPE
-    const { logAuditEvent } = require('./auditLogger');
-    await logAuditEvent(req.session.admin.id, 'ADMIN_RFID_CREATED', {
+    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_CREATED', {
       card_uid,
       user_id,
       is_active: is_active === 'true'
@@ -326,9 +318,7 @@ exports.rfidCardsEdit = async (req, res) => {
       { where: { id: req.params.id } }
     );
 
-    //TODO: FIX AUDIT TYPE
-    const { logAuditEvent } = require('./auditLogger');
-    await logAuditEvent(req.session.admin.id, 'ADMIN_RFID_UPDATED', {
+    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_UPDATED', {
       id: req.params.id,
       card_uid,
       user_id,
@@ -356,9 +346,7 @@ exports.rfidCardsDelete = async (req, res) => {
 
     const card = await db.RFID_Card.findByPk(req.params.id);
     
-    //TODO: FIX AUDIT TYPE
-    const { logAuditEvent } = require('./auditLogger');
-    await logAuditEvent(req.session.admin.id, 'ADMIN_RFID_DELETED', {
+    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_DELETED', {
       id: card.id,
       card_uid: card.card_uid,
       user_id: card.user_id
