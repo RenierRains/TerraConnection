@@ -6,6 +6,30 @@ const { logUserAudit } = require('./auditLogger');
 const { logSecurityAudit } = require('./auditLogger');
 //TODO: god fix imports on all and test
 
+exports.searchStudents = async (req, res) => {
+  try {
+    const q = req.query.q || '';
+    const { Op } = require('sequelize');
+    const students = await db.User.findAll({
+      where: {
+        role: 'student',
+        [Op.or]: [
+          { first_name: { [Op.like]: `%${q}%` } },
+          { last_name: { [Op.like]: `%${q}%` } },
+          { email: { [Op.like]: `%${q}%` } }
+        ]
+      },
+      limit: 10,
+      order: [['first_name', 'ASC']]
+    });
+    res.json({ students });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error searching students' });
+  }
+};
+
+
 exports.showLoginForm = (req, res) => {
   res.render('admin/login', { title: 'Admin Login', layout: false});
 };
@@ -276,8 +300,17 @@ exports.rfidCardsIndex = async (req, res) => {
   }
 };
 
-exports.rfidCardsCreateForm = (req, res) => {
-  res.render('admin/rfid-cards/create', { title: 'Create RFID Card' });
+exports.rfidCardsCreateForm = async (req, res) => {
+  try {
+    const students = await db.User.findAll({
+      where: { role: 'student' },
+      order: [['first_name', 'ASC']]
+    });
+    res.render('admin/rfid-cards/create', { title: 'Create RFID Card', students });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error loading create RFID card form');
+  }
 };
 
 exports.rfidCardsCreate = async (req, res) => {
@@ -305,9 +338,17 @@ exports.rfidCardsCreate = async (req, res) => {
 exports.rfidCardsEditForm = async (req, res) => {
   try {
     const card = await db.RFID_Card.findByPk(req.params.id);
-    res.render('admin/rfid-cards/edit', { card, title: 'Edit RFID Card' });
+    let studentName = '';
+    if (card.user_id) {
+      const student = await db.User.findByPk(card.user_id);
+      if (student) {
+        studentName = `${student.first_name} ${student.last_name} (${student.email})`;
+      }
+    }
+    res.render('admin/rfid-cards/edit', { card, title: 'Edit RFID Card', studentName });
   } catch (err) {
-    res.status(500).send('Error retrieving RFID card');
+    console.error(err);
+    res.status(500).send('Error loading edit RFID card form');
   }
 };
 
@@ -343,21 +384,25 @@ exports.rfidCardsShow = async (req, res) => {
 
 exports.rfidCardsDelete = async (req, res) => {
   try {
-    await db.RFID_Card.destroy({ where: { id: req.params.id } });
-
     const card = await db.RFID_Card.findByPk(req.params.id);
-    
-    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_DELETED', {
-      id: card.id,
-      card_uid: card.card_uid,
-      user_id: card.user_id
-    });
+    if (!card) {
+      console.error('RFID card not found with id:', req.params.id);
+      return res.status(404).send('RFID card not found');
+    }
 
+      await logDataAudit(req.session.admin.id, 'ADMIN_RFID_DELETED', {
+        id: card.id,
+        card_uid: card.card_uid,
+        user_id: card.user_id
+      });
+    await db.RFID_Card.destroy({ where: { id: req.params.id } });
     res.redirect('/admin/rfid-cards');
   } catch (err) {
+    console.error("Error in rfidCardsDelete:", err);
     res.status(500).send('Error deleting RFID card');
   }
 };
+
 
 // ========= Audit Logs =========
 

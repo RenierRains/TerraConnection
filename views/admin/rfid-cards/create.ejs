@@ -4,6 +4,28 @@
   <meta charset="UTF-8">
   <title>Create RFID Card</title>
   <link rel="stylesheet" href="/css/app.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    #student_suggestions {
+      border: 1px solid #ccc;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #fff;
+      position: absolute;
+      width: calc(100% - 20px);
+      z-index: 1000;
+    }
+    .suggestion-item {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .suggestion-item:hover {
+      background-color: #f0f0f0;
+    }
+    .autocomplete-container {
+      position: relative;
+    }
+  </style>
 </head>
 <body>
   <div class="container mt-5">
@@ -13,10 +35,13 @@
         <label for="card_uid">Card UID</label>
         <input type="text" id="card_uid" name="card_uid" class="form-control" required>
       </div>
-      <div class="form-group mt-2">
-        <label for="user_id">User ID</label>
-        <input type="number" id="user_id" name="user_id" class="form-control" required>
+      <div class="form-group mt-2 autocomplete-container">
+        <label for="student_search">Assign to Student</label>
+        <input type="text" id="student_search" class="form-control" placeholder="Type student name or email">
+        <input type="hidden" name="user_id" id="user_id">
+        <div id="student_suggestions"></div>
       </div>
+      
       <div class="form-group mt-2">
         <label for="is_active">Is Active?</label>
         <select id="is_active" name="is_active" class="form-control">
@@ -27,5 +52,41 @@
       <button type="submit" class="btn btn-primary mt-3">Create RFID Card</button>
     </form>
   </div>
+  <%- include('../../partials/footer.ejs') %>
+
+  <script>
+    $(document).ready(function(){
+      $('#student_search').on('input', function(){
+        const query = $(this).val().trim();
+        if(query.length < 3){
+          $('#student_suggestions').empty();
+          return;
+        }
+        $.ajax({
+          url: '/admin/students/search',
+          data: { q: query },
+          success: function(data){
+            const suggestions = data.students;
+            let html = '';
+            suggestions.forEach(function(student){
+              html += `<div class="suggestion-item" data-id="${student.id}">${student.first_name} ${student.last_name} (${student.email})</div>`;
+            });
+            $('#student_suggestions').html(html);
+          },
+          error: function(err){
+            console.error(err);
+          }
+        });
+      });
+    
+      $('#student_suggestions').on('click', '.suggestion-item', function(){
+        const studentId = $(this).data('id');
+        const studentText = $(this).text();
+        $('#user_id').val(studentId);
+        $('#student_search').val(studentText);
+        $('#student_suggestions').empty();
+      });
+    });
+  </script>
 </body>
 </html>

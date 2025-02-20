@@ -42,6 +42,8 @@ router.get('/audit-logs', adminWebController.auditLogs);
 router.get('/guardian-link', adminWebController.guardianLinkForm);
 router.post('/guardian-link', adminWebController.linkGuardianToStudent);
 
+router.get('/students/search', adminWebController.searchStudents);
+
 router.get('/logout', adminWebController.logout);
 
 module.exports = router;
