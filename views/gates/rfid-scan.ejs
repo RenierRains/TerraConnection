@@ -79,8 +79,8 @@
                 var user = response.user;
                 $('#studentInfo').html(
                   '<h2>' + user.first_name + ' ' + user.last_name + '</h2>' +
-                  '<img src="' + user.profile_picture + '" alt="Profile Picture">' +
-                  '<p>ID: ' + user.id + '</p>' +
+                  '<img src="' + user.profile_picture + '" alt="No Picture Uploaded">' +
+                  '<p>ID: ' + user.school_id + '</p>' +
                   '<p>Event: ' + response.event + '</p>'
                 );
                 $('#studentModal').fadeIn(100);
