@@ -39,9 +39,15 @@ router.put('/rfid-cards/:id', adminWebController.rfidCardsEdit);
 router.delete('/rfid-cards/:id', adminWebController.rfidCardsDelete);
 
 router.get('/audit-logs', adminWebController.auditLogs);
-router.get('/guardian-link', adminWebController.guardianLinkForm);
-router.post('/guardian-link', adminWebController.linkGuardianToStudent);
 
+router.get('/guardian-link', adminWebController.guardianLinksIndex);
+router.get('/guardian-link/new', adminWebController.guardianLinkNewForm);
+router.post('/guardian-link', adminWebController.guardianLinkCreate);
+router.get('/guardian-link/:id/edit', adminWebController.guardianLinkEditForm);
+router.put('/guardian-link/:id', adminWebController.guardianLinkUpdate);
+router.delete('/guardian-link/:id', adminWebController.guardianLinkDelete);
+
+router.get('/guardians/search', adminWebController.searchGuardians);
 router.get('/students/search', adminWebController.searchStudents);
 
 router.get('/logout', adminWebController.logout);

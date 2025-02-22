@@ -1,15 +1,20 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
   const Guardian_Student = sequelize.define('Guardian_Student', {
-    //NOTE: no specific fields needed kung match ung migration columns (id, guardian_id, student_id, created_at)
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true
+    }
   }, {
-    tableName: 'Guardian_Students',  
+    tableName: 'Guardian_Students',
     underscored: true,
-    timestamps: false  
+    timestamps: false 
   });
 
   Guardian_Student.associate = function(models) {
-    // no need
+    Guardian_Student.belongsTo(models.User, { foreignKey: 'guardian_id', as: 'guardian' });
+    Guardian_Student.belongsTo(models.User, { foreignKey: 'student_id', as: 'student' });
   };
 
   return Guardian_Student;

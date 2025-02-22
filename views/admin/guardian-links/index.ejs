@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="admin-content">
+    <h2>Guardian Links</h2>
+    <a href="/admin/guardian-link/new" class="btn btn-success">New Guardian Link</a>
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Guardian</th>
+          <th>Student</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% links.forEach(function(link) { %>
+          <tr>
+            <td><%= link.id %></td>
+            <td>
+              <%= link.guardian.first_name %> <%= link.guardian.last_name %><br>
+              (<%= link.guardian.email %>)
+            </td>
+            <td>
+              <%= link.student.first_name %> <%= link.student.last_name %><br>
+              (<%= link.student.email %>)
+            </td>
+            <td>
+              <a href="/admin/guardian-link/<%= link.id %>/edit" class="btn btn-warning btn-sm">Edit</a>
+              <form action="/admin/guardian-link/<%= link.id %>?_method=DELETE" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

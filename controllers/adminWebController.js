@@ -1,10 +1,10 @@
 const db = require('../models');
 const bcrypt = require('bcrypt');
-const { logAuditEvent } = require('./auditLogger');
+const { logAnomalyAudit } = require('./auditLogger');
 const { logDataAudit } = require('./auditLogger');
 const { logUserAudit } = require('./auditLogger');
 const { logSecurityAudit } = require('./auditLogger');
-//TODO: god fix imports on all and test
+//TODO: test all audits
 
 const loginFailures = {};
 
@@ -31,6 +31,29 @@ exports.searchStudents = async (req, res) => {
   }
 };
 
+exports.searchGuardians = async (req, res) => {
+  try {
+    const q = req.query.q || '';
+    const { Op } = require('sequelize');
+    const guardians = await db.User.findAll({
+      where: {
+        role: 'guardian',
+        [Op.or]: [
+          { first_name: { [Op.like]: `%${q}%` } },
+          { last_name: { [Op.like]: `%${q}%` } },
+          { email: { [Op.like]: `%${q}%` } }
+        ]
+      },
+      limit: 10,
+      order: [['first_name', 'ASC']]
+    });
+    res.json({ guardians });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error searching guardians' });
+  }
+};
+
 
 exports.showLoginForm = (req, res) => {
   res.render('admin/login', { title: 'Admin Login', layout: false});
@@ -45,7 +68,7 @@ exports.login = async (req, res) => {
       loginFailures[ip] = (loginFailures[ip] || 0) + 1;
       await logSecurityAudit(req.user ? req.user.userId : null, 'ADMIN_UNAUTHORIZED_ACCESS', { url: req.originalUrl, method: req.method });
       if (loginFailures[ip] > 5) {
-        await logAnomalyAudit(ip, 'MULTIPLE_LOGIN_FAILURES', { ip, count: loginFailures[ip] });
+        await logAnomalyAudit(ip, 'ADMIN_MULTIPLE_LOGIN_FAILURES', { ip, count: loginFailures[ip] });
       }
       return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login', layout: false});
     }
@@ -424,11 +447,36 @@ exports.auditLogs = async (req, res) => {
 
 // ========= Guardian Linking =========
 
-exports.guardianLinkForm = (req, res) => {
-  res.render('admin/guardian-link', { title: 'Link Guardian to Student' });
+exports.guardianLinksIndex = async (req, res) => {
+  try {
+    const links = await db.Guardian_Student.findAll({
+      include: [
+        { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
+        { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
+      ],
+
+      order: [['guardian_id', 'ASC']]
+    });
+    res.render('admin/guardian-links/index', { title: 'Manage Guardian Links', links });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error retrieving guardian links');
+  }
 };
 
-exports.linkGuardianToStudent = async (req, res) => {
+
+exports.guardianLinkNewForm = (req, res) => {
+  res.render('admin/guardian-links/form', { 
+    title: 'Create Guardian Link', 
+    action: '/admin/guardian-link', 
+    submitLabel: 'Create Link', 
+    method: 'POST',
+    guardian: null,
+    student: null
+  });
+};
+
+exports.guardianLinkCreate = async (req, res) => {
   try {
     const { guardianId, studentId } = req.body;
     const guardian = await db.User.findByPk(guardianId);
@@ -439,9 +487,127 @@ exports.linkGuardianToStudent = async (req, res) => {
     if (!student || student.role !== 'student') {
       return res.status(400).send('Invalid student');
     }
-    await guardian.addStudentsMonitored(student);
+
+    const link = await db.Guardian_Student.create({
+      guardian_id: guardianId,
+      student_id: studentId,
+      created_at: new Date()
+    });
+
+    await logDataAudit(
+      req.session.admin.id,
+      'ADMIN_GUARDIAN_LINK_CREATED',
+      {
+        linkId: link.id,
+        guardian: {
+          id: guardian.id,
+          first_name: guardian.first_name,
+          last_name: guardian.last_name,
+          email: guardian.email
+        },
+        student: {
+          id: student.id,
+          first_name: student.first_name,
+          last_name: student.last_name,
+          email: student.email
+        }
+      }
+    );
     res.redirect('/admin/guardian-link');
   } catch (err) {
+    console.error(err);
     res.status(500).send('Error linking guardian to student');
+  }
+};
+
+exports.guardianLinkEditForm = async (req, res) => {
+  try {
+    const link = await db.Guardian_Student.findByPk(req.params.id, {
+      include: [
+        { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
+        { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
+      ]
+    });
+    if (!link) {
+      return res.status(404).send('Guardian link not found');
+    }
+    res.render('admin/guardian-links/form', {
+      title: 'Edit Guardian Link',
+      action: '/admin/guardian-link/' + link.id,
+      submitLabel: 'Update Link',
+      method: 'PUT',
+      guardian: link.guardian,
+      student: link.student
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error loading guardian link for editing');
+  }
+};
+
+exports.guardianLinkUpdate = async (req, res) => {
+  try {
+    const originalLink = await db.Guardian_Student.findByPk(req.params.id, {
+      include: [
+        { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
+        { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
+      ]
+    });
+    if (!originalLink) {
+      return res.status(404).send('Guardian link not found');
+    }
+    const { guardianId, studentId } = req.body;
+
+    await db.Guardian_Student.update(
+      { guardian_id: guardianId, student_id: studentId },
+      { where: { id: req.params.id } }
+    );
+
+    const updatedLink = await db.Guardian_Student.findByPk(req.params.id, {
+      include: [
+        { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
+        { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
+      ]
+    });
+
+    await logDataEvent(
+      req.session.admin.id,
+      'ADMIN_GUARDIAN_LINK_UPDATED',
+      {
+        linkId: req.params.id,
+        original: originalLink.toJSON(),
+        updated: updatedLink.toJSON()
+      }
+    );
+    res.redirect('/admin/guardian-link');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error updating guardian link');
+  }
+};
+
+exports.guardianLinkDelete = async (req, res) => {
+  try {
+    const link = await db.Guardian_Student.findByPk(req.params.id, {
+      include: [
+        { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
+        { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
+      ]
+    });
+    if (!link) {
+      return res.status(404).send('Guardian link not found');
+    }
+
+    await logDataAudit(
+      req.session.admin.id,
+      'ADMIN_GUARDIAN_LINK_DELETED',
+      { linkId: link.id, details: link.toJSON() }
+    );
+
+    await db.Guardian_Student.destroy({ where: { id: req.params.id } });
+    res.redirect('/admin/guardian-link');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error deleting guardian link');
   }
 };
