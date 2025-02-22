@@ -11,6 +11,7 @@ const auditMiddleware = require('./middleware/auditMiddleware');
 const adminWebRoutes = require('./routes/adminWeb');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const scanRoutes = require('./routes/gates');
 const rfidRoutes = require('./routes/rfid');
 const gpsRoutes = require('./routes/gps');
 const studentRoutes = require('./routes/student');
@@ -40,11 +41,14 @@ app.use(session({
   saveUninitialized: false
 }));
 
+app.set('trust proxy', true);
+
 // use mount
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/admin', adminWebRoutes);
 app.use('/api/rfid', rfidRoutes);
+app.use('/scangate', scanRoutes);
 app.use('/api/gps', gpsRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/professor', professorRoutes);

@@ -6,6 +6,8 @@ const { logUserAudit } = require('./auditLogger');
 const { logSecurityAudit } = require('./auditLogger');
 //TODO: god fix imports on all and test
 
+const loginFailures = {};
+
 exports.searchStudents = async (req, res) => {
   try {
     const q = req.query.q || '';
@@ -36,10 +38,15 @@ exports.showLoginForm = (req, res) => {
 
 exports.login = async (req, res) => {
   try {
+    const ip = req.ip;
     const { email, password } = req.body;
     const admin = await db.User.findOne({ where: { email, role: 'admin' } });
     if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
-      await logSecurityAudit(req.user ? req.user.userId : null, 'UNAUTHORIZED_ACCESS', { url: req.originalUrl, method: req.method });
+      loginFailures[ip] = (loginFailures[ip] || 0) + 1;
+      await logSecurityAudit(req.user ? req.user.userId : null, 'ADMIN_UNAUTHORIZED_ACCESS', { url: req.originalUrl, method: req.method });
+      if (loginFailures[ip] > 5) {
+        await logAnomalyAudit(ip, 'MULTIPLE_LOGIN_FAILURES', { ip, count: loginFailures[ip] });
+      }
       return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login', layout: false});
     }
     req.session.admin = admin;
