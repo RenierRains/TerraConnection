@@ -31,6 +31,29 @@ exports.searchStudents = async (req, res) => {
   }
 };
 
+exports.searchProfessors = async (req, res) => {
+  try {
+    const q = req.query.q || '';
+    const { Op } = require('sequelize');
+    const professors = await db.User.findAll({
+      where: {
+        role: 'professor',
+        [Op.or]: [
+          { first_name: { [Op.like]: `%${q}%` } },
+          { last_name: { [Op.like]: `%${q}%` } },
+          { email: { [Op.like]: `%${q}%` } }
+        ]
+      },
+      limit: 10,
+      order: [['first_name', 'ASC']]
+    });
+    res.json({ professors });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error searching professors' });
+  }
+};
+
 exports.searchGuardians = async (req, res) => {
   try {
     const q = req.query.q || '';
@@ -251,7 +274,13 @@ exports.classesCreate = async (req, res) => {
 
 exports.classesEditForm = async (req, res) => {
   try {
-    const cls = await db.Class.findByPk(req.params.id);
+    const cls = await db.Class.findByPk(req.params.id, {
+      include: [
+        { model: db.User, as: 'professors', attributes: ['id', 'first_name', 'last_name', 'email'] },
+        { model: db.User, as: 'students', attributes: ['id', 'first_name', 'last_name', 'email'] }
+      ]
+    });
+    if (!cls) return res.status(404).send('Class not found');
     res.render('admin/classes/edit', { cls, title: 'Edit Class' });
   } catch (err) {
     res.status(500).send('Error retrieving class');
@@ -260,26 +289,22 @@ exports.classesEditForm = async (req, res) => {
 
 exports.classesEdit = async (req, res) => {
   try {
-    const original = await db.Class.findByPk(req.params.id);
-    if (!original) {
-      return res.status(404).send('Class not found');
-    }
-
-    const { class_code, class_name, course, year, section, room, start_time, end_time, schedule, professorIds } = req.body;
-  
+    const { class_code, class_name, course, year, section, room, start_time, end_time, schedule, professorIds, studentIds } = req.body;
     await db.Class.update(
       { class_code, class_name, course, year, section, room, start_time, end_time, schedule },
       { where: { id: req.params.id } }
     );
-    
-    const updated = await db.Class.findByPk(req.params.id);
-
+    const cls = await db.Class.findByPk(req.params.id);
     if (professorIds) {
-      const ids = professorIds.split(',').map(x => parseInt(x.trim()));
-      await updated.setProfessors(ids);
+      const profIdsArray = professorIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      await cls.setProfessors(profIdsArray);
+    }
+    if (studentIds) {
+      const studIdsArray = studentIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      await cls.setStudents(studIdsArray);
     }
     
-    await logDataAudit(req.session.admin.id, 'CLASS_UPDATED', {
+    await logDataAudit(req.session.admin.id, 'ADMIN_CLASS_UPDATED', {
       id: req.params.id,
       original: original.toJSON(),
       updated: updated.toJSON()

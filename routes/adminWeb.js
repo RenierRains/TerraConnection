@@ -47,8 +47,9 @@ router.get('/guardian-link/:id/edit', adminWebController.guardianLinkEditForm);
 router.put('/guardian-link/:id', adminWebController.guardianLinkUpdate);
 router.delete('/guardian-link/:id', adminWebController.guardianLinkDelete);
 
-router.get('/guardians/search', adminWebController.searchGuardians);
 router.get('/students/search', adminWebController.searchStudents);
+router.get('/professors/search', adminWebController.searchProfessors);
+router.get('/guardians/search', adminWebController.searchGuardians);
 
 router.get('/logout', adminWebController.logout);
 
