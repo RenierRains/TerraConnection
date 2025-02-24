@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .import-container {
+      max-width: 500px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .import-container h2 {
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-content">
+    <div class="import-container">
+      <h2>Import Classes</h2>
+      <p>Select a CSV or Excel (.xlsx) file to import class data. The first row should contain headers matching the fields: <strong>class_code, class_name, course, year, section, room, start_time, end_time, schedule</strong>.</p>
+      <form action="/admin/classes/import" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+          <input type="file" name="importFile" class="form-control" accept=".csv,.xlsx" required>
+        </div>
+        <button type="submit" class="btn btn-primary mt-3">Import Classes</button>
+        <a href="/admin/classes" class="btn btn-secondary mt-3">Cancel</a>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminWebController = require('../controllers/adminWebController');
+const upload = require('../middleware/upload');
 
 router.get('/login', adminWebController.showLoginForm);
 router.post('/login', adminWebController.login);
@@ -13,6 +14,12 @@ router.use((req, res, next) => {
 });
 
 // protected test
+
+router.get('/users/import', (req, res) => {
+  res.render('admin/users/import', { title: 'Import Users' });
+});
+router.post('/users/import', upload.single('importFile'), adminWebController.importUsers);
+
 router.get('/dashboard', adminWebController.dashboard);
 router.get('/users', adminWebController.usersIndex);
 router.get('/users/create', adminWebController.usersCreateForm);
@@ -21,6 +28,11 @@ router.get('/users/:id', adminWebController.usersShow);
 router.get('/users/:id/edit', adminWebController.usersEditForm);
 router.put('/users/:id', adminWebController.usersEdit);
 router.delete('/users/:id', adminWebController.usersDelete);
+
+router.get('/classes/import', (req, res) => {
+  res.render('admin/classes/import', { title: 'Import Classes' });
+});
+router.post('/classes/import', upload.single('importFile'), adminWebController.importClasses);
 
 router.get('/classes', adminWebController.classesIndex);
 router.get('/classes/create', adminWebController.classesCreateForm);
@@ -50,6 +62,8 @@ router.delete('/guardian-link/:id', adminWebController.guardianLinkDelete);
 router.get('/students/search', adminWebController.searchStudents);
 router.get('/professors/search', adminWebController.searchProfessors);
 router.get('/guardians/search', adminWebController.searchGuardians);
+
+
 
 router.get('/logout', adminWebController.logout);
 

@@ -1,10 +1,15 @@
 const db = require('../models');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const { logAnomalyAudit } = require('./auditLogger');
 const { logDataAudit } = require('./auditLogger');
 const { logUserAudit } = require('./auditLogger');
 const { logSecurityAudit } = require('./auditLogger');
-//TODO: test all audits
+
+const fs = require('fs');
+const path = require('path');
+const csv = require('csvtojson');
+const ExcelJS = require('exceljs');
 
 const loginFailures = {};
 
@@ -289,33 +294,50 @@ exports.classesEditForm = async (req, res) => {
 
 exports.classesEdit = async (req, res) => {
   try {
-    const { class_code, class_name, course, year, section, room, start_time, end_time, schedule, professorIds, studentIds } = req.body;
+    const {
+      class_code, class_name, course, year, section, room, start_time, end_time, schedule, professorIds, studentIds,
+    } = req.body;
+
+    const original = await db.Class.findByPk(req.params.id);
+
     await db.Class.update(
-      { class_code, class_name, course, year, section, room, start_time, end_time, schedule },
+      {
+        class_code, class_name, course, year, section, room, start_time, end_time, schedule,
+      },
       { where: { id: req.params.id } }
     );
-    const cls = await db.Class.findByPk(req.params.id);
+
+    const updated = await db.Class.findByPk(req.params.id);
+
     if (professorIds) {
-      const profIdsArray = professorIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-      await cls.setProfessors(profIdsArray);
+      const profIdsArray = professorIds
+        .split(',')
+        .map((id) => parseInt(id.trim()))
+        .filter((id) => !isNaN(id));
+      await updated.setProfessors(profIdsArray);
     }
+
     if (studentIds) {
-      const studIdsArray = studentIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-      await cls.setStudents(studIdsArray);
+      const studIdsArray = studentIds
+        .split(',')
+        .map((id) => parseInt(id.trim()))
+        .filter((id) => !isNaN(id));
+      await updated.setStudents(studIdsArray);
     }
-    
+
     await logDataAudit(req.session.admin.id, 'ADMIN_CLASS_UPDATED', {
       id: req.params.id,
       original: original.toJSON(),
-      updated: updated.toJSON()
+      updated: updated.toJSON(),
     });
-    
+
     res.redirect('/admin/classes');
   } catch (err) {
     console.error(err);
     res.status(500).send('Error updating class');
   }
 };
+
 
 
 exports.classesShow = async (req, res) => {
@@ -634,5 +656,134 @@ exports.guardianLinkDelete = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send('Error deleting guardian link');
+  }
+};
+
+
+// Import
+
+exports.importClasses = async (req, res) => {
+  try {
+    if (!req.file) {
+      console.error('No file uploaded.');
+      return res.status(400).send('No file uploaded.');
+    }
+
+    const filePath = req.file.path;
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    console.log('Uploaded file path:', filePath, 'Extension:', ext);
+    let classesData = [];
+
+    if (ext === '.csv') {
+      classesData = await csv({
+        headers: ['class_code','class_name','course','year','section','room','start_time','end_time','schedule']
+      }).fromFile(filePath);
+    } else if (ext === '.xlsx') {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile(filePath);
+      const worksheet = workbook.worksheets[0];
+      //class_code, class_name, course, year, section, room, start_time, end_time, schedule
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const rowValues = row.values;
+        classesData.push({
+          class_code: rowValues[1],
+          class_name: rowValues[2],
+          course: rowValues[3],
+          year: rowValues[4],
+          section: rowValues[5],
+          room: rowValues[6],
+          start_time: rowValues[7],
+          end_time: rowValues[8],
+          schedule: rowValues[9]
+        });
+      });
+      console.log('Parsed Excel data:', classesData);
+    } else {
+      console.error('Unsupported file type:', ext);
+      return res.status(400).send('Unsupported file type.');
+    }
+
+    fs.unlink(filePath, (err) => {
+      if (err) console.error('Failed to delete file:', err);
+      else console.log('Temporary file deleted:', filePath);
+    });
+
+    if (classesData.length === 0) {
+      console.error('No class data parsed from file.');
+      return res.status(400).send('No class data found in file.');
+    }
+
+    await db.Class.bulkCreate(classesData);
+    console.log('Classes successfully imported:', classesData.length);
+    res.redirect('/admin/classes');
+  } catch (err) {
+    console.error('Error importing classes:', err);
+    res.status(500).send('Error importing classes');
+  }
+};
+
+exports.importUsers = async (req, res) => {
+  try {
+    if (!req.file) {
+      console.error('No file uploaded.');
+      return res.status(400).send('No file uploaded.');
+    }
+
+    const filePath = req.file.path;
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    console.log('Uploaded file path:', filePath, 'Extension:', ext);
+    let usersData = [];
+
+    if (ext === '.csv') {
+      usersData = await csv({
+        headers: ['first_name', 'last_name', 'email', 'role', 'school_id']
+      }).fromFile(filePath);
+      console.log('Parsed CSV data:', usersData);
+    } else if (ext === '.xlsx') {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile(filePath);
+      const worksheet = workbook.worksheets[0];
+
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return; 
+        const rowValues = row.values; 
+        usersData.push({
+          first_name: rowValues[1],
+          last_name: rowValues[2],
+          email: rowValues[3],
+          role: rowValues[4],
+          school_id: rowValues[5] || null
+        });
+      });
+      console.log('Parsed Excel data:', usersData);
+    } else {
+      console.error('Unsupported file type:', ext);
+      return res.status(400).send('Unsupported file type.');
+    }
+
+    fs.unlink(filePath, (err) => {
+      if (err) console.error('Failed to delete file:', err);
+      else console.log('Temporary file deleted:', filePath);
+    });
+
+    if (usersData.length === 0) {
+      console.error('No user data parsed from file.');
+      return res.status(400).send('No user data found in file.');
+    }
+
+    for (let user of usersData) {
+      const randomPassword = crypto.randomBytes(8).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      user.password_hash = hashedPassword;
+    }
+
+
+    await db.User.bulkCreate(usersData);
+    console.log('Users successfully imported:', usersData.length);
+    res.redirect('/admin/users');
+  } catch (err) {
+    console.error('Error importing users:', err);
+    res.status(500).send('Error importing users');
   }
 };
