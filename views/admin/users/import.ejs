@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Import Users</title>
+  <title><%= title %></title>
   <link rel="stylesheet" href="/css/app.css">
   <style>
     .import-container {
@@ -19,18 +19,16 @@
   </style>
 </head>
 <body>
-  <div class="admin-content">
-    <div class="import-container">
-      <h2>Import Users</h2>
-      <p>Select a CSV or Excel (.xlsx) file to import user data. The first row should contain headers matching the fields: <strong>first_name, last_name, email, role, school_id</strong>.</p>
-      <form action="/admin/users/import" method="POST" enctype="multipart/form-data">
-        <div class="form-group">
-          <input type="file" name="importFile" class="form-control" accept=".csv,.xlsx" required>
-        </div>
-        <button type="submit" class="btn btn-primary mt-3">Import Users</button>
-        <a href="/admin/users" class="btn btn-secondary mt-3">Cancel</a>
-      </form>
-    </div>
+  <div class="import-container">
+    <h2>Import Users</h2>
+    <p>Select a CSV or Excel (.xlsx) file to import user data. The first row should contain headers matching the fields: <strong>first_name, last_name, email, role, school_id</strong>.</p>
+    <form action="/admin/users/import" method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <input type="file" name="importFile" class="form-control" accept=".csv,.xlsx" required>
+      </div>
+      <button type="submit" class="btn btn-primary mt-3">Import Users</button>
+      <a href="/admin/users" class="btn btn-secondary mt-3">Cancel</a>
+    </form>
   </div>
 </body>
 </html>

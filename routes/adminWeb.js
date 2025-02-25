@@ -16,7 +16,10 @@ router.use((req, res, next) => {
 // protected test
 
 router.get('/users/import', (req, res) => {
-  res.render('admin/users/import', { title: 'Import Users' });
+  res.render('admin/users/import', { 
+    title: 'Import Users',
+    admin: req.session.admin
+  });
 });
 router.post('/users/import', upload.single('importFile'), adminWebController.importUsers);
 
@@ -30,7 +33,10 @@ router.put('/users/:id', adminWebController.usersEdit);
 router.delete('/users/:id', adminWebController.usersDelete);
 
 router.get('/classes/import', (req, res) => {
-  res.render('admin/classes/import', { title: 'Import Classes' });
+  res.render('admin/classes/import', { 
+    title: 'Import Classes',
+    admin: req.session.admin
+  });
 });
 router.post('/classes/import', upload.single('importFile'), adminWebController.importClasses);
 

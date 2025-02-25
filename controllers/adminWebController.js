@@ -29,7 +29,7 @@ exports.searchStudents = async (req, res) => {
       limit: 10,
       order: [['first_name', 'ASC']]
     });
-    res.json({ students });
+    res.json({ students, admin: req.session.admin });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error searching students' });
@@ -52,7 +52,7 @@ exports.searchProfessors = async (req, res) => {
       limit: 10,
       order: [['first_name', 'ASC']]
     });
-    res.json({ professors });
+    res.json({ professors, admin: req.session.admin });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error searching professors' });
@@ -75,16 +75,15 @@ exports.searchGuardians = async (req, res) => {
       limit: 10,
       order: [['first_name', 'ASC']]
     });
-    res.json({ guardians });
+    res.json({ guardians, admin: req.session.admin });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error searching guardians' });
   }
 };
 
-
 exports.showLoginForm = (req, res) => {
-  res.render('admin/login', { title: 'Admin Login', layout: false});
+  res.render('admin/login', { title: 'Admin Login', layout: false });
 };
 
 exports.login = async (req, res) => {
@@ -98,10 +97,9 @@ exports.login = async (req, res) => {
       if (loginFailures[ip] > 5) {
         await logAnomalyAudit(ip, 'ADMIN_MULTIPLE_LOGIN_FAILURES', { ip, count: loginFailures[ip] });
       }
-      return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login', layout: false});
+      return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login', layout: false });
     }
     req.session.admin = admin;
-
     await logUserAudit(admin.id, 'ADMIN_LOGIN_SUCCESS', { email });
     res.redirect('/admin/dashboard');
   } catch (err) {
@@ -129,21 +127,21 @@ exports.dashboard = (req, res) => {
 exports.usersIndex = async (req, res) => {
   try {
     const users = await db.User.findAll({ order: [['id', 'ASC']] });
-    res.render('admin/users/index', { users, title: 'Manage Users' });
+    res.render('admin/users/index', { users, title: 'Manage Users', admin: req.session.admin });
   } catch (err) {
     res.status(500).send('Error retrieving users');
   }
 };
 
 exports.usersCreateForm = (req, res) => {
-  res.render('admin/users/create', { title: 'Create User' });
+  res.render('admin/users/create', { title: 'Create User', admin: req.session.admin });
 };
 
 exports.usersCreate = async (req, res) => {
   try {
     const { first_name, last_name, email, role, school_id, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
-    await db.User.create({
+    const newUser = await db.User.create({
       first_name,
       last_name,
       email,
@@ -169,7 +167,7 @@ exports.usersCreate = async (req, res) => {
 exports.usersEditForm = async (req, res) => {
   try {
     const user = await db.User.findByPk(req.params.id);
-    res.render('admin/users/edit', { user, title: 'Edit User' });
+    res.render('admin/users/edit', { user, title: 'Edit User', admin: req.session.admin });
   } catch (err) {
     res.status(500).send('Error retrieving user');
   }
@@ -200,7 +198,7 @@ exports.usersEdit = async (req, res) => {
 exports.usersShow = async (req, res) => {
   try {
     const user = await db.User.findByPk(req.params.id);
-    res.render('admin/users/show', { user, title: 'User Details' });
+    res.render('admin/users/show', { user, title: 'User Details', admin: req.session.admin });
   } catch (err) {
     res.status(500).send('Error retrieving user');
   }
@@ -208,7 +206,6 @@ exports.usersShow = async (req, res) => {
 
 exports.usersDelete = async (req, res) => {
   try {
-
     const userToDelete = await db.User.findByPk(req.params.id);
 
     await logDataAudit(req.params.id, 'USER_DELETED', {
@@ -230,14 +227,14 @@ exports.usersDelete = async (req, res) => {
 exports.classesIndex = async (req, res) => {
   try {
     const classes = await db.Class.findAll({ order: [['id', 'ASC']] });
-    res.render('admin/classes/index', { classes, title: 'Manage Classes' });
+    res.render('admin/classes/index', { classes, title: 'Manage Classes', admin: req.session.admin });
   } catch (err) {
     res.status(500).send('Error retrieving classes');
   }
 };
 
 exports.classesCreateForm = (req, res) => {
-  res.render('admin/classes/create', { title: 'Create Class' });
+  res.render('admin/classes/create', { title: 'Create Class', admin: req.session.admin });
 };
 
 exports.classesCreate = async (req, res) => {
@@ -286,7 +283,7 @@ exports.classesEditForm = async (req, res) => {
       ]
     });
     if (!cls) return res.status(404).send('Class not found');
-    res.render('admin/classes/edit', { cls, title: 'Edit Class' });
+    res.render('admin/classes/edit', { cls, title: 'Edit Class', admin: req.session.admin });
   } catch (err) {
     res.status(500).send('Error retrieving class');
   }
@@ -338,12 +335,10 @@ exports.classesEdit = async (req, res) => {
   }
 };
 
-
-
 exports.classesShow = async (req, res) => {
   try {
     const cls = await db.Class.findByPk(req.params.id);
-    res.render('admin/classes/show', { cls, title: 'Class Details' });
+    res.render('admin/classes/show', { cls, title: 'Class Details', admin: req.session.admin });
   } catch (err) {
     res.status(500).send('Error retrieving class');
   }
@@ -371,7 +366,7 @@ exports.classesDelete = async (req, res) => {
 exports.rfidCardsIndex = async (req, res) => {
   try {
     const rfidCards = await db.RFID_Card.findAll({ order: [['id', 'ASC']] });
-    res.render('admin/rfid-cards/index', { rfidCards, title: 'Manage RFID Cards' });
+    res.render('admin/rfid-cards/index', { rfidCards, title: 'Manage RFID Cards', admin: req.session.admin });
   } catch (err) {
     res.status(500).send('Error retrieving RFID cards');
   }
@@ -383,7 +378,7 @@ exports.rfidCardsCreateForm = async (req, res) => {
       where: { role: 'student' },
       order: [['first_name', 'ASC']]
     });
-    res.render('admin/rfid-cards/create', { title: 'Create RFID Card', students });
+    res.render('admin/rfid-cards/create', { title: 'Create RFID Card', students, admin: req.session.admin });
   } catch (err) {
     console.error(err);
     res.status(500).send('Error loading create RFID card form');
@@ -422,7 +417,7 @@ exports.rfidCardsEditForm = async (req, res) => {
         studentName = `${student.first_name} ${student.last_name} (${student.email})`;
       }
     }
-    res.render('admin/rfid-cards/edit', { card, title: 'Edit RFID Card', studentName });
+    res.render('admin/rfid-cards/edit', { card, title: 'Edit RFID Card', studentName, admin: req.session.admin });
   } catch (err) {
     console.error(err);
     res.status(500).send('Error loading edit RFID card form');
@@ -453,7 +448,7 @@ exports.rfidCardsEdit = async (req, res) => {
 exports.rfidCardsShow = async (req, res) => {
   try {
     const card = await db.RFID_Card.findByPk(req.params.id);
-    res.render('admin/rfid-cards/show', { card, title: 'RFID Card Details' });
+    res.render('admin/rfid-cards/show', { card, title: 'RFID Card Details', admin: req.session.admin });
   } catch (err) {
     res.status(500).send('Error retrieving RFID card');
   }
@@ -467,11 +462,11 @@ exports.rfidCardsDelete = async (req, res) => {
       return res.status(404).send('RFID card not found');
     }
 
-      await logDataAudit(req.session.admin.id, 'ADMIN_RFID_DELETED', {
-        id: card.id,
-        card_uid: card.card_uid,
-        user_id: card.user_id
-      });
+    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_DELETED', {
+      id: card.id,
+      card_uid: card.card_uid,
+      user_id: card.user_id
+    });
     await db.RFID_Card.destroy({ where: { id: req.params.id } });
     res.redirect('/admin/rfid-cards');
   } catch (err) {
@@ -486,7 +481,7 @@ exports.rfidCardsDelete = async (req, res) => {
 exports.auditLogs = async (req, res) => {
   try {
     const logs = await db.Audit_Log.findAll({ order: [['timestamp', 'DESC']] });
-    res.render('admin/audit-logs', { logs, title: 'Audit Logs' });
+    res.render('admin/audit-logs', { logs, title: 'Audit Logs', admin: req.session.admin });
   } catch (err) {
     res.status(500).send('Error retrieving audit logs');
   }
@@ -501,16 +496,14 @@ exports.guardianLinksIndex = async (req, res) => {
         { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
         { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
       ],
-
       order: [['guardian_id', 'ASC']]
     });
-    res.render('admin/guardian-links/index', { title: 'Manage Guardian Links', links });
+    res.render('admin/guardian-links/index', { title: 'Manage Guardian Links', links, admin: req.session.admin });
   } catch (err) {
     console.error(err);
     res.status(500).send('Error retrieving guardian links');
   }
 };
-
 
 exports.guardianLinkNewForm = (req, res) => {
   res.render('admin/guardian-links/form', { 
@@ -519,7 +512,8 @@ exports.guardianLinkNewForm = (req, res) => {
     submitLabel: 'Create Link', 
     method: 'POST',
     guardian: null,
-    student: null
+    student: null,
+    admin: req.session.admin
   });
 };
 
@@ -584,7 +578,8 @@ exports.guardianLinkEditForm = async (req, res) => {
       submitLabel: 'Update Link',
       method: 'PUT',
       guardian: link.guardian,
-      student: link.student
+      student: link.student,
+      admin: req.session.admin
     });
   } catch (err) {
     console.error(err);
@@ -682,7 +677,6 @@ exports.importClasses = async (req, res) => {
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.readFile(filePath);
       const worksheet = workbook.worksheets[0];
-      //class_code, class_name, course, year, section, room, start_time, end_time, schedule
       worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
         if (rowNumber === 1) return;
         const rowValues = row.values;
@@ -716,10 +710,18 @@ exports.importClasses = async (req, res) => {
 
     await db.Class.bulkCreate(classesData);
     console.log('Classes successfully imported:', classesData.length);
-    res.redirect('/admin/classes');
+    res.render('admin/classes/index', { 
+      title: 'Classes Imported', 
+      message: 'Classes successfully imported', 
+      admin: req.session.admin 
+    });
   } catch (err) {
     console.error('Error importing classes:', err);
-    res.status(500).send('Error importing classes');
+    res.render('admin/classes/index', { 
+      title: 'Import Error', 
+      error: 'Error importing classes', 
+      admin: req.session.admin 
+    });
   }
 };
 
@@ -778,12 +780,25 @@ exports.importUsers = async (req, res) => {
       user.password_hash = hashedPassword;
     }
 
-
     await db.User.bulkCreate(usersData);
     console.log('Users successfully imported:', usersData.length);
-    res.redirect('/admin/users');
+    
+    const users = await db.User.findAll({ order: [['id', 'ASC']] });
+    
+    res.render('admin/users/index', { 
+      title: 'Users Imported', 
+      message: 'Users successfully imported', 
+      admin: req.session.admin,
+      users: users
+    });
   } catch (err) {
     console.error('Error importing users:', err);
-    res.status(500).send('Error importing users');
+    const users = await db.User.findAll({ order: [['id', 'ASC']] });
+    res.render('admin/users/index', { 
+      title: 'Import Error', 
+      error: 'Error importing users', 
+      admin: req.session.admin,
+      users: users
+    });
   }
 };

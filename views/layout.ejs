@@ -2,44 +2,63 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TerraConnection - Admin Panel</title>
+  <!-- Load FontAwesome via CSS instead of JS kit -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="/css/app.css">
 </head>
-<body>
-  <%- include('partials/header.ejs') %>
-  
-  <div class="admin-body-container">
-    <div class="admin-sidebar">
-      <ul class="nav flex-column">
-        <li class="nav-item">
-          <a class="nav-link" href="/admin/dashboard">Dashboard</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/admin/users">Manage Users</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/admin/classes">Manage Classes</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/admin/rfid-cards">Manage RFID Cards</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/admin/audit-logs">Audit Logs</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/admin/guardian-link">Guardian Link</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="/admin/logout">Logout</a>
-        </li>
-      </ul>
+<body class="admin-panel">
+  <div class="dashboard">
+    <%- include('partials/header.ejs') %>
+    
+    <div class="admin-body-container">
+      <div class="admin-sidebar">
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/dashboard">
+              <i class="fa-solid fa-home"></i> Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/users">
+              <i class="fa-solid fa-users"></i> Manage Users
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/classes">
+              <i class="fa-solid fa-chalkboard"></i> Manage Classes
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/rfid-cards">
+              <i class="fa-solid fa-id-card"></i> Manage RFID Cards
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/audit-logs">
+              <i class="fa-solid fa-clipboard-list"></i> Audit Logs
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/guardian-link">
+              <i class="fa-solid fa-link"></i> Guardian Link
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/logout">
+              <i class="fa-solid fa-sign-out-alt"></i> Logout
+            </a>
+          </li>
+        </ul>
+      </div>
+      
+      <div class="admin-content">
+        <%- body %>
+      </div>
     </div>
     
-    <div class="admin-content">
-      <%- body %>
-    </div>
+    <%- include('partials/footer.ejs') %>
   </div>
-  
-  <%- include('partials/footer.ejs') %>
 </body>
 </html>
