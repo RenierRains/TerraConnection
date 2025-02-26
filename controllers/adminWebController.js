@@ -126,8 +126,26 @@ exports.dashboard = (req, res) => {
 
 exports.usersIndex = async (req, res) => {
   try {
-    const users = await db.User.findAll({ order: [['id', 'ASC']] });
-    res.render('admin/users/index', { users, title: 'Manage Users', admin: req.session.admin });
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10; 
+    const offset = (page - 1) * limit;
+
+    const { count, rows: users } = await db.User.findAndCountAll({
+      order: [['id', 'ASC']],
+      limit: limit,
+      offset: offset
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    res.render('admin/users/index', { 
+      users, 
+      title: 'Manage Users', 
+      admin: req.session.admin,
+      currentPage: page,
+      totalPages: totalPages,
+      totalUsers: count
+    });
   } catch (err) {
     res.status(500).send('Error retrieving users');
   }
