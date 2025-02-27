@@ -47,7 +47,6 @@
       </tbody>
     </table>
 
-    <!-- Pagination -->
     <% if (totalPages > 1) { %>
       <nav aria-label="Page navigation" class="mt-4">
         <ul class="pagination justify-content-center">
@@ -55,11 +54,41 @@
             <a class="page-link" href="/admin/users?page=<%= currentPage - 1 %>" <%= currentPage === 1 ? 'tabindex="-1" aria-disabled="true"' : '' %>>Previous</a>
           </li>
           
-          <% for(let i = 1; i <= totalPages; i++) { %>
-            <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-              <a class="page-link" href="/admin/users?page=<%= i %>"><%= i %></a>
-            </li>
-          <% } %>
+          <% 
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+            
+            if (endPage - startPage < 4) {
+              startPage = Math.max(1, endPage - 4);
+            }
+
+            if (startPage > 1) { %>
+              <li class="page-item">
+                <a class="page-link" href="/admin/users?page=1">1</a>
+              </li>
+              <% if (startPage > 2) { %>
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              <% } %>
+            <% } %>
+
+            <% for(let i = startPage; i <= endPage; i++) { %>
+              <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+                <a class="page-link" href="/admin/users?page=<%= i %>"><%= i %></a>
+              </li>
+            <% } %>
+
+            <% if (endPage < totalPages) { %>
+              <% if (endPage < totalPages - 1) { %>
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              <% } %>
+              <li class="page-item">
+                <a class="page-link" href="/admin/users?page=<%= totalPages %>"><%= totalPages %></a>
+              </li>
+            <% } %>
           
           <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
             <a class="page-link" href="/admin/users?page=<%= currentPage + 1 %>" <%= currentPage === totalPages ? 'tabindex="-1" aria-disabled="true"' : '' %>>Next</a>

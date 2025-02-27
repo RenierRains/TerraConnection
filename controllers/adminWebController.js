@@ -244,8 +244,26 @@ exports.usersDelete = async (req, res) => {
 
 exports.classesIndex = async (req, res) => {
   try {
-    const classes = await db.Class.findAll({ order: [['id', 'ASC']] });
-    res.render('admin/classes/index', { classes, title: 'Manage Classes', admin: req.session.admin });
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    const { count, rows: classes } = await db.Class.findAndCountAll({
+      order: [['id', 'ASC']],
+      limit: limit,
+      offset: offset
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    res.render('admin/classes/index', { 
+      classes, 
+      title: 'Manage Classes', 
+      admin: req.session.admin,
+      currentPage: page,
+      totalPages: totalPages,
+      totalClasses: count
+    });
   } catch (err) {
     res.status(500).send('Error retrieving classes');
   }
@@ -498,8 +516,26 @@ exports.rfidCardsDelete = async (req, res) => {
 
 exports.auditLogs = async (req, res) => {
   try {
-    const logs = await db.Audit_Log.findAll({ order: [['timestamp', 'DESC']] });
-    res.render('admin/audit-logs', { logs, title: 'Audit Logs', admin: req.session.admin });
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    const { count, rows: logs } = await db.Audit_Log.findAndCountAll({
+      order: [['timestamp', 'DESC']],
+      limit: limit,
+      offset: offset
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    res.render('admin/audit-logs', { 
+      logs, 
+      title: 'Audit Logs', 
+      admin: req.session.admin,
+      currentPage: page,
+      totalPages: totalPages,
+      totalLogs: count
+    });
   } catch (err) {
     res.status(500).send('Error retrieving audit logs');
   }
@@ -509,14 +545,30 @@ exports.auditLogs = async (req, res) => {
 
 exports.guardianLinksIndex = async (req, res) => {
   try {
-    const links = await db.Guardian_Student.findAll({
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    const { count, rows: links } = await db.Guardian_Student.findAndCountAll({
       include: [
         { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
         { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
       ],
-      order: [['guardian_id', 'ASC']]
+      order: [['guardian_id', 'ASC']],
+      limit: limit,
+      offset: offset
     });
-    res.render('admin/guardian-links/index', { title: 'Manage Guardian Links', links, admin: req.session.admin });
+
+    const totalPages = Math.ceil(count / limit);
+
+    res.render('admin/guardian-links/index', { 
+      title: 'Manage Guardian Links', 
+      links, 
+      admin: req.session.admin,
+      currentPage: page,
+      totalPages: totalPages,
+      totalLinks: count
+    });
   } catch (err) {
     console.error(err);
     res.status(500).send('Error retrieving guardian links');

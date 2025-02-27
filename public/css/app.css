@@ -318,7 +318,6 @@ body:not(.dashboard) .main {
   justify-content: center;
 }
 
-/* Table Improvements */
 .table {
   width: 100%;
   margin-bottom: 1rem;
