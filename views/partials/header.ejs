@@ -2,6 +2,13 @@
     <div class="logo">
         <img src="/logoF.png" alt="TerraConnection" class="logo-img">
     </div>
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="globalSearch" placeholder="Search users, classes, RFID cards...">
+            <i class="fas fa-search search-icon"></i>
+        </div>
+        <div id="searchResults" class="search-results"></div>
+    </div>
     <div class="user-info">
         <span>Welcome, <%= admin.first_name %> <%= admin.last_name %>!</span>
     </div>

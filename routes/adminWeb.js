@@ -69,7 +69,7 @@ router.get('/students/search', adminWebController.searchStudents);
 router.get('/professors/search', adminWebController.searchProfessors);
 router.get('/guardians/search', adminWebController.searchGuardians);
 
-
+router.get('/global-search', adminWebController.globalSearch);
 
 router.get('/logout', adminWebController.logout);
 

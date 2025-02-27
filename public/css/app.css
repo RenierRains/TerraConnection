@@ -434,7 +434,6 @@ body:not(.dashboard) .main {
   margin-top: 1.5rem;
 }
 
-/* Add highlight animation */
 @keyframes highlightItem {
   from {
     background-color: var(--primary-color);
@@ -446,17 +445,77 @@ body:not(.dashboard) .main {
   }
 }
 
-/* Hover effect for non-active items */
 .admin-sidebar .nav-link:not(.active):hover {
   background-color: var(--primary-light);
   border-left: 4px solid var(--primary-light);
   transform: translateX(5px);
 }
 
-/* Icon styles for active state */
 .admin-sidebar .nav-link.active i {
   transform: scale(1.2);
   transition: transform 0.3s ease;
+}
+
+.search-container {
+    position: relative;
+    flex: 1;
+    max-width: 600px;
+    margin: 0 20px;
+}
+
+.search-box {
+    position: relative;
+    width: 100%;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 8px 35px 8px 15px;
+    border: none;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+}
+
+.search-box .search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+.search-results {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-top: 5px;
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+    color: #333;
+}
+
+.search-result-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    color: #333;
+}
+
+.search-result-item:hover {
+    background-color: #f5f5f5;
+}
+
+.search-result-item .result-type {
+    font-size: 12px;
+    color: #666;
+    margin-right: 8px;
 }
   
   

@@ -872,3 +872,69 @@ exports.importUsers = async (req, res) => {
     });
   }
 };
+
+exports.globalSearch = async (req, res) => {
+    try {
+        const query = req.query.q || '';
+        const { Op } = require('sequelize');
+        const results = [];
+
+        // Search Users
+        const users = await db.User.findAll({
+            where: {
+                [Op.or]: [
+                    { first_name: { [Op.like]: `%${query}%` } },
+                    { last_name: { [Op.like]: `%${query}%` } },
+                    { email: { [Op.like]: `%${query}%` } }
+                ]
+            },
+            limit: 5
+        });
+
+        const classes = await db.Class.findAll({
+            where: {
+                [Op.or]: [
+                    { class_code: { [Op.like]: `%${query}%` } },
+                    { class_name: { [Op.like]: `%${query}%` } }
+                ]
+            },
+            limit: 5
+        });
+
+        const rfidCards = await db.RFID_Card.findAll({
+            where: {
+                card_uid: { [Op.like]: `%${query}%` }
+            },
+            limit: 5
+        });
+
+        users.forEach(user => {
+            results.push({
+                type: 'User',
+                title: `${user.first_name} ${user.last_name} (${user.email})`,
+                url: `/admin/users/${user.id}`
+            });
+        });
+
+        classes.forEach(cls => {
+            results.push({
+                type: 'Class',
+                title: `${cls.class_code} - ${cls.class_name}`,
+                url: `/admin/classes/${cls.id}`
+            });
+        });
+
+        rfidCards.forEach(card => {
+            results.push({
+                type: 'RFID Card',
+                title: `Card UID: ${card.card_uid}`,
+                url: `/admin/rfid-cards/${card.id}`
+            });
+        });
+
+        res.json({ results });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error performing search' });
+    }
+};

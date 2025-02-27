@@ -33,3 +33,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('globalSearch');
+    const searchResults = document.getElementById('searchResults');
+    let searchTimeout;
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            searchResults.style.display = 'none';
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, 300);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.style.display = 'none';
+        }
+    });
+
+    async function performSearch(query) {
+        try {
+            const response = await fetch(`/admin/global-search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            
+            if (data.results.length > 0) {
+                displayResults(data.results);
+            } else {
+                searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
+            }
+            searchResults.style.display = 'block';
+        } catch (err) {
+            console.error('Search error:', err);
+        }
+    }
+
+    function displayResults(results) {
+        searchResults.innerHTML = results.map(result => `
+            <div class="search-result-item" onclick="window.location.href='${result.url}'">
+                <span class="result-type">${result.type}</span>
+                <span>${result.title}</span>
+            </div>
+        `).join('');
+    }
+});
