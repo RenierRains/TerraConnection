@@ -26,6 +26,7 @@ body.admin-panel {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    position: relative;
 }
 
 .admin-body-container {
@@ -38,6 +39,13 @@ body.admin-panel {
     background-color: var(--primary-color);
     color: var(--text-light);
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 64px;
+    bottom: 0;
+    left: 0;
+    overflow-y: auto;
+    transition: transform 0.3s ease-in-out;
+    z-index: 100;
 }
 
 .admin-sidebar ul {
@@ -55,11 +63,15 @@ body.admin-panel {
     display: flex;
     align-items: center;
     padding: 12px 20px;
-    transition: background-color 0.3s;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    border-left: 4px solid transparent;
 }
 
 .admin-sidebar .nav-link:hover {
     background-color: var(--primary-light);
+    transform: translateX(10px);
     border-radius: 4px;
 }
 
@@ -69,11 +81,39 @@ body.admin-panel {
     text-align: center;
 }
 
+.admin-sidebar .nav-link.active {
+    background-color: var(--primary-light);
+    border-left: 4px solid var(--text-light);
+    font-weight: 500;
+}
+
+.admin-sidebar .nav-link::after {
+    content: '';
+    position: absolute;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    opacity: 0;
+    transform: scale(0);
+    transition: transform 0.5s, opacity 0.3s;
+}
+
+.admin-sidebar .nav-link:active::after {
+    transform: scale(3);
+    opacity: 0;
+    transition: 0s;
+}
+
 .admin-content {
     flex: 1;
     padding: 20px;
     background-color: var(--text-light);
     overflow-y: auto;
+    margin-left: 250px;
+    margin-top: 64px;
+    min-height: calc(100vh - 64px);
+    transition: margin-left 0.3s ease;
 }
 
 .admin-panel header {
@@ -85,6 +125,20 @@ body.admin-panel {
     align-items: center;
     height: 64px;
     width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.admin-panel header.scroll-down {
+    transform: translateY(-64px);
+}
+
+.admin-panel header.scroll-up {
+    transform: translateY(0);
 }
 
 .logo {
@@ -378,6 +432,31 @@ body:not(.dashboard) .main {
 
 .mt-4 {
   margin-top: 1.5rem;
+}
+
+/* Add highlight animation */
+@keyframes highlightItem {
+  from {
+    background-color: var(--primary-color);
+    transform: translateX(-10px);
+  }
+  to {
+    background-color: var(--primary-light);
+    transform: translateX(0);
+  }
+}
+
+/* Hover effect for non-active items */
+.admin-sidebar .nav-link:not(.active):hover {
+  background-color: var(--primary-light);
+  border-left: 4px solid var(--primary-light);
+  transform: translateX(5px);
+}
+
+/* Icon styles for active state */
+.admin-sidebar .nav-link.active i {
+  transform: scale(1.2);
+  transition: transform 0.3s ease;
 }
   
   
