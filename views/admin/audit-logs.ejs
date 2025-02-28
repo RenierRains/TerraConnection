@@ -4,90 +4,238 @@
   <meta charset="UTF-8">
   <title>Audit Logs</title>
   <link rel="stylesheet" href="/css/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .filters {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .chart-container {
+      height: 300px;
+      margin-bottom: 20px;
+    }
+  </style>
 </head>
 <body>
   <div class="container mt-5">
     <h2>Audit Logs</h2>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <span class="text-muted">Total Logs: <%= totalLogs %></span>
+    
+    <!-- Search Filters -->
+    <div class="filters">
+      <form id="searchForm" method="GET" class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Start Date</label>
+          <input type="date" class="form-control" name="startDate" value="<%= filters.startDate %>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">End Date</label>
+          <input type="date" class="form-control" name="endDate" value="<%= filters.endDate %>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Action Type</label>
+          <select class="form-control" name="actionType">
+            <option value="">All Actions</option>
+            <option value="USER_" <%= filters.actionType === 'USER_' ? 'selected' : '' %>>User Actions</option>
+            <option value="DATA_" <%= filters.actionType === 'DATA_' ? 'selected' : '' %>>Data Operations</option>
+            <option value="SECURITY_" <%= filters.actionType === 'SECURITY_' ? 'selected' : '' %>>Security Events</option>
+            <option value="ANOMALY_" <%= filters.actionType === 'ANOMALY_' ? 'selected' : '' %>>Anomalies</option>
+            <option value="ADMIN_" <%= filters.actionType === 'ADMIN_' ? 'selected' : '' %>>Admin Actions</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Search Term</label>
+          <input type="text" class="form-control" name="searchTerm" value="<%= filters.searchTerm %>" placeholder="Search in logs...">
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary">Apply Filters</button>
+          <a href="/admin/audit-logs" class="btn btn-secondary">Reset</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- Analytics Dashboard -->
+    <div class="stats-grid">
+      <!-- Action Type Distribution -->
+      <div class="stat-card">
+        <h4>Action Distribution</h4>
+        <div class="chart-container">
+          <canvas id="actionTypeChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Top Users -->
+      <div class="stat-card">
+        <h4>Most Active Users</h4>
+        <div class="chart-container">
+          <canvas id="userActivityChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Hourly Activity -->
+      <div class="stat-card">
+        <h4>24-Hour Activity</h4>
+        <div class="chart-container">
+          <canvas id="hourlyActivityChart"></canvas>
+        </div>
       </div>
     </div>
 
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>User ID</th>
-          <th>Action Type</th>
-          <th>Details</th>
-          <th>Timestamp</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% logs.forEach(function(log) { %>
+    <!-- Logs Table -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
           <tr>
-            <td><%= log.id %></td>
-            <td><%= log.user_id %></td>
-            <td><%= log.action_type %></td>
-            <td><%= log.details %></td>
-            <td><%= log.timestamp %></td>
+            <th>Timestamp</th>
+            <th>User</th>
+            <th>Action Type</th>
+            <th>Details</th>
           </tr>
-        <% }); %>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <% logs.forEach(function(log) { %>
+            <tr>
+              <td><%= new Date(log.timestamp).toLocaleString() %></td>
+              <td>
+                <% if (log.User) { %>
+                  <%= log.User.first_name %> <%= log.User.last_name %>
+                <% } else { %>
+                  System
+                <% } %>
+              </td>
+              <td><%= log.action_type %></td>
+              <td>
+                <% try { %>
+                  <% const details = JSON.parse(log.details); %>
+                  <pre class="mb-0"><%= JSON.stringify(details.data, null, 2) %></pre>
+                <% } catch(e) { %>
+                  <%= log.details %>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
 
+    <!-- Pagination -->
     <% if (totalPages > 1) { %>
       <nav aria-label="Page navigation" class="mt-4">
         <ul class="pagination justify-content-center">
           <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/audit-logs?page=<%= currentPage - 1 %>" <%= currentPage === 1 ? 'tabindex="-1" aria-disabled="true"' : '' %>>Previous</a>
+            <a class="page-link" href="?page=<%= currentPage - 1 %>&<%= new URLSearchParams(filters).toString() %>">Previous</a>
           </li>
           
-          <% 
-            let startPage = Math.max(1, currentPage - 2);
-            let endPage = Math.min(totalPages, startPage + 4);
-            
-            if (endPage - startPage < 4) {
-              startPage = Math.max(1, endPage - 4);
-            }
-
-            if (startPage > 1) { %>
-              <li class="page-item">
-                <a class="page-link" href="/admin/audit-logs?page=1">1</a>
-              </li>
-              <% if (startPage > 2) { %>
-                <li class="page-item disabled">
-                  <span class="page-link">...</span>
-                </li>
-              <% } %>
-            <% } %>
-
-            <% for(let i = startPage; i <= endPage; i++) { %>
-              <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-                <a class="page-link" href="/admin/audit-logs?page=<%= i %>"><%= i %></a>
-              </li>
-            <% } %>
-
-            <% if (endPage < totalPages) { %>
-              <% if (endPage < totalPages - 1) { %>
-                <li class="page-item disabled">
-                  <span class="page-link">...</span>
-                </li>
-              <% } %>
-              <li class="page-item">
-                <a class="page-link" href="/admin/audit-logs?page=<%= totalPages %>"><%= totalPages %></a>
-              </li>
-            <% } %>
+          <% for(let i = 1; i <= totalPages; i++) { %>
+            <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+              <a class="page-link" href="?page=<%= i %>&<%= new URLSearchParams(filters).toString() %>"><%= i %></a>
+            </li>
+          <% } %>
           
           <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/audit-logs?page=<%= currentPage + 1 %>" <%= currentPage === totalPages ? 'tabindex="-1" aria-disabled="true"' : '' %>>Next</a>
+            <a class="page-link" href="?page=<%= currentPage + 1 %>&<%= new URLSearchParams(filters).toString() %>">Next</a>
           </li>
         </ul>
       </nav>
     <% } %>
-    
-    <a href="/admin/dashboard" class="btn btn-secondary mt-3">Back to Dashboard</a>
   </div>
+
+  <script>
+    // Action Type Distribution Chart
+    const actionCtx = document.getElementById('actionTypeChart').getContext('2d');
+    new Chart(actionCtx, {
+      type: 'pie',
+      data: {
+        labels: JSON.parse('<%- JSON.stringify(actionStats.map(stat => stat.action_type)) %>'),
+        datasets: [{
+          data: JSON.parse('<%- JSON.stringify(actionStats.map(stat => stat.count)) %>'),
+          backgroundColor: [
+            '#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0', '#FF9800'
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right'
+          }
+        }
+      }
+    });
+
+    // User Activity Chart
+    const userCtx = document.getElementById('userActivityChart').getContext('2d');
+    new Chart(userCtx, {
+      type: 'bar',
+      data: {
+        labels: JSON.parse('<%- JSON.stringify(userStats.map(stat => stat.User ? `${stat.User.first_name} ${stat.User.last_name}` : "System")) %>'),
+        datasets: [{
+          label: 'Actions',
+          data: JSON.parse('<%- JSON.stringify(userStats.map(stat => stat.count)) %>'),
+          backgroundColor: '#2196F3'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+
+    // Hourly Activity Chart
+    const hourlyCtx = document.getElementById('hourlyActivityChart').getContext('2d');
+    new Chart(hourlyCtx, {
+      type: 'line',
+      data: {
+        labels: JSON.parse('<%- JSON.stringify(hourlyActivity.map(h => new Date(h.hour).toLocaleTimeString())) %>'),
+        datasets: [{
+          label: 'Events',
+          data: JSON.parse('<%- JSON.stringify(hourlyActivity.map(h => h.count)) %>'),
+          borderColor: '#4CAF50',
+          tension: 0.4,
+          fill: true,
+          backgroundColor: 'rgba(76, 175, 80, 0.1)'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  </script>
 </body>
 </html>

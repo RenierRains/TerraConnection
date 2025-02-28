@@ -117,9 +117,205 @@ exports.logout = (req, res) => {
   });
 };
 
-exports.dashboard = (req, res) => {
+exports.dashboard = async (req, res) => {
   if (!req.session.admin) return res.redirect('/admin/login');
-  res.render('admin/dashboard', { admin: req.session.admin, title: 'Dashboard' });
+  
+  try {
+    const categoryColors = {
+      'User Actions': '#4CAF50',
+      'Data Operations': '#2196F3',
+      'Security Events': '#FFC107',
+      'Anomalies': '#F44336',
+      'Admin Actions': '#9C27B0',
+      'API Requests': '#FF9800'
+    };
+
+    // Default to 7 days for the main dashboard
+    const [categoryStats] = await db.sequelize.query(`
+      WITH RECURSIVE dates AS (
+        SELECT CURDATE() - INTERVAL 6 DAY AS date
+        UNION ALL
+        SELECT date + INTERVAL 1 DAY
+        FROM dates
+        WHERE date < CURDATE()
+      ),
+      categories AS (
+        SELECT 'USER' as prefix, 'User Actions' as category
+        UNION ALL SELECT 'DATA', 'Data Operations'
+        UNION ALL SELECT 'SECURITY', 'Security Events'
+        UNION ALL SELECT 'ANOMALY', 'Anomalies'
+        UNION ALL SELECT 'ADMIN', 'Admin Actions'
+        UNION ALL SELECT 'REQUEST', 'API Requests'
+      ),
+      daily_counts AS (
+        SELECT 
+          DATE(timestamp) as log_date,
+          CASE 
+            WHEN action_type LIKE 'USER_%' THEN 'USER'
+            WHEN action_type LIKE 'DATA_%' THEN 'DATA'
+            WHEN action_type LIKE 'SECURITY_%' THEN 'SECURITY'
+            WHEN action_type LIKE 'ANOMALY_%' THEN 'ANOMALY'
+            WHEN action_type LIKE 'ADMIN_%' THEN 'ADMIN'
+            WHEN action_type LIKE 'REQUEST' THEN 'REQUEST'
+            ELSE 'OTHER'
+          END as category_prefix,
+          COUNT(*) as count
+        FROM Audit_Logs
+        WHERE timestamp >= CURDATE() - INTERVAL 6 DAY
+        GROUP BY DATE(timestamp),
+          CASE 
+            WHEN action_type LIKE 'USER_%' THEN 'USER'
+            WHEN action_type LIKE 'DATA_%' THEN 'DATA'
+            WHEN action_type LIKE 'SECURITY_%' THEN 'SECURITY'
+            WHEN action_type LIKE 'ANOMALY_%' THEN 'ANOMALY'
+            WHEN action_type LIKE 'ADMIN_%' THEN 'ADMIN'
+            WHEN action_type LIKE 'REQUEST' THEN 'REQUEST'
+            ELSE 'OTHER'
+          END
+      )
+      SELECT 
+        c.category,
+        c.prefix,
+        d.date,
+        COALESCE(dc.count, 0) as count
+      FROM dates d
+      CROSS JOIN categories c
+      LEFT JOIN daily_counts dc ON dc.log_date = d.date AND dc.category_prefix = c.prefix
+      ORDER BY c.category, d.date;
+    `);
+
+    const timeSeriesData = {};
+    categoryStats.forEach(stat => {
+      if (!timeSeriesData[stat.category]) {
+        timeSeriesData[stat.category] = {
+          category: stat.category,
+          prefix: stat.prefix,
+          dates: [],
+          counts: []
+        };
+      }
+      timeSeriesData[stat.category].dates.push(stat.date);
+      timeSeriesData[stat.category].counts.push(stat.count);
+    });
+
+    res.render('admin/dashboard', { 
+      admin: req.session.admin, 
+      title: 'Dashboard',
+      timeSeriesData: Object.values(timeSeriesData),
+      categoryColors
+    });
+  } catch (err) {
+    console.error('Error getting dashboard stats:', err);
+    res.render('admin/dashboard', { 
+      admin: req.session.admin, 
+      title: 'Dashboard',
+      timeSeriesData: [],
+      categoryColors: {}
+    });
+  }
+};
+
+exports.getTimeSeriesData = async (req, res) => {
+  if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  
+  try {
+    const { range } = req.query;
+    let interval, days;
+    
+    switch(range) {
+      case '24h':
+        interval = '24 HOUR';
+        days = 1;
+        break;
+      case 'week':
+        interval = '7 DAY';
+        days = 7;
+        break;
+      case 'month':
+        interval = '30 DAY';
+        days = 30;
+        break;
+      case 'year':
+        interval = '365 DAY';
+        days = 365;
+        break;
+      default:
+        interval = '7 DAY';
+        days = 7;
+    }
+
+    const [data] = await db.sequelize.query(`
+      WITH RECURSIVE dates AS (
+        SELECT CURDATE() - INTERVAL ${days-1} DAY AS date
+        UNION ALL
+        SELECT date + INTERVAL 1 DAY
+        FROM dates
+        WHERE date < CURDATE()
+      ),
+      categories AS (
+        SELECT 'USER' as prefix, 'User Actions' as category
+        UNION ALL SELECT 'DATA', 'Data Operations'
+        UNION ALL SELECT 'SECURITY', 'Security Events'
+        UNION ALL SELECT 'ANOMALY', 'Anomalies'
+        UNION ALL SELECT 'ADMIN', 'Admin Actions'
+        UNION ALL SELECT 'REQUEST', 'API Requests'
+      ),
+      daily_counts AS (
+        SELECT 
+          DATE(timestamp) as log_date,
+          CASE 
+            WHEN action_type LIKE 'USER_%' THEN 'USER'
+            WHEN action_type LIKE 'DATA_%' THEN 'DATA'
+            WHEN action_type LIKE 'SECURITY_%' THEN 'SECURITY'
+            WHEN action_type LIKE 'ANOMALY_%' THEN 'ANOMALY'
+            WHEN action_type LIKE 'ADMIN_%' THEN 'ADMIN'
+            WHEN action_type LIKE 'REQUEST' THEN 'REQUEST'
+            ELSE 'OTHER'
+          END as category_prefix,
+          COUNT(*) as count
+        FROM Audit_Logs
+        WHERE timestamp >= CURDATE() - INTERVAL ${days-1} DAY
+        GROUP BY DATE(timestamp),
+          CASE 
+            WHEN action_type LIKE 'USER_%' THEN 'USER'
+            WHEN action_type LIKE 'DATA_%' THEN 'DATA'
+            WHEN action_type LIKE 'SECURITY_%' THEN 'SECURITY'
+            WHEN action_type LIKE 'ANOMALY_%' THEN 'ANOMALY'
+            WHEN action_type LIKE 'ADMIN_%' THEN 'ADMIN'
+            WHEN action_type LIKE 'REQUEST' THEN 'REQUEST'
+            ELSE 'OTHER'
+          END
+      )
+      SELECT 
+        c.category,
+        c.prefix,
+        d.date,
+        COALESCE(dc.count, 0) as count
+      FROM dates d
+      CROSS JOIN categories c
+      LEFT JOIN daily_counts dc ON dc.log_date = d.date AND dc.category_prefix = c.prefix
+      ORDER BY c.category, d.date;
+    `);
+
+    const timeSeriesData = {};
+    data.forEach(stat => {
+      if (!timeSeriesData[stat.category]) {
+        timeSeriesData[stat.category] = {
+          category: stat.category,
+          prefix: stat.prefix,
+          dates: [],
+          counts: []
+        };
+      }
+      timeSeriesData[stat.category].dates.push(stat.date);
+      timeSeriesData[stat.category].counts.push(stat.count);
+    });
+
+    res.json({ success: true, data: Object.values(timeSeriesData) });
+  } catch (err) {
+    console.error('Error getting time series data:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch data' });
+  }
 };
 
 // ========= Users =========
@@ -517,26 +713,123 @@ exports.rfidCardsDelete = async (req, res) => {
 exports.auditLogs = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
+    const {
+      startDate,
+      endDate,
+      actionType,
+      userId,
+      searchTerm
+    } = req.query;
+
+    const where = {};
+    const { Op } = require('sequelize');
+
+    if (startDate && endDate) {
+      where.timestamp = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    } else if (startDate) {
+      where.timestamp = {
+        [Op.gte]: new Date(startDate)
+      };
+    } else if (endDate) {
+      where.timestamp = {
+        [Op.lte]: new Date(endDate)
+      };
+    }
+
+    if (actionType) {
+      where.action_type = {
+        [Op.like]: `${actionType}%`
+      };
+    }
+
+    if (userId) {
+      where.user_id = userId;
+    }
+
+    if (searchTerm) {
+      where[Op.or] = [
+        { action_type: { [Op.like]: `%${searchTerm}%` } },
+        { details: { [Op.like]: `%${searchTerm}%` } }
+      ];
+    }
+
+    // Get logs with filters
     const { count, rows: logs } = await db.Audit_Log.findAndCountAll({
+      where,
       order: [['timestamp', 'DESC']],
       limit: limit,
-      offset: offset
+      offset: offset,
+      include: [{
+        model: db.User,
+        attributes: ['first_name', 'last_name', 'email'],
+        required: false
+      }]
     });
 
     const totalPages = Math.ceil(count / limit);
 
+    const actionStats = await db.Audit_Log.findAll({
+      where,
+      attributes: [
+        'action_type',
+        [db.sequelize.fn('COUNT', '*'), 'count']
+      ],
+      group: ['action_type'],
+      order: [[db.sequelize.fn('COUNT', '*'), 'DESC']]
+    });
+ 
+    const userStats = await db.Audit_Log.findAll({
+      where,
+      attributes: [
+        'user_id',
+        [db.sequelize.fn('COUNT', '*'), 'count']
+      ],
+      include: [{
+        model: db.User,
+        attributes: ['first_name', 'last_name', 'email'],
+        required: false
+      }],
+      group: ['user_id', 'User.id', 'User.first_name', 'User.last_name', 'User.email'],
+      order: [[db.sequelize.fn('COUNT', '*'), 'DESC']],
+      limit: 10
+    });
+
+    const hourlyActivity = await db.sequelize.query(`
+      SELECT 
+        DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as hour,
+        COUNT(*) as count
+      FROM Audit_Logs
+      WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      GROUP BY DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00')
+      ORDER BY hour ASC
+    `, { type: db.sequelize.QueryTypes.SELECT });
+
     res.render('admin/audit-logs', { 
-      logs, 
-      title: 'Audit Logs', 
+      logs,
+      actionStats,
+      userStats,
+      hourlyActivity,
+      title: 'Audit Logs',
       admin: req.session.admin,
       currentPage: page,
       totalPages: totalPages,
-      totalLogs: count
+      totalLogs: count,
+      filters: {
+        startDate,
+        endDate,
+        actionType,
+        userId,
+        searchTerm,
+        limit
+      }
     });
   } catch (err) {
+    console.error('Error retrieving audit logs:', err);
     res.status(500).send('Error retrieving audit logs');
   }
 };

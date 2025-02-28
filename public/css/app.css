@@ -517,5 +517,154 @@ body:not(.dashboard) .main {
     color: #666;
     margin-right: 8px;
 }
+
+/* Dashboard Grid Layout */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-right: -15px;
+  margin-left: -15px;
+}
+
+.col-md-6 {
+  flex: 0 0 50%;
+  max-width: 50%;
+  padding-right: 15px;
+  padding-left: 15px;
+  margin-bottom: 30px;
+}
+
+/* Cards */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  word-wrap: break-word;
+  background-color: #fff;
+  background-clip: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 0;
+  background-color: var(--primary-color);
+  color: var(--text-light);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.card-body {
+  flex: 1 1 auto;
+  padding: 1.25rem;
+}
+
+/* Tables */
+.table {
+  width: 100%;
+  margin-bottom: 1rem;
+  color: var(--text-dark);
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem;
+  vertical-align: top;
+  border-top: 1px solid #dee2e6;
+}
+
+.table thead th {
+  vertical-align: bottom;
+  border-bottom: 2px solid #dee2e6;
+  background-color: #f8f9fa;
+}
+
+.table tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.075);
+}
+
+/* Chart container */
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Dashboard Layout */
+.dashboard-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-title {
+  margin: 0 0 20px 0;
+  color: var(--primary-color);
+  font-size: 1.5rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  flex: 1;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.stat-header {
+  padding: 12px 15px;
+  background: white;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-dark);
+}
+
+.total-count {
+  font-size: 0.875rem;
+  color: var(--text-dark);
+  opacity: 0.7;
+}
+
+.stat-body {
+  flex: 1;
+  padding: 15px;
+  min-height: 150px;
+  position: relative;
+}
+
+.stat-body canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
   
   

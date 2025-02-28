@@ -4,8 +4,414 @@
   <meta charset="UTF-8">
   <title>Admin Dashboard</title>
   <link rel="stylesheet" href="/css/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+    
+    .modal-content {
+      position: relative;
+      background-color: #fff;
+      margin: 15% auto;
+      padding: 20px;
+      width: 80%;
+      max-width: 800px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 400px;
+      width: 100%;
+    }
+
+    .close {
+      position: absolute;
+      right: 20px;
+      top: 10px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .time-range-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .time-range-button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background-color: #f0f0f0;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .time-range-button.active {
+      background-color: #2196F3;
+      color: white;
+    }
+
+    .stat-card {
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+    }
+  </style>
 </head>
 <body>
-    <h2>Welcome, <%= admin.first_name %> <%= admin.last_name %>!</h2>
+  <div class="dashboard-container">
+    <h2 class="dashboard-title">System Activity Dashboard</h2>
+    
+    <div class="stats-grid">
+      <% timeSeriesData.forEach(function(series) { %>
+        <div class="stat-card" data-prefix="<%= series.prefix %>">
+          <div class="stat-header" style="border-left: 4px solid <%= categoryColors[series.category] || '#C9CBCF' %>">
+            <h3><%= series.category %></h3>
+            <span class="total-count"><%= series.counts.reduce((a, b) => a + b, 0) %> events</span>
+          </div>
+          <div class="stat-body">
+            <canvas id="chart-<%= series.prefix %>" 
+                    data-dates="<%= encodeURIComponent(JSON.stringify(series.dates)) %>"
+                    data-counts="<%= encodeURIComponent(JSON.stringify(series.counts)) %>"
+                    data-category="<%= series.category %>"
+                    data-color="<%= categoryColors[series.category] || '#C9CBCF' %>"></canvas>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="detailModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2 id="modalTitle"></h2>
+      <div class="time-range-buttons">
+        <button class="time-range-button" data-range="24h">Last 24 hours</button>
+        <button class="time-range-button active" data-range="week">Last week</button>
+        <button class="time-range-button" data-range="month">Last month</button>
+        <button class="time-range-button" data-range="year">Last year</button>
+      </div>
+      <div class="chart-container">
+        <canvas id="modalChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize dashboard charts and store them in a map
+    const dashboardCharts = new Map();
+    
+    document.querySelectorAll('canvas[id^="chart-"]').forEach(canvas => {
+      const dates = JSON.parse(decodeURIComponent(canvas.dataset.dates));
+      const counts = JSON.parse(decodeURIComponent(canvas.dataset.counts));
+      const color = canvas.dataset.color;
+      const chart = initChart(canvas, dates, counts, color);
+      dashboardCharts.set(canvas.id, chart);
+    });
+
+    function initChart(canvas, dates, counts, color) {
+      const ctx = canvas.getContext('2d');
+      const maxCount = Math.max(...counts);
+      const suggestedMax = maxCount <= 1 ? 5 : Math.ceil(maxCount * 1.2);
+      
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dates.map(date => new Date(date).toLocaleDateString()),
+          datasets: [{
+            data: counts,
+            borderColor: color,
+            backgroundColor: color + '20',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            borderWidth: 1.5,
+            cubicInterpolationMode: 'monotone'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 750,
+            easing: 'easeInOutQuart'
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              callbacks: {
+                title: (items) => {
+                  if (!items.length) return '';
+                  const date = new Date(dates[items[0].dataIndex]);
+                  return date.toLocaleDateString('en-US', { 
+                    weekday: 'short',
+                    month: 'short', 
+                    day: 'numeric'
+                  });
+                },
+                label: (item) => {
+                  return `Events: ${item.raw}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              display: true,
+              title: {
+                display: true,
+                text: 'Date',
+                color: '#666',
+                font: {
+                  size: 12
+                }
+              },
+              grid: {
+                display: false
+              },
+              ticks: {
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 4,
+                color: '#666'
+              }
+            },
+            y: {
+              display: true,
+              title: {
+                display: true,
+                text: 'Number of Events',
+                color: '#666',
+                font: {
+                  size: 12
+                }
+              },
+              beginAtZero: true,
+              suggestedMax: suggestedMax,
+              grid: {
+                color: '#f0f0f0'
+              },
+              ticks: {
+                stepSize: suggestedMax <= 5 ? 1 : undefined,
+                precision: 0,
+                color: '#666'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Modal handling
+    const modal = document.getElementById('detailModal');
+    const closeBtn = document.querySelector('.close');
+    let modalChart = null;
+    let currentPrefix = null;
+
+    // Add click handlers to stat cards
+    document.querySelectorAll('.stat-card').forEach(card => {
+      card.addEventListener('click', function(e) {
+        e.preventDefault();
+        const prefix = this.dataset.prefix;
+        const category = this.querySelector('h3').textContent;
+        const color = this.querySelector('canvas').dataset.color;
+        
+        currentPrefix = prefix;
+        document.getElementById('modalTitle').textContent = category;
+        modal.style.display = 'block';
+        
+        // Initialize modal chart with week view by default
+        updateModalChart('week', prefix, category, color).catch(console.error);
+      });
+    });
+
+    closeBtn.addEventListener('click', function() {
+      modal.style.display = 'none';
+      if (modalChart) {
+        modalChart.destroy();
+        modalChart = null;
+      }
+    });
+
+    window.addEventListener('click', function(event) {
+      if (event.target === modal) {
+        modal.style.display = 'none';
+        if (modalChart) {
+          modalChart.destroy();
+          modalChart = null;
+        }
+      }
+    });
+
+    // Time range buttons
+    document.querySelectorAll('.time-range-button').forEach(button => {
+      button.addEventListener('click', async function() {
+        if (!currentPrefix) return;
+        
+        const range = this.dataset.range;
+        const activeCard = document.querySelector(`.stat-card[data-prefix="${currentPrefix}"]`);
+        const category = activeCard.querySelector('h3').textContent;
+        const color = activeCard.querySelector('canvas').dataset.color;
+
+        // Update active button
+        document.querySelectorAll('.time-range-button').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        this.classList.add('active');
+
+        // Update chart
+        await updateModalChart(range, currentPrefix, category, color);
+      });
+    });
+
+    async function updateModalChart(range, prefix, category, color) {
+      try {
+        const response = await fetch(`/admin/dashboard/data?range=${range}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+          console.error('Error:', data.error);
+          document.getElementById('modalTitle').textContent = `${category} - Error loading data`;
+          return;
+        }
+        
+        const seriesData = data.data.find(s => s.prefix === prefix);
+        if (!seriesData) {
+          console.error('Category data not found');
+          document.getElementById('modalTitle').textContent = `${category} - No data available`;
+          return;
+        }
+
+        if (modalChart) {
+          modalChart.destroy();
+        }
+
+        document.getElementById('modalTitle').textContent = category;
+
+        const maxCount = Math.max(...seriesData.counts);
+        const suggestedMax = maxCount <= 1 ? 5 : Math.ceil(maxCount * 1.2);
+
+        const ctx = document.getElementById('modalChart').getContext('2d');
+        modalChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: seriesData.dates.map(date => new Date(date).toLocaleDateString()),
+            datasets: [{
+              data: seriesData.counts,
+              borderColor: color,
+              backgroundColor: color + '20',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 2,
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+              duration: 750,
+              easing: 'easeInOutQuart'
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+                callbacks: {
+                  title: (items) => {
+                    if (!items.length) return '';
+                    const date = new Date(seriesData.dates[items[0].dataIndex]);
+                    return date.toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric'
+                    });
+                  },
+                  label: (item) => {
+                    return `Events: ${item.raw}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                display: true,
+                title: {
+                  display: true,
+                  text: 'Date',
+                  color: '#666',
+                  font: {
+                    size: 14,
+                    weight: 'bold'
+                  },
+                  padding: { top: 20 }
+                },
+                grid: {
+                  display: false
+                },
+                ticks: {
+                  maxRotation: 0,
+                  autoSkip: true,
+                  maxTicksLimit: 8,
+                  color: '#666',
+                  font: {
+                    size: 12
+                  }
+                }
+              },
+              y: {
+                display: true,
+                title: {
+                  display: true,
+                  text: 'Number of Events',
+                  color: '#666',
+                  font: {
+                    size: 14,
+                    weight: 'bold'
+                  },
+                  padding: { bottom: 20 }
+                },
+                beginAtZero: true,
+                suggestedMax: suggestedMax,
+                grid: {
+                  color: '#f0f0f0'
+                },
+                ticks: {
+                  stepSize: suggestedMax <= 5 ? 1 : undefined,
+                  precision: 0,
+                  color: '#666',
+                  font: {
+                    size: 12
+                  }
+                }
+              }
+            }
+          }
+        });
+        modalChart.prefix = prefix;
+      } catch (error) {
+        console.error('Error updating modal chart:', error);
+      }
+    }
+  </script>
 </body>
 </html>

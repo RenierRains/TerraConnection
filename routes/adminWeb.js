@@ -15,6 +15,8 @@ router.use((req, res, next) => {
 
 // protected test
 
+router.get('/dashboard/data', adminWebController.getTimeSeriesData);
+
 router.get('/users/import', (req, res) => {
   res.render('admin/users/import', { 
     title: 'Import Users',
