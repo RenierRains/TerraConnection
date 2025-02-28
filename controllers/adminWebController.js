@@ -727,38 +727,47 @@ exports.auditLogs = async (req, res) => {
     const where = {};
     const { Op } = require('sequelize');
 
-    if (startDate && endDate) {
+    let parsedStartDate = startDate ? new Date(startDate) : null;
+    let parsedEndDate = endDate ? new Date(endDate) : null;
+
+
+    if (parsedStartDate && !isNaN(parsedStartDate.getTime()) && parsedEndDate && !isNaN(parsedEndDate.getTime())) {
+
+      parsedStartDate.setHours(0, 0, 0, 0);
+      parsedEndDate.setHours(23, 59, 59, 999);
+      
       where.timestamp = {
-        [Op.between]: [new Date(startDate), new Date(endDate)]
+        [Op.between]: [parsedStartDate, parsedEndDate]
       };
-    } else if (startDate) {
+    } else if (parsedStartDate && !isNaN(parsedStartDate.getTime())) {
+      parsedStartDate.setHours(0, 0, 0, 0);
       where.timestamp = {
-        [Op.gte]: new Date(startDate)
+        [Op.gte]: parsedStartDate
       };
-    } else if (endDate) {
+    } else if (parsedEndDate && !isNaN(parsedEndDate.getTime())) {
+      parsedEndDate.setHours(23, 59, 59, 999);
       where.timestamp = {
-        [Op.lte]: new Date(endDate)
+        [Op.lte]: parsedEndDate
       };
     }
 
-    if (actionType) {
+    if (actionType && actionType !== 'undefined') {
       where.action_type = {
         [Op.like]: `${actionType}%`
       };
     }
 
-    if (userId) {
+    if (userId && userId !== 'undefined') {
       where.user_id = userId;
     }
 
-    if (searchTerm) {
+    if (searchTerm && searchTerm !== 'undefined') {
       where[Op.or] = [
         { action_type: { [Op.like]: `%${searchTerm}%` } },
         { details: { [Op.like]: `%${searchTerm}%` } }
       ];
     }
 
-    // Get logs with filters
     const { count, rows: logs } = await db.Audit_Log.findAndCountAll({
       where,
       order: [['timestamp', 'DESC']],
@@ -820,11 +829,11 @@ exports.auditLogs = async (req, res) => {
       totalPages: totalPages,
       totalLogs: count,
       filters: {
-        startDate,
-        endDate,
-        actionType,
-        userId,
-        searchTerm,
+        startDate: startDate || '',
+        endDate: endDate || '',
+        actionType: actionType || '',
+        userId: userId || '',
+        searchTerm: searchTerm || '',
         limit
       }
     });
