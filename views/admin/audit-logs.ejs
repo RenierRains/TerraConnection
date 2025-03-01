@@ -135,21 +135,88 @@
     <% if (totalPages > 1) { %>
       <nav aria-label="Page navigation" class="mt-4">
         <ul class="pagination justify-content-center">
+          <!-- First page -->
           <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="?page=<%= currentPage - 1 %>&<%= new URLSearchParams(filters).toString() %>">Previous</a>
+            <a class="page-link" href="?page=1&<%= new URLSearchParams(filters).toString() %>" aria-label="First">
+              <span aria-hidden="true">&laquo;</span>
+            </a>
+          </li>
+          <!-- Previous page -->
+          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= currentPage - 1 %>&<%= new URLSearchParams(filters).toString() %>" aria-label="Previous">
+              <span aria-hidden="true">&lt;</span>
+            </a>
           </li>
           
-          <% for(let i = 1; i <= totalPages; i++) { %>
-            <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-              <a class="page-link" href="?page=<%= i %>&<%= new URLSearchParams(filters).toString() %>"><%= i %></a>
-            </li>
-          <% } %>
+          <% 
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+            
+            if (endPage - startPage < 4) {
+              startPage = Math.max(1, endPage - 4);
+            }
+
+            if (startPage > 1) { %>
+              <li class="page-item">
+                <a class="page-link" href="?page=1&<%= new URLSearchParams(filters).toString() %>">1</a>
+              </li>
+              <% if (startPage > 2) { %>
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              <% } %>
+            <% } %>
+
+            <% for(let i = startPage; i <= endPage; i++) { %>
+              <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+                <a class="page-link" href="?page=<%= i %>&<%= new URLSearchParams(filters).toString() %>"><%= i %></a>
+              </li>
+            <% } %>
+
+            <% if (endPage < totalPages) { %>
+              <% if (endPage < totalPages - 1) { %>
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              <% } %>
+              <li class="page-item">
+                <a class="page-link" href="?page=<%= totalPages %>&<%= new URLSearchParams(filters).toString() %>"><%= totalPages %></a>
+              </li>
+            <% } %>
           
+          <!-- Next page -->
           <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="?page=<%= currentPage + 1 %>&<%= new URLSearchParams(filters).toString() %>">Next</a>
+            <a class="page-link" href="?page=<%= currentPage + 1 %>&<%= new URLSearchParams(filters).toString() %>" aria-label="Next">
+              <span aria-hidden="true">&gt;</span>
+            </a>
+          </li>
+          <!-- Last page -->
+          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= totalPages %>&<%= new URLSearchParams(filters).toString() %>" aria-label="Last">
+              <span aria-hidden="true">&raquo;</span>
+            </a>
           </li>
         </ul>
+        <!-- Page number input -->
+        <div class="d-flex justify-content-center mt-2">
+          <form class="d-flex align-items-center" onsubmit="event.preventDefault(); goToPage(this);">
+            <label class="me-2 mb-0">Go to page:</label>
+            <input type="number" class="form-control form-control-sm" style="width: 70px;" min="1" max="<%= totalPages %>" value="<%= currentPage %>">
+            <button type="submit" class="btn btn-primary btn-sm ms-2">Go</button>
+          </form>
+        </div>
       </nav>
+      
+      <script>
+        function goToPage(form) {
+          const page = form.querySelector('input[type="number"]').value;
+          if (page >= 1 && page <= <%= totalPages %>) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('page', page);
+            window.location.href = url.toString();
+          }
+        }
+      </script>
     <% } %>
   </div>
 

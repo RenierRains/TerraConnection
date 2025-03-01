@@ -58,8 +58,17 @@
     <% if (totalPages > 1) { %>
       <nav aria-label="Page navigation" class="mt-4">
         <ul class="pagination justify-content-center">
+          <!-- First page -->
           <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/classes?page=<%= currentPage - 1 %>" <%= currentPage === 1 ? 'tabindex="-1" aria-disabled="true"' : '' %>>Previous</a>
+            <a class="page-link" href="/admin/classes?page=1" aria-label="First">
+              <span aria-hidden="true">&laquo;</span>
+            </a>
+          </li>
+          <!-- Previous page -->
+          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="/admin/classes?page=<%= currentPage - 1 %>" aria-label="Previous">
+              <span aria-hidden="true">&lt;</span>
+            </a>
           </li>
           
           <% 
@@ -98,11 +107,38 @@
               </li>
             <% } %>
           
+          <!-- Next page -->
           <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/classes?page=<%= currentPage + 1 %>" <%= currentPage === totalPages ? 'tabindex="-1" aria-disabled="true"' : '' %>>Next</a>
+            <a class="page-link" href="/admin/classes?page=<%= currentPage + 1 %>" aria-label="Next">
+              <span aria-hidden="true">&gt;</span>
+            </a>
+          </li>
+          <!-- Last page -->
+          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="/admin/classes?page=<%= totalPages %>" aria-label="Last">
+              <span aria-hidden="true">&raquo;</span>
+            </a>
           </li>
         </ul>
+        <!-- Page number input -->
+        <div class="d-flex justify-content-center mt-2">
+          <form class="d-flex align-items-center" onsubmit="event.preventDefault(); goToPage(this);" data-total-pages="<%= totalPages %>">
+            <label class="me-2 mb-0">Go to page:</label>
+            <input type="number" class="form-control form-control-sm" style="width: 70px;" min="1" max="<%= totalPages %>" value="<%= currentPage %>">
+            <button type="submit" class="btn btn-primary btn-sm ms-2">Go</button>
+          </form>
+        </div>
       </nav>
+      
+      <script>
+        function goToPage(form) {
+          const page = form.querySelector('input[type="number"]').value;
+          const maxPages = parseInt(form.dataset.totalPages);
+          if (page >= 1 && page <= maxPages) {
+            window.location.href = '/admin/classes?page=' + page;
+          }
+        }
+      </script>
     <% } %>
   </div>
 </body>
