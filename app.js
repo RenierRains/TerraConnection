@@ -19,6 +19,9 @@ const professorRoutes = require('./routes/professor');
 const guardianRoutes = require('./routes/guardian');
 const userRoutes = require('./routes/user');
 
+// Trust proxy settings - must be set before other middleware
+app.set('trust proxy', 'loopback, linklocal, uniquelocal'); // Trust local proxy and PM2
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -40,8 +43,6 @@ app.use(session({
   resave: false,
   saveUninitialized: false
 }));
-
-app.set('trust proxy', true);
 
 // use mount
 app.use('/api/auth', authRoutes);

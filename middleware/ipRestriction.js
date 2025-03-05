@@ -1,8 +1,18 @@
 const allowedIPs = ['127.0.0.1']; //request static ip from network ####
 
 function ipRestriction(req, res, next) {
-  const clientIP = req.ip || req.connection.remoteAddress;
-  console.log('Client IP:', clientIP);
+  const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || 
+                  req.headers['x-real-ip'] || 
+                  req.ip || 
+                  req.connection.remoteAddress;
+
+  console.log('IP Detection Details:', {
+    'X-Forwarded-For': req.headers['x-forwarded-for'],
+    'X-Real-IP': req.headers['x-real-ip'],
+    'req.ip': req.ip,
+    'remoteAddress': req.connection.remoteAddress,
+    'Final detected IP': clientIP
+  });
 
   if (allowedIPs.includes(clientIP)) {
     next();

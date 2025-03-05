@@ -1,6 +1,5 @@
 const db = require('../models');
 
-// Standard audit action types
 const AuditActions = {
   USER: {
     LOGIN_SUCCESS: 'USER_LOGIN_SUCCESS',
