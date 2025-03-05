@@ -1,23 +1,37 @@
 const allowedIPs = ['127.0.0.1']; //request static ip from network ####
 
 function ipRestriction(req, res, next) {
-  const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || 
-                  req.headers['x-real-ip'] || 
+  console.log('All Request Headers:', req.headers);
+  
+  const xForwardedFor = req.headers['x-forwarded-for'];
+  const xRealIp = req.headers['x-real-ip'];
+  const socketRemoteAddr = req.socket?.remoteAddress;
+  
+  const clientIP = xForwardedFor?.split(',').map(ip => ip.trim())[0] || 
+                  xRealIp || 
                   req.ip || 
+                  socketRemoteAddr ||
                   req.connection.remoteAddress;
 
-  console.log('IP Detection Details:', {
-    'X-Forwarded-For': req.headers['x-forwarded-for'],
-    'X-Real-IP': req.headers['x-real-ip'],
-    'req.ip': req.ip,
-    'remoteAddress': req.connection.remoteAddress,
-    'Final detected IP': clientIP
+  const cleanIP = clientIP?.replace(/^::ffff:/, '');
+                  
+  console.log('Detailed IP Detection:', {
+    'Raw Headers': {
+      'X-Forwarded-For': xForwardedFor,
+      'X-Real-IP': xRealIp
+    },
+    'Socket Remote Address': socketRemoteAddr,
+    'Express req.ip': req.ip,
+    'Connection Remote Address': req.connection.remoteAddress,
+    'Final Raw IP': clientIP,
+    'Clean IP': cleanIP
   });
 
-  if (allowedIPs.includes(clientIP)) {
+  if (allowedIPs.includes(cleanIP)) {
+    console.log('Access granted for IP:', cleanIP);
     next();
   } else {
-    console.warn('Unauthorized IP attempt:', clientIP);
+    console.warn('Unauthorized IP attempt:', cleanIP);
     res.status(403).send('Access denied: unauthorized IP address.');
   }
 }
