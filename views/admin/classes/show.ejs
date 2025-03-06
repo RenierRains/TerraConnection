@@ -6,22 +6,65 @@
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-  <%- include('../../partials/header.ejs') %>
-  <div class="container mt-5">
+  <%- include('../../partials/modal-styles') %>
+
+  <div class="modal-content-wrapper">
     <h2>Class Details</h2>
-    <p><strong>ID:</strong> <%= cls.id %></p>
-    <p><strong>Class Code:</strong> <%= cls.class_code %></p>
-    <p><strong>Class Name:</strong> <%= cls.class_name %></p>
-    <p><strong>Course:</strong> <%= cls.course %></p>
-    <p><strong>Year:</strong> <%= cls.year %></p>
-    <p><strong>Section:</strong> <%= cls.section %></p>
-    <p><strong>Room:</strong> <%= cls.room %></p>
-    <p><strong>Start Time:</strong> <%= cls.start_time %></p>
-    <p><strong>End Time:</strong> <%= cls.end_time %></p>
-    <p><strong>Schedule:</strong> <%= cls.schedule %></p>
-    <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-warning">Edit</a>
-    <a href="/admin/classes" class="btn btn-secondary">Back</a>
+    
+    <div class="details-group">
+      <div class="details-label">ID</div>
+      <div class="details-value"><%= cls.id %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Class Code</div>
+      <div class="details-value"><%= cls.class_code %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Class Name</div>
+      <div class="details-value"><%= cls.class_name %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Course</div>
+      <div class="details-value"><%= cls.course %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Year</div>
+      <div class="details-value"><%= cls.year %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Section</div>
+      <div class="details-value"><%= cls.section %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Room</div>
+      <div class="details-value"><%= cls.room %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Start Time</div>
+      <div class="details-value"><%= cls.start_time %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">End Time</div>
+      <div class="details-value"><%= cls.end_time %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Schedule</div>
+      <div class="details-value"><%= cls.schedule %></div>
+    </div>
+    
+    <div class="button-group">
+      <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-warning" data-modal="true">Edit</a>
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    </div>
   </div>
-  <%- include('../../partials/footer.ejs') %>
 </body>
 </html>

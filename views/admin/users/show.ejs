@@ -6,15 +6,40 @@
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-  <div class="container mt-5">
+  <%- include('../../partials/modal-styles') %>
+
+  <div class="modal-content-wrapper">
     <h2>User Details</h2>
-    <p><strong>ID:</strong> <%= user.id %></p>
-    <p><strong>Name:</strong> <%= user.first_name %> <%= user.last_name %></p>
-    <p><strong>Email:</strong> <%= user.email %></p>
-    <p><strong>Role:</strong> <%= user.role %></p>
-    <p><strong>School ID:</strong> <%= user.school_id || 'N/A' %></p>
-    <a href="/admin/users/<%= user.id %>/edit" class="btn btn-warning">Edit</a>
-    <a href="/admin/users" class="btn btn-secondary">Back</a>
+    
+    <div class="details-group">
+      <div class="details-label">ID</div>
+      <div class="details-value"><%= user.id %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Name</div>
+      <div class="details-value"><%= user.first_name %> <%= user.last_name %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Email</div>
+      <div class="details-value"><%= user.email %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Role</div>
+      <div class="details-value"><%= user.role %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">School ID</div>
+      <div class="details-value"><%= user.school_id || 'N/A' %></div>
+    </div>
+    
+    <div class="button-group">
+      <a href="/admin/users/<%= user.id %>/edit" class="btn btn-warning" data-modal="true">Edit</a>
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    </div>
   </div>
 </body>
 </html>

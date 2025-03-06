@@ -10,8 +10,8 @@
     <h2>Classes</h2>
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div>
-        <a href="/admin/classes/create" class="btn btn-success">Add New Class</a>
-        <a href="/admin/classes/import" class="btn btn-info">Import Classes</a>
+        <a href="/admin/classes/create" class="btn btn-success" data-modal="true">Add New Class</a>
+        <a href="/admin/classes/import" class="btn btn-info" data-modal="true">Import Classes</a>
       </div>
       <div>
         <span class="text-muted">Total Classes: <%= totalClasses %></span>
@@ -44,8 +44,8 @@
             <td><%= cls.room %></td>
             <td><%= cls.schedule %></td>
             <td>
-              <a href="/admin/classes/<%= cls.id %>" class="btn btn-info btn-sm">View</a>
-              <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-warning btn-sm">Edit</a>
+              <a href="/admin/classes/<%= cls.id %>" class="btn btn-info btn-sm" data-modal="true">View</a>
+              <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-warning btn-sm" data-modal="true">Edit</a>
               <form action="/admin/classes/<%= cls.id %>?_method=DELETE" method="POST" style="display:inline;">
                 <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
               </form>

@@ -4,31 +4,65 @@
   <meta charset="UTF-8">
   <title><%= title %></title>
   <link rel="stylesheet" href="/css/app.css">
-  <style>
-    .import-container {
-      max-width: 500px;
-      margin: 2rem auto;
-      padding: 2rem;
-      background-color: #f8f9fa;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
-    .import-container h2 {
-      margin-bottom: 1rem;
-    }
-  </style>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-  <div class="import-container">
+  <%- include('../../partials/modal-styles') %>
+
+  <div class="modal-content-wrapper" onclick="event.stopPropagation();">
     <h2>Import Classes</h2>
-    <p>Select a CSV or Excel (.xlsx) file to import class data. The first row should contain headers matching the fields: <strong>class_code, class_name, course, year, section, room, start_time, end_time, schedule</strong>.</p>
-    <form action="/admin/classes/import" method="POST" enctype="multipart/form-data">
+    <div id="importFeedback"></div>
+    <p class="mb-4">Select a CSV or Excel (.xlsx) file to import class data. The first row should contain headers matching the fields: <strong>class_code, class_name, course, year, section, room, start_time, end_time, schedule</strong>.</p>
+    
+    <form id="importForm" action="/admin/classes/import" method="POST" enctype="multipart/form-data" data-modal="true">
       <div class="form-group">
-        <input type="file" name="importFile" class="form-control" accept=".csv,.xlsx" required>
+        <label for="importFile">Select File</label>
+        <input type="file" id="importFile" name="importFile" class="form-control" accept=".csv,.xlsx" required>
       </div>
-      <button type="submit" class="btn btn-primary mt-3">Import Classes</button>
-      <a href="/admin/classes" class="btn btn-secondary mt-3">Cancel</a>
+      
+      <div class="button-group">
+        <button type="submit" class="btn btn-primary">Import Classes</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
     </form>
   </div>
+
+  <script>
+    $(document).ready(function() {
+      // Prevent modal content clicks from bubbling up
+      $('.modal-content-wrapper').on('click', function(e) {
+        e.stopPropagation();
+      });
+
+      $('#importForm').on('submit', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        var formData = new FormData(this);
+        
+        // Show loading state
+        $('#importFeedback').html('<div class="alert alert-info">Importing classes, please wait...</div>');
+        
+        $.ajax({
+          url: $(this).attr('action'),
+          type: 'POST',
+          data: formData,
+          processData: false,
+          contentType: false,
+          success: function(response) {
+            $('#importFeedback').html('<div class="alert alert-success">Classes imported successfully!</div>');
+            // Refresh the parent page after 1 second
+            setTimeout(function() {
+              window.location.reload();
+            }, 1000);
+          },
+          error: function(xhr) {
+            var message = xhr.responseJSON?.message || 'Error importing classes. Please try again.';
+            $('#importFeedback').html('<div class="alert alert-danger">' + message + '</div>');
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>

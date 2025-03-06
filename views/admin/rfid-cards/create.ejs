@@ -28,31 +28,37 @@
   </style>
 </head>
 <body>
-  <div class="container mt-5">
+  <%- include('../../partials/modal-styles') %>
+
+  <div class="modal-content-wrapper">
     <h2>Create RFID Card</h2>
     <form action="/admin/rfid-cards" method="POST">
       <div class="form-group">
         <label for="card_uid">Card UID</label>
         <input type="text" id="card_uid" name="card_uid" class="form-control" required>
       </div>
-      <div class="form-group mt-2 autocomplete-container">
+      
+      <div class="form-group autocomplete-container">
         <label for="student_search">Assign to Student</label>
         <input type="text" id="student_search" class="form-control" placeholder="Type student name or email">
         <input type="hidden" name="user_id" id="user_id">
-        <div id="student_suggestions"></div>
+        <div id="student_suggestions" class="suggestions"></div>
       </div>
       
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="is_active">Is Active?</label>
         <select id="is_active" name="is_active" class="form-control">
           <option value="true" selected>Yes</option>
           <option value="false">No</option>
         </select>
       </div>
-      <button type="submit" class="btn btn-primary mt-3">Create RFID Card</button>
+      
+      <div class="button-group">
+        <button type="submit" class="btn btn-primary">Create RFID Card</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
     </form>
   </div>
-  <%- include('../../partials/footer.ejs') %>
 
   <script>
     $(document).ready(function(){

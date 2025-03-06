@@ -46,8 +46,9 @@
   </style>
 </head>
 <body>
+  <%- include('../../partials/modal-styles') %>
 
-  <div class="admin-content">
+  <div class="modal-content-wrapper">
     <h2>Edit Class</h2>
     <form action="/admin/classes/<%= cls.id %>?_method=PUT" method="POST">
       <!-- Basic Class Info -->
@@ -55,48 +56,46 @@
         <label for="class_code">Class Code</label>
         <input type="text" name="class_code" id="class_code" class="form-control" value="<%= cls.class_code %>" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="class_name">Class Name</label>
         <input type="text" name="class_name" id="class_name" class="form-control" value="<%= cls.class_name %>" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="course">Course</label>
         <input type="text" name="course" id="course" class="form-control" value="<%= cls.course %>" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="year">Year</label>
         <input type="number" name="year" id="year" class="form-control" value="<%= cls.year %>" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="section">Section</label>
         <input type="text" name="section" id="section" class="form-control" value="<%= cls.section %>" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="room">Room</label>
         <input type="text" name="room" id="room" class="form-control" value="<%= cls.room %>" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="start_time">Start Time</label>
         <input type="time" name="start_time" id="start_time" class="form-control" value="<%= cls.start_time %>" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="end_time">End Time</label>
         <input type="time" name="end_time" id="end_time" class="form-control" value="<%= cls.end_time %>" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="schedule">Schedule (Days)</label>
         <input type="text" name="schedule" id="schedule" class="form-control" value="<%= cls.schedule %>" required>
       </div>
       
       <!-- Professors Section -->
-      <div class="form-group mt-4">
+      <div class="form-group">
         <label>Assigned Professors</label>
-        <!-- Autocomplete for adding professors -->
         <div class="autocomplete-container">
           <input type="text" id="professor_search" class="form-control" placeholder="Search professor by name or email">
           <div id="professor_suggestions" class="suggestions"></div>
         </div>
-        <!-- Display currently assigned professors -->
         <div id="selected_professors" class="selected-items">
           <% if (cls.professors && cls.professors.length) { %>
             <% cls.professors.forEach(function(prof) { %>
@@ -111,14 +110,12 @@
       </div>
       
       <!-- Students Section -->
-      <div class="form-group mt-4">
+      <div class="form-group">
         <label>Enrolled Students</label>
-        <!-- Autocomplete for adding students -->
         <div class="autocomplete-container">
           <input type="text" id="student_search" class="form-control" placeholder="Search student by name or email">
           <div id="student_suggestions" class="suggestions"></div>
         </div>
-        <!-- Display currently enrolled students -->
         <div id="selected_students" class="selected-items">
           <% if (cls.students && cls.students.length) { %>
             <% cls.students.forEach(function(stud) { %>
@@ -132,13 +129,15 @@
         <input type="hidden" name="studentIds" id="studentIds" value="<%= cls.students ? cls.students.map(s => s.id).join(',') : '' %>">
       </div>
       
-      <button type="submit" class="btn btn-primary mt-3">Update Class</button>
+      <div class="button-group">
+        <button type="submit" class="btn btn-primary">Update Class</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
     </form>
   </div>
   
   <script>
     $(document).ready(function() {
-      // Helper function: update hidden input values based on selected items
       function updateHiddenInput(containerSelector, hiddenInputSelector) {
         var ids = [];
         $(containerSelector).find('.selected-item').each(function() {
@@ -147,7 +146,6 @@
         $(hiddenInputSelector).val(ids.join(','));
       }
       
-      // Remove a selected item when its "x" is clicked
       $(document).on('click', '.remove-item', function() {
         $(this).closest('.selected-item').remove();
         updateHiddenInput('#selected_professors', '#professorIds');

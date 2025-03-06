@@ -4,53 +4,120 @@
   <meta charset="UTF-8">
   <title>Create Class</title>
   <link rel="stylesheet" href="/css/app.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-  <div class="container mt-5">
+  <%- include('../../partials/modal-styles') %>
+
+  <div class="modal-content-wrapper">
     <h2>Create Class</h2>
     <form action="/admin/classes" method="POST">
       <div class="form-group">
         <label for="class_code">Class Code</label>
         <input type="text" name="class_code" id="class_code" class="form-control" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="class_name">Class Name</label>
         <input type="text" name="class_name" id="class_name" class="form-control" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="course">Course</label>
         <input type="text" name="course" id="course" class="form-control" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="year">Year</label>
         <input type="number" name="year" id="year" class="form-control" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="section">Section</label>
         <input type="text" name="section" id="section" class="form-control" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="room">Room</label>
         <input type="text" name="room" id="room" class="form-control" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="start_time">Start Time</label>
         <input type="time" name="start_time" id="start_time" class="form-control" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="end_time">End Time</label>
         <input type="time" name="end_time" id="end_time" class="form-control" required>
       </div>
-      <div class="form-group mt-2">
+      <div class="form-group">
         <label for="schedule">Schedule (Days)</label>
         <input type="text" name="schedule" id="schedule" class="form-control" placeholder="e.g., Mon,Wed,Fri" required>
       </div>
-      <div class="form-group mt-2">
-        <label for="professorIds">Professor IDs (comma-separated)</label>
-        <input type="text" name="professorIds" id="professorIds" class="form-control" placeholder="e.g., 1,2">
+      
+      <!-- Professors Section -->
+      <div class="form-group">
+        <label>Assigned Professors</label>
+        <div class="autocomplete-container">
+          <input type="text" id="professor_search" class="form-control" placeholder="Search professor by name or email">
+          <div id="professor_suggestions" class="suggestions"></div>
+        </div>
+        <div id="selected_professors" class="selected-items"></div>
+        <input type="hidden" name="professorIds" id="professorIds">
       </div>
-      <button type="submit" class="btn btn-primary mt-3">Create Class</button>
+      
+      <div class="button-group">
+        <button type="submit" class="btn btn-primary">Create Class</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
     </form>
   </div>
+
+  <script>
+    $(document).ready(function() {
+      function updateHiddenInput(containerSelector, hiddenInputSelector) {
+        var ids = [];
+        $(containerSelector).find('.selected-item').each(function() {
+          ids.push($(this).data('id'));
+        });
+        $(hiddenInputSelector).val(ids.join(','));
+      }
+      
+      $(document).on('click', '.remove-item', function() {
+        $(this).closest('.selected-item').remove();
+        updateHiddenInput('#selected_professors', '#professorIds');
+      });
+      
+      // Professors autocomplete
+      $('#professor_search').on('input', function(){
+        var query = $(this).val().trim();
+        if(query.length < 2){
+          $('#professor_suggestions').empty();
+          return;
+        }
+        $.ajax({
+          url: '/admin/professors/search',
+          data: { q: query },
+          success: function(data){
+            var html = '';
+            data.professors.forEach(function(prof){
+              if ($('#selected_professors .selected-item[data-id="'+prof.id+'"]').length === 0) {
+                html += `<div class="suggestion-item" data-id="${prof.id}">${prof.first_name} ${prof.last_name} (${prof.email})</div>`;
+              }
+            });
+            $('#professor_suggestions').html(html);
+          },
+          error: function(err){
+            console.error(err);
+          }
+        });
+      });
+      
+      $('#professor_suggestions').on('click', '.suggestion-item', function(){
+        var id = $(this).data('id');
+        var text = $(this).text();
+        if ($('#selected_professors .selected-item[data-id="'+id+'"]').length === 0) {
+          $('#selected_professors').append(`<div class="selected-item" data-id="${id}">${text} <span class="remove-item">x</span></div>`);
+          updateHiddenInput('#selected_professors', '#professorIds');
+        }
+        $('#professor_search').val('');
+        $('#professor_suggestions').empty();
+      });
+    });
+  </script>
 </body>
 </html>

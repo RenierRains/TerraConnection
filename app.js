@@ -7,6 +7,7 @@ const expressLayouts = require('express-ejs-layouts');
 const session = require('express-session');
 const methodOverride = require('method-override');
 const auditMiddleware = require('./middleware/auditMiddleware');
+const modalHandler = require('./middleware/modalHandler');
 
 const adminWebRoutes = require('./routes/adminWeb');
 const authRoutes = require('./routes/auth');
@@ -39,6 +40,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(auditMiddleware);
 
+app.use(modalHandler);
 app.use(expressLayouts);
 app.set('layout', 'layout');
 
