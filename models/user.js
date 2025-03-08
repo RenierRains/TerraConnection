@@ -28,7 +28,11 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 'student'
     },
-    profile_picture: { type: DataTypes.STRING, allowNull: true }
+    profile_picture: { type: DataTypes.STRING, allowNull: true },
+    fcm_token: {
+      type: DataTypes.STRING,
+      allowNull: true
+    }
   }, {
     tableName: 'Users',
     underscored: true

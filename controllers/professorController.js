@@ -1,6 +1,13 @@
 const { Op } = require('sequelize');
 const db = require('../models');
 const jwt = require('jsonwebtoken');
+const admin = require('firebase-admin');
+const serviceAccount = require('../config/firebase-service-account.json');
+
+// Initialize Firebase Admin
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
 
 exports.verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -83,9 +90,36 @@ exports.sendNotification = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
     const { classId, title, message } = req.body;
-    // TODO: for steven/gelo: endpoint neto gamit kayo ng push notif service like ex. FCM.
-    // naglolog ng notification tapos return success lang, pm if change.
-    console.log(`Notification for class ${classId}: ${title} - ${message}`);
+
+    // Get all students in the class
+    const enrollments = await db.Class_Enrollment.findAll({
+      where: { class_id: classId },
+      include: [{
+        model: db.User,
+        as: 'studentData',
+        attributes: ['id', 'fcm_token']
+      }]
+    });
+
+    // Get all FCM tokens
+    const tokens = enrollments
+      .map(enrollment => enrollment.studentData.fcm_token)
+      .filter(token => token); // Remove null/undefined tokens
+
+    if (tokens.length > 0) {
+      // Send notification to all tokens
+      const message = {
+        data: {
+          title: title,
+          message: message
+        },
+        tokens: tokens
+      };
+
+      const response = await admin.messaging().sendMulticast(message);
+      console.log('Successfully sent notifications:', response);
+    }
+
     res.json({ message: `Notification sent to class ${classId}.` });
   } catch (err) {
     console.error(err);

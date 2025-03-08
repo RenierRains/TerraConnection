@@ -44,5 +44,21 @@ exports.updateProfilePicture = async (req, res) => {
   }
 };
 
+exports.updateFcmToken = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { fcm_token } = req.body;
+
+    await db.User.update(
+      { fcm_token },
+      { where: { id: userId } }
+    );
+
+    res.json({ message: 'FCM token updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update FCM token' });
+  }
+};
 
 exports.uploadProfilePic = upload.single('profile_picture');
