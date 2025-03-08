@@ -83,7 +83,7 @@ exports.sendNotification = async (req, res) => {
     if (req.user.role !== 'professor' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Not authorized' });
     }
-    const { classId, title, message } = req.body;
+    const { classId, title, message: notificationMessage } = req.body;
 
     // Get all students in the class
     const enrollments = await db.Class_Enrollment.findAll({
@@ -103,12 +103,12 @@ exports.sendNotification = async (req, res) => {
     console.log('Found tokens:', tokens);
 
     if (tokens.length > 0) {
-      const message = {
+      const fcmPayload = {
         tokens: tokens,
         android: {
           notification: {
             title: title,
-            body: message,
+            body: notificationMessage,
             clickAction: 'FLUTTER_NOTIFICATION_CLICK',
             channelId: 'terra_channel'
           }
@@ -118,7 +118,7 @@ exports.sendNotification = async (req, res) => {
             aps: {
               alert: {
                 title: title,
-                body: message
+                body: notificationMessage
               }
             }
           }
@@ -126,12 +126,12 @@ exports.sendNotification = async (req, res) => {
       };
 
       try {
-        console.log('Sending FCM message:', JSON.stringify(message, null, 2));
+        console.log('Sending FCM message:', JSON.stringify(fcmPayload, null, 2));
         const response = await admin.messaging().sendMulticast({
           tokens: tokens,
           notification: {
             title: title,
-            body: message
+            body: notificationMessage
           },
           android: {
             priority: 'high'
