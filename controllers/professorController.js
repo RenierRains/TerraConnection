@@ -103,60 +103,58 @@ exports.sendNotification = async (req, res) => {
     console.log('Found tokens:', tokens);
 
     if (tokens.length > 0) {
-      const fcmPayload = {
-        tokens: tokens,
+      const payload = {
+        notification: {
+          title: title,
+          body: notificationMessage
+        },
         android: {
           notification: {
-            title: title,
-            body: notificationMessage,
             clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-            channelId: 'terra_channel'
-          }
-        },
-        apns: {
-          payload: {
-            aps: {
-              alert: {
-                title: title,
-                body: notificationMessage
-              }
-            }
+            channelId: 'terra_channel',
+            priority: 'high'
           }
         }
       };
 
       try {
-        console.log('Sending FCM message:', JSON.stringify(fcmPayload, null, 2));
-        const response = await admin.messaging().sendMulticast({
-          tokens: tokens,
-          notification: {
-            title: title,
-            body: notificationMessage
-          },
-          android: {
-            priority: 'high'
-          }
-        });
+        console.log('Sending FCM message:', JSON.stringify(payload, null, 2));
         
-        console.log('FCM Response:', JSON.stringify(response, null, 2));
+        // Send to each token
+        const sendPromises = tokens.map(token => 
+          admin.messaging().sendToDevice(token, payload)
+        );
         
-        if (response.failureCount > 0) {
-          const failedTokens = [];
-          response.responses.forEach((resp, idx) => {
-            if (!resp.success) {
+        const responses = await Promise.all(sendPromises);
+        console.log('FCM Responses:', JSON.stringify(responses, null, 2));
+        
+        // Count successes and failures
+        let successCount = 0;
+        let failureCount = 0;
+        const failedTokens = [];
+
+        responses.forEach((response, index) => {
+          response.results.forEach(result => {
+            if (result.error) {
+              failureCount++;
               failedTokens.push({
-                token: tokens[idx],
-                error: resp.error
+                token: tokens[index],
+                error: result.error
               });
+            } else {
+              successCount++;
             }
           });
+        });
+
+        if (failedTokens.length > 0) {
           console.log('Failed tokens:', JSON.stringify(failedTokens, null, 2));
         }
 
         return res.json({ 
           message: `Notification sent to class ${classId}`,
-          success: response.successCount,
-          failure: response.failureCount,
+          success: successCount,
+          failure: failureCount,
           total: tokens.length
         });
       } catch (fcmError) {
