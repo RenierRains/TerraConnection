@@ -83,7 +83,7 @@ exports.sendNotification = async (req, res) => {
     if (req.user.role !== 'professor' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Not authorized' });
     }
-    const { classId, title, messageText } = req.body;
+    const { classId, title, message } = req.body;
 
     // Get all students in the class
     const enrollments = await db.Class_Enrollment.findAll({
@@ -101,22 +101,31 @@ exports.sendNotification = async (req, res) => {
       .filter(token => token); // Remove null/undefined tokens
 
     if (tokens.length > 0) {
-      // Send notification to all tokens
-      const fcmMessage = {
+      // Prepare the notification payload
+      const notification = {
+        notification: {
+          title: title,
+          body: message
+        },
         data: {
           title: title,
-          message: messageText
+          message: message
         },
         tokens: tokens
       };
 
-      const response = await admin.messaging().sendMulticast(fcmMessage);
-      console.log('Successfully sent notifications:', response);
+      try {
+        const response = await admin.messaging().sendMulticast(notification);
+        console.log('Successfully sent notifications:', response);
+      } catch (fcmError) {
+        console.error('FCM Error:', fcmError);
+        return res.status(500).json({ error: 'Failed to send FCM notification' });
+      }
     }
 
     res.json({ message: `Notification sent to class ${classId}.` });
   } catch (err) {
-    console.error(err);
+    console.error('General Error:', err);
     res.status(500).json({ error: 'Failed to send notification' });
   }
 };
