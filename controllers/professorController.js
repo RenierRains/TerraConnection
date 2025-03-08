@@ -104,27 +104,31 @@ exports.sendNotification = async (req, res) => {
 
     if (tokens.length > 0) {
       try {
-        const messaging = firebase.getMessaging();
-        const sendPromises = tokens.map(token => {
-          const message = {
-            token,
-            android: {
-              priority: 'high',
-              notification: {
-                title,
-                body: notificationMessage,
-                channelId: 'terra_channel',
-                clickAction: 'FLUTTER_NOTIFICATION_CLICK'
-              }
-            },
+        const messaging = await firebase.getMessaging();
+        
+        // Create the message payload
+        const message = {
+          notification: {
+            title,
+            body: notificationMessage
+          },
+          android: {
+            priority: 'high',
             notification: {
-              title,
-              body: notificationMessage
+              channelId: 'terra_channel',
+              clickAction: 'FLUTTER_NOTIFICATION_CLICK'
             }
-          };
+          }
+        };
 
-          console.log('Sending FCM message:', JSON.stringify(message, null, 2));
-          return messaging.send(message);
+        // Send to multiple devices
+        const sendPromises = tokens.map(token => {
+          const tokenMessage = {
+            ...message,
+            token // Add the token to the message
+          };
+          console.log('Sending FCM message:', JSON.stringify(tokenMessage, null, 2));
+          return messaging.send(tokenMessage);
         });
 
         const results = await Promise.allSettled(sendPromises);

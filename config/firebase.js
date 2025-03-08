@@ -92,17 +92,17 @@ async function initializeFirebase() {
     
     const app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      projectId: serviceAccount.project_id,
-      databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+      projectId: serviceAccount.project_id
     });
 
     // Test the messaging service
     try {
       const messaging = app.messaging();
-      await messaging.getMessagingConditions(); // Test the messaging service
-      console.log('Firebase Messaging service test successful');
+      // Test messaging by attempting to get FCM token info (this is a lightweight operation)
+      await messaging.getToken();
+      console.log('Firebase Messaging service initialized successfully');
     } catch (error) {
-      console.error('Firebase Messaging service test failed:', error);
+      console.error('Firebase Messaging service initialization failed:', error);
       throw error;
     }
 
