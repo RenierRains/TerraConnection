@@ -108,7 +108,7 @@ exports.sendNotification = async (req, res) => {
 
     if (tokens.length > 0) {
       // Send notification to all tokens
-      const message = {
+      const fcmMessage = {
         data: {
           title: title,
           message: message
@@ -116,7 +116,7 @@ exports.sendNotification = async (req, res) => {
         tokens: tokens
       };
 
-      const response = await admin.messaging().sendMulticast(message);
+      const response = await admin.messaging().sendMulticast(fcmMessage);
       console.log('Successfully sent notifications:', response);
     }
 
