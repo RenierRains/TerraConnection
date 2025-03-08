@@ -113,6 +113,11 @@ exports.sendNotification = async (req, res) => {
             title,
             body: notificationMessage
           },
+          data: {
+            title,
+            body: notificationMessage,
+            click_action: 'FLUTTER_NOTIFICATION_CLICK'
+          },
           android: {
             priority: 'high',
             notification: {
