@@ -123,3 +123,40 @@ exports.getSchedule = async (req, res) => {
     res.status(500).json({ error: 'Failed to get professor schedule' });
   }
 };
+
+exports.getClassEnrollment = async (req, res) => {
+  try {
+    if (req.user.role !== 'professor' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    const { classId } = req.query;
+    const classRecord = await db.Class.findByPk(classId);
+    if (!classRecord) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
+    const enrollments = await db.Class_Enrollment.findAll({
+      where: { class_id: classId },
+      include: [{
+        model: db.User,
+        as: 'studentData',
+        attributes: ['id', 'first_name', 'last_name', 'email']
+      }]
+    });
+
+    const formattedEnrollments = enrollments.map(enrollment => ({
+      studentId: enrollment.student_id,
+      student: {
+        id: enrollment.studentData.id,
+        firstName: enrollment.studentData.first_name,
+        lastName: enrollment.studentData.last_name,
+        email: enrollment.studentData.email
+      }
+    }));
+
+    res.json({ enrollments: formattedEnrollments });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve class enrollment data' });
+  }
+};

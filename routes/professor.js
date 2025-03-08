@@ -13,4 +13,7 @@ router.get('/attendance', professorController.verifyToken, professorController.g
 // POST /api/professor/notification TODO: test 
 router.post('/notification', professorController.verifyToken, professorController.sendNotification);
 
+// GET /api/professor/class-enrollment?classId=X
+router.get('/class-enrollment', professorController.verifyToken, professorController.getClassEnrollment);
+
 module.exports = router;
