@@ -52,7 +52,8 @@ exports.getAttendance = async (req, res) => {
         timestamp: { [Op.between]: [start, end] }
       },
       order: [['timestamp', 'ASC']],
-      include: [{ model: db.User, as: 'user', attributes: ['first_name', 'last_name', 'id'] }]
+      include: [{ model: db.User, as: 'user', attributes: ['first_name', 'last_name', 'id'] }],
+      attributes: ['user_id', 'timestamp', 'type']
     });
     // get last known GPS for these students
     const gpsRecords = await db.GPS_Location.findAll({
