@@ -90,6 +90,12 @@ async function initializeFirebase() {
     // Initialize Firebase Admin
     console.log('Initializing Firebase Admin with project:', serviceAccount.project_id);
     
+    // Ensure private key is properly formatted
+    if (typeof serviceAccount.private_key === 'string') {
+      // Replace literal '\n' with actual line breaks if they exist
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+    
     const app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: serviceAccount.project_id
