@@ -105,9 +105,10 @@ exports.sendNotification = async (req, res) => {
     if (tokens.length > 0) {
       try {
         const messaging = await firebase.getMessaging();
-        
-        // Create the message payload
+
+        // Send to multiple devices using sendMulticast
         const message = {
+          tokens,
           notification: {
             title,
             body: notificationMessage
@@ -121,34 +122,17 @@ exports.sendNotification = async (req, res) => {
           }
         };
 
-        // Send to multiple devices
-        const sendPromises = tokens.map(token => {
-          const tokenMessage = {
-            ...message,
-            token // Add the token to the message
-          };
-          console.log('Sending FCM message:', JSON.stringify(tokenMessage, null, 2));
-          return messaging.send(tokenMessage);
-        });
-
-        const results = await Promise.allSettled(sendPromises);
-        console.log('FCM Results:', JSON.stringify(results, null, 2));
-
-        const successCount = results.filter(r => r.status === 'fulfilled').length;
-        const failureCount = results.filter(r => r.status === 'rejected').length;
-
-        // Log any failures
-        results.forEach((result, index) => {
-          if (result.status === 'rejected') {
-            console.error(`Failed to send to token ${tokens[index]}:`, result.reason);
-          }
-        });
+        console.log('Sending FCM multicast message:', JSON.stringify(message, null, 2));
+        
+        const response = await messaging.sendMulticast(message);
+        console.log('FCM Response:', JSON.stringify(response, null, 2));
 
         return res.json({
           message: `Notification sent to class ${classId}`,
-          success: successCount,
-          failure: failureCount,
-          total: tokens.length
+          success: response.successCount,
+          failure: response.failureCount,
+          total: tokens.length,
+          responses: response.responses
         });
       } catch (fcmError) {
         console.error('FCM Error Details:', {

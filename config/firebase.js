@@ -87,7 +87,7 @@ async function initializeFirebase() {
     const apps = admin.apps;
     await Promise.all(apps.map(app => app ? app.delete() : null));
 
-    // Initialize Firebase Admin with explicit databaseURL
+    // Initialize Firebase Admin
     console.log('Initializing Firebase Admin with project:', serviceAccount.project_id);
     
     const app = admin.initializeApp({
@@ -95,18 +95,13 @@ async function initializeFirebase() {
       projectId: serviceAccount.project_id
     });
 
-    // Test the messaging service
-    try {
-      const messaging = app.messaging();
-      // Test messaging by attempting to get FCM token info (this is a lightweight operation)
-      await messaging.getToken();
-      console.log('Firebase Messaging service initialized successfully');
-    } catch (error) {
-      console.error('Firebase Messaging service initialization failed:', error);
-      throw error;
+    // Get messaging service to verify it's available
+    const messaging = app.messaging();
+    if (!messaging) {
+      throw new Error('Failed to initialize Firebase Messaging service');
     }
+    console.log('Firebase Messaging service initialized successfully');
 
-    console.log('Firebase Admin initialized successfully');
     return app;
   } catch (error) {
     console.error('Firebase initialization error:', error);
