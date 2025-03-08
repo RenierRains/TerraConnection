@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const db = require('../models');
 const jwt = require('jsonwebtoken');
-const admin = require('../config/firebase');
+const firebase = require('../config/firebase');
 
 exports.verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -104,32 +104,46 @@ exports.sendNotification = async (req, res) => {
 
     if (tokens.length > 0) {
       try {
+        const messaging = firebase.getMessaging();
         const sendPromises = tokens.map(token => {
           const message = {
-            token: token,
-            notification: {
-              title: title,
-              body: notificationMessage
-            },
+            token,
             android: {
               priority: 'high',
               notification: {
+                title,
+                body: notificationMessage,
                 channelId: 'terra_channel',
                 clickAction: 'FLUTTER_NOTIFICATION_CLICK'
               }
+            },
+            notification: {
+              title,
+              body: notificationMessage
             }
           };
 
           console.log('Sending FCM message:', JSON.stringify(message, null, 2));
-          return admin.messaging().send(message);
+          return messaging.send(message);
         });
 
-        const results = await Promise.all(sendPromises);
+        const results = await Promise.allSettled(sendPromises);
         console.log('FCM Results:', JSON.stringify(results, null, 2));
+
+        const successCount = results.filter(r => r.status === 'fulfilled').length;
+        const failureCount = results.filter(r => r.status === 'rejected').length;
+
+        // Log any failures
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.error(`Failed to send to token ${tokens[index]}:`, result.reason);
+          }
+        });
 
         return res.json({
           message: `Notification sent to class ${classId}`,
-          success: results.length,
+          success: successCount,
+          failure: failureCount,
           total: tokens.length
         });
       } catch (fcmError) {

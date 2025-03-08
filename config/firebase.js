@@ -32,7 +32,13 @@ function validateServiceAccount(serviceAccount) {
       throw new Error(`Missing required field: ${field}`);
     }
   }
-  return true;
+  
+  // Ensure private_key is properly formatted
+  if (serviceAccount.private_key.includes('\\n')) {
+    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+  }
+  
+  return serviceAccount;
 }
 
 async function initializeFirebase() {
@@ -49,31 +55,56 @@ async function initializeFirebase() {
     }
 
     const serviceAccountContent = fs.readFileSync(serviceAccountPath, 'utf8');
-    const serviceAccount = JSON.parse(serviceAccountContent);
+    let serviceAccount = JSON.parse(serviceAccountContent);
 
-    // Validate service account
-    validateServiceAccount(serviceAccount);
+    // Validate and format service account
+    serviceAccount = validateServiceAccount(serviceAccount);
 
-    // Initialize Firebase Admin only if it hasn't been initialized
-    if (!admin.apps.length) {
-      console.log('Initializing Firebase Admin with project:', serviceAccount.project_id);
-      
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-      });
-      
-      console.log('Firebase Admin initialized successfully');
-    }
+    // Delete any existing apps
+    admin.apps.forEach(app => {
+      if (app) {
+        app.delete();
+      }
+    });
+
+    // Initialize Firebase Admin
+    console.log('Initializing Firebase Admin with project:', serviceAccount.project_id);
+    
+    const app = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: serviceAccount.project_id
+    });
+
+    // Test the initialization by getting the messaging service
+    const messaging = app.messaging();
+    console.log('Firebase Admin initialized successfully with messaging service');
+
+    return app;
   } catch (error) {
     console.error('Firebase initialization error:', error);
     throw error;
   }
 }
 
-// Initialize Firebase
-initializeFirebase().catch(error => {
-  console.error('Failed to initialize Firebase:', error);
-  process.exit(1);
-});
+let firebaseApp;
 
-module.exports = admin; 
+// Initialize Firebase and export the initialized app
+initializeFirebase()
+  .then(app => {
+    firebaseApp = app;
+    console.log('Firebase app exported successfully');
+  })
+  .catch(error => {
+    console.error('Failed to initialize Firebase:', error);
+    process.exit(1);
+  });
+
+// Export a function to get the messaging service
+module.exports = {
+  getMessaging: () => {
+    if (!firebaseApp) {
+      throw new Error('Firebase app not initialized');
+    }
+    return firebaseApp.messaging();
+  }
+}; 
