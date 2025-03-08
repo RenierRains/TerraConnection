@@ -1,13 +1,7 @@
 const { Op } = require('sequelize');
 const db = require('../models');
 const jwt = require('jsonwebtoken');
-const admin = require('firebase-admin');
-const serviceAccount = require('../config/firebase-service-account.json');
-
-// Initialize Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+const admin = require('../config/firebase');
 
 exports.verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -89,7 +83,7 @@ exports.sendNotification = async (req, res) => {
     if (req.user.role !== 'professor' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Not authorized' });
     }
-    const { classId, title, message } = req.body;
+    const { classId, title, messageText } = req.body;
 
     // Get all students in the class
     const enrollments = await db.Class_Enrollment.findAll({
@@ -111,7 +105,7 @@ exports.sendNotification = async (req, res) => {
       const fcmMessage = {
         data: {
           title: title,
-          message: message
+          message: messageText
         },
         tokens: tokens
       };
