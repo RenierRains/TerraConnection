@@ -101,26 +101,25 @@ exports.sendNotification = async (req, res) => {
       .filter(token => token); // Remove null/undefined tokens
 
     if (tokens.length > 0) {
-      // Prepare the notification payload
-      const notification = {
+      const payload = {
         notification: {
           title: title,
           body: message
-        },
-        data: {
-          title: title,
-          message: message
-        },
-        tokens: tokens
+        }
       };
 
       try {
-        const response = await admin.messaging().sendMulticast(notification);
+        const response = await admin.messaging().sendEachForMulticast({
+          tokens: tokens,
+          ...payload
+        });
         console.log('Successfully sent notifications:', response);
       } catch (fcmError) {
         console.error('FCM Error:', fcmError);
         return res.status(500).json({ error: 'Failed to send FCM notification' });
       }
+    } else {
+      console.log('No valid FCM tokens found for the class');
     }
 
     res.json({ message: `Notification sent to class ${classId}.` });
