@@ -106,9 +106,9 @@ exports.sendNotification = async (req, res) => {
       try {
         const messaging = await firebase.getMessaging();
 
-        // Send to multiple devices using sendMulticast
-        const message = {
-          tokens,
+        // Create a message for each token
+        const messages = tokens.map(token => ({
+          token,
           notification: {
             title,
             body: notificationMessage
@@ -120,19 +120,20 @@ exports.sendNotification = async (req, res) => {
               clickAction: 'FLUTTER_NOTIFICATION_CLICK'
             }
           }
-        };
+        }));
 
-        console.log('Sending FCM multicast message:', JSON.stringify(message, null, 2));
+        console.log('Sending FCM messages:', JSON.stringify(messages, null, 2));
         
-        const response = await messaging.sendMulticast(message);
-        console.log('FCM Response:', JSON.stringify(response, null, 2));
+        // Send all messages in parallel
+        const responses = await Promise.all(messages.map(msg => messaging.send(msg)));
+        console.log('FCM Responses:', JSON.stringify(responses, null, 2));
 
         return res.json({
           message: `Notification sent to class ${classId}`,
-          success: response.successCount,
-          failure: response.failureCount,
+          success: responses.length,
+          failure: 0,
           total: tokens.length,
-          responses: response.responses
+          responses: responses
         });
       } catch (fcmError) {
         console.error('FCM Error Details:', {
