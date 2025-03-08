@@ -100,29 +100,81 @@ exports.sendNotification = async (req, res) => {
       .map(enrollment => enrollment.studentData.fcm_token)
       .filter(token => token); // Remove null/undefined tokens
 
+    console.log('Found tokens:', tokens);
+
     if (tokens.length > 0) {
-      const payload = {
-        notification: {
-          title: title,
-          body: message
+      const message = {
+        tokens: tokens,
+        android: {
+          notification: {
+            title: title,
+            body: message,
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+            channelId: 'terra_channel'
+          }
+        },
+        apns: {
+          payload: {
+            aps: {
+              alert: {
+                title: title,
+                body: message
+              }
+            }
+          }
         }
       };
 
       try {
-        const response = await admin.messaging().sendEachForMulticast({
+        console.log('Sending FCM message:', JSON.stringify(message, null, 2));
+        const response = await admin.messaging().sendMulticast({
           tokens: tokens,
-          ...payload
+          notification: {
+            title: title,
+            body: message
+          },
+          android: {
+            priority: 'high'
+          }
         });
-        console.log('Successfully sent notifications:', response);
+        
+        console.log('FCM Response:', JSON.stringify(response, null, 2));
+        
+        if (response.failureCount > 0) {
+          const failedTokens = [];
+          response.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+              failedTokens.push({
+                token: tokens[idx],
+                error: resp.error
+              });
+            }
+          });
+          console.log('Failed tokens:', JSON.stringify(failedTokens, null, 2));
+        }
+
+        return res.json({ 
+          message: `Notification sent to class ${classId}`,
+          success: response.successCount,
+          failure: response.failureCount,
+          total: tokens.length
+        });
       } catch (fcmError) {
-        console.error('FCM Error:', fcmError);
-        return res.status(500).json({ error: 'Failed to send FCM notification' });
+        console.error('FCM Error Details:', {
+          code: fcmError.code,
+          message: fcmError.message,
+          stack: fcmError.stack,
+          details: fcmError.errorInfo
+        });
+        return res.status(500).json({ 
+          error: 'Failed to send FCM notification',
+          details: fcmError.message
+        });
       }
     } else {
-      console.log('No valid FCM tokens found for the class');
+      console.log('No valid FCM tokens found for class:', classId);
+      return res.status(400).json({ error: 'No valid FCM tokens found for this class' });
     }
-
-    res.json({ message: `Notification sent to class ${classId}.` });
   } catch (err) {
     console.error('General Error:', err);
     res.status(500).json({ error: 'Failed to send notification' });
