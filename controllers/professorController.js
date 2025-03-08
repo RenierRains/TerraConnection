@@ -103,58 +103,33 @@ exports.sendNotification = async (req, res) => {
     console.log('Found tokens:', tokens);
 
     if (tokens.length > 0) {
-      const payload = {
-        notification: {
-          title: title,
-          body: notificationMessage
-        },
-        android: {
-          notification: {
-            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-            channelId: 'terra_channel',
-            priority: 'high'
-          }
-        }
-      };
-
       try {
-        console.log('Sending FCM message:', JSON.stringify(payload, null, 2));
-        
-        // Send to each token
-        const sendPromises = tokens.map(token => 
-          admin.messaging().sendToDevice(token, payload)
-        );
-        
-        const responses = await Promise.all(sendPromises);
-        console.log('FCM Responses:', JSON.stringify(responses, null, 2));
-        
-        // Count successes and failures
-        let successCount = 0;
-        let failureCount = 0;
-        const failedTokens = [];
-
-        responses.forEach((response, index) => {
-          response.results.forEach(result => {
-            if (result.error) {
-              failureCount++;
-              failedTokens.push({
-                token: tokens[index],
-                error: result.error
-              });
-            } else {
-              successCount++;
+        const sendPromises = tokens.map(token => {
+          const message = {
+            token: token,
+            notification: {
+              title: title,
+              body: notificationMessage
+            },
+            android: {
+              priority: 'high',
+              notification: {
+                channelId: 'terra_channel',
+                clickAction: 'FLUTTER_NOTIFICATION_CLICK'
+              }
             }
-          });
+          };
+
+          console.log('Sending FCM message:', JSON.stringify(message, null, 2));
+          return admin.messaging().send(message);
         });
 
-        if (failedTokens.length > 0) {
-          console.log('Failed tokens:', JSON.stringify(failedTokens, null, 2));
-        }
+        const results = await Promise.all(sendPromises);
+        console.log('FCM Results:', JSON.stringify(results, null, 2));
 
-        return res.json({ 
+        return res.json({
           message: `Notification sent to class ${classId}`,
-          success: successCount,
-          failure: failureCount,
+          success: results.length,
           total: tokens.length
         });
       } catch (fcmError) {
@@ -164,7 +139,7 @@ exports.sendNotification = async (req, res) => {
           stack: fcmError.stack,
           details: fcmError.errorInfo
         });
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: 'Failed to send FCM notification',
           details: fcmError.message
         });
