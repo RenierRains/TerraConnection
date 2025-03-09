@@ -85,6 +85,14 @@ exports.sendNotification = async (req, res) => {
     }
     const { classId, title, message: notificationMessage } = req.body;
 
+    // Store notification in database
+    const notification = await db.Notification.create({
+      title,
+      message: notificationMessage,
+      class_id: classId,
+      sender_id: req.user.userId
+    });
+
     // Get all students in the class
     const enrollments = await db.Class_Enrollment.findAll({
       where: { class_id: classId },
@@ -116,6 +124,7 @@ exports.sendNotification = async (req, res) => {
           data: {
             title,
             body: notificationMessage,
+            notification_id: notification.id.toString(),
             click_action: 'FLUTTER_NOTIFICATION_CLICK'
           },
           android: {
@@ -165,7 +174,8 @@ exports.sendNotification = async (req, res) => {
           success: successCount,
           failure: failureCount,
           total: tokens.length,
-          responses: responses
+          responses: responses,
+          notification_id: notification.id
         });
       } catch (fcmError) {
         console.error('FCM Error Details:', {

@@ -63,3 +63,52 @@ exports.getSchedule = async (req, res) => {
     res.status(500).json({ error: 'Failed to get student schedule' });
   }
 };
+
+exports.getNotifications = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Get all classes the student is enrolled in
+    const enrollments = await db.Class_Enrollment.findAll({
+      where: { student_id: userId }
+    });
+
+    const classIds = enrollments.map(e => e.class_id);
+
+    // Get notifications for these classes
+    const notifications = await db.Notification.findAll({
+      where: {
+        class_id: { [db.Sequelize.Op.in]: classIds }
+      },
+      include: [
+        {
+          model: db.Class,
+          as: 'class',
+          attributes: ['class_name', 'class_code']
+        },
+        {
+          model: db.User,
+          as: 'sender',
+          attributes: ['first_name', 'last_name']
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      limit: 50 // Limit to last 50 notifications
+    });
+
+    const formattedNotifications = notifications.map(notification => ({
+      id: notification.id,
+      title: notification.title,
+      message: notification.message,
+      class_name: notification.class.class_name,
+      class_code: notification.class.class_code,
+      sender_name: `${notification.sender.first_name} ${notification.sender.last_name}`,
+      created_at: notification.created_at
+    }));
+
+    res.json({ notifications: formattedNotifications });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+};
