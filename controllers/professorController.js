@@ -129,14 +129,41 @@ exports.sendNotification = async (req, res) => {
 
         console.log('Sending FCM messages:', JSON.stringify(messages, null, 2));
         
-        // Send all messages in parallel
-        const responses = await Promise.all(messages.map(msg => messaging.send(msg)));
-        console.log('FCM Responses:', JSON.stringify(responses, null, 2));
+        let successCount = 0;
+        let failureCount = 0;
+        const responses = [];
+
+        // Send messages one by one to handle errors for each token
+        for (const msg of messages) {
+          try {
+            const response = await messaging.send(msg);
+            responses.push(response);
+            successCount++;
+          } catch (fcmError) {
+            failureCount++;
+            console.error('FCM Error for token:', msg.token, {
+              code: fcmError.code,
+              message: fcmError.message
+            });
+
+            // If token is invalid or not registered, remove it from the database
+            if (fcmError.code === 'messaging/registration-token-not-registered') {
+              const studentWithToken = enrollments.find(e => e.studentData.fcm_token === msg.token);
+              if (studentWithToken) {
+                await db.User.update(
+                  { fcm_token: null },
+                  { where: { id: studentWithToken.studentData.id } }
+                );
+                console.log('Removed invalid token for user:', studentWithToken.studentData.id);
+              }
+            }
+          }
+        }
 
         return res.json({
           message: `Notification sent to class ${classId}`,
-          success: responses.length,
-          failure: 0,
+          success: successCount,
+          failure: failureCount,
           total: tokens.length,
           responses: responses
         });
