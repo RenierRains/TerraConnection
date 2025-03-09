@@ -1,8 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
-const { logUserEvent } = require('./auditLogger');
-const {logUserAudit} = require('./auditLogger');
+const { logUserEvent, logUserAudit, logSecurityAudit, logAnomalyAudit } = require('./auditLogger');
 
 const loginFailures = {};
 
