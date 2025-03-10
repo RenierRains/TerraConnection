@@ -2,6 +2,12 @@ const { Op } = require('sequelize');
 const db = require('../models');
 const jwt = require('jsonwebtoken');
 const firebase = require('../config/firebase');
+const bcrypt = require('bcrypt');
+const { logUserEvent } = require('./auditLogger');
+
+// Track last notification time for each class
+const notificationCooldowns = new Map();
+const COOLDOWN_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 exports.verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -85,6 +91,17 @@ exports.sendNotification = async (req, res) => {
     }
     const { classId, title, message: notificationMessage } = req.body;
 
+    // Check cooldown
+    const lastNotificationTime = notificationCooldowns.get(classId);
+    const now = Date.now();
+    if (lastNotificationTime && (now - lastNotificationTime) < COOLDOWN_DURATION) {
+      const remainingTime = Math.ceil((COOLDOWN_DURATION - (now - lastNotificationTime)) / 1000);
+      return res.status(429).json({ 
+        error: 'Notification cooldown in effect',
+        remainingSeconds: remainingTime
+      });
+    }
+
     // Store notification in database
     const notification = await db.Notification.create({
       title,
@@ -92,6 +109,8 @@ exports.sendNotification = async (req, res) => {
       class_id: classId,
       sender_id: req.user.userId
     });
+    
+    notificationCooldowns.set(classId, now);
 
     // Get all students in the class
     const enrollments = await db.Class_Enrollment.findAll({
