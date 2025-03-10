@@ -11,4 +11,7 @@ router.get('/schedule', verifyToken, studentController.getSchedule);
 // GET /api/student/notifications
 router.get('/notifications', verifyToken, studentController.getNotifications);
 
+// POST /api/student/notifications/:id/read
+router.post('/notifications/:id/read', verifyToken, studentController.markNotificationAsRead);
+
 module.exports = router;

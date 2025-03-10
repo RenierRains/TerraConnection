@@ -90,6 +90,13 @@ exports.getNotifications = async (req, res) => {
           model: db.User,
           as: 'sender',
           attributes: ['first_name', 'last_name']
+        },
+        {
+          model: db.User,
+          as: 'readBy',
+          attributes: ['id'],
+          where: { id: userId },
+          required: false
         }
       ],
       order: [['created_at', 'DESC']],
@@ -103,12 +110,52 @@ exports.getNotifications = async (req, res) => {
       class_name: notification.class.class_name,
       class_code: notification.class.class_code,
       sender_name: `${notification.sender.first_name} ${notification.sender.last_name}`,
-      created_at: notification.created_at
+      created_at: notification.created_at,
+      is_read: notification.readBy.length > 0
     }));
 
     res.json({ notifications: formattedNotifications });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+};
+
+exports.markNotificationAsRead = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const notificationId = req.params.id;
+
+    // Check if notification exists and user has access to it
+    const notification = await db.Notification.findOne({
+      where: { id: notificationId },
+      include: [{
+        model: db.Class,
+        as: 'class',
+        include: [{
+          model: db.Class_Enrollment,
+          where: { student_id: userId }
+        }]
+      }]
+    });
+
+    if (!notification) {
+      return res.status(404).json({ error: 'Notification not found or access denied' });
+    }
+
+    // Mark as read
+    await db.NotificationReadStatus.create({
+      notification_id: notificationId,
+      user_id: userId
+    });
+
+    res.json({ message: 'Notification marked as read' });
+  } catch (err) {
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      // Notification was already marked as read
+      return res.json({ message: 'Notification was already marked as read' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Failed to mark notification as read' });
   }
 };

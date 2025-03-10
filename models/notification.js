@@ -1,8 +1,13 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
   const Notification = sequelize.define('Notification', {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true
+    },
     title: {
-      type: DataTypes.STRING(255),
+      type: DataTypes.STRING,
       allowNull: false
     },
     message: {
@@ -37,6 +42,12 @@ module.exports = (sequelize, DataTypes) => {
     Notification.belongsTo(models.User, {
       foreignKey: 'sender_id',
       as: 'sender'
+    });
+    Notification.belongsToMany(models.User, {
+      through: 'NotificationReadStatus',
+      foreignKey: 'notification_id',
+      otherKey: 'user_id',
+      as: 'readBy'
     });
   };
 
