@@ -126,21 +126,29 @@ exports.markNotificationAsRead = async (req, res) => {
     const userId = req.user.userId;
     const notificationId = req.params.id;
 
-    // Check if notification exists and user has access to it
+    // First check if the student is enrolled in the class
     const notification = await db.Notification.findOne({
       where: { id: notificationId },
       include: [{
         model: db.Class,
-        as: 'class',
-        include: [{
-          model: db.Class_Enrollment,
-          where: { student_id: userId }
-        }]
+        as: 'class'
       }]
     });
 
     if (!notification) {
-      return res.status(404).json({ error: 'Notification not found or access denied' });
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    // Check if student is enrolled in this class
+    const enrollment = await db.Class_Enrollment.findOne({
+      where: {
+        class_id: notification.class_id,
+        student_id: userId
+      }
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     // Mark as read
