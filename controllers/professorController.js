@@ -227,19 +227,28 @@ exports.getSchedule = async (req, res) => {
       where: { professor_id: userId },
       include: [{
         model: db.Class,
+        as: 'classData',
         required: true
       }]
     });
 
-    // Extract the class data
-    const schedule = assignments.map(assignment => assignment.Class);
-    
-    res.json({
-      schedule: schedule
-    });
+    // Map the assignments to the schedule format expected by the frontend
+    const schedule = assignments.map(assignment => ({
+      class_code: assignment.classData.class_code,
+      class_name: assignment.classData.class_name,
+      course: assignment.classData.course,
+      year: assignment.classData.year,
+      section: assignment.classData.section,
+      room: assignment.classData.room,
+      start_time: assignment.classData.start_time,
+      end_time: assignment.classData.end_time,
+      schedule: assignment.classData.schedule
+    }));
+
+    res.json({ schedule });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to get professor schedule' });
+    console.error('Error in getSchedule:', err);
+    res.status(500).json({ error: 'Failed to retrieve schedule', details: err.message });
   }
 };
 
