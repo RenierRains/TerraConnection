@@ -91,8 +91,22 @@ exports.sendNotification = async (req, res) => {
     }
     const { classId, title, message: notificationMessage } = req.body;
 
+    // First get the class to ensure it exists and get its ID
+    const classRecord = await db.Class.findOne({
+      where: { 
+        [Op.or]: [
+          { id: classId }, // If classId is already a number
+          { class_code: classId } // If classId is actually a class_code
+        ]
+      }
+    });
+
+    if (!classRecord) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+
     // Check cooldown
-    const lastNotificationTime = notificationCooldowns.get(classId);
+    const lastNotificationTime = notificationCooldowns.get(classRecord.id);
     const now = Date.now();
     if (lastNotificationTime && (now - lastNotificationTime) < COOLDOWN_DURATION) {
       const remainingTime = Math.ceil((COOLDOWN_DURATION - (now - lastNotificationTime)) / 1000);
@@ -102,19 +116,19 @@ exports.sendNotification = async (req, res) => {
       });
     }
 
-    // Store notification in database
+    // Store notification in database using the actual class ID
     const notification = await db.Notification.create({
       title,
       message: notificationMessage,
-      class_id: classId,
+      class_id: classRecord.id, // Use the actual class ID
       sender_id: req.user.userId
     });
     
-    notificationCooldowns.set(classId, now);
+    notificationCooldowns.set(classRecord.id, now);
 
     // Get all students in the class
     const enrollments = await db.Class_Enrollment.findAll({
-      where: { class_id: classId },
+      where: { class_id: classRecord.id }, // Use the actual class ID
       include: [{
         model: db.User,
         as: 'studentData',
