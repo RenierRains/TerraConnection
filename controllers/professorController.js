@@ -221,6 +221,7 @@ exports.sendNotification = async (req, res) => {
 exports.getSchedule = async (req, res) => {
   try {
     const userId = req.user.userId;
+    console.log('Fetching schedule for professor:', userId);
     
     // Get all classes assigned to this professor through Class_Professor
     const assignments = await db.Class_Professor.findAll({
@@ -232,23 +233,52 @@ exports.getSchedule = async (req, res) => {
       }]
     });
 
-    // Map the assignments to the schedule format expected by the frontend
-    const schedule = assignments.map(assignment => ({
-      class_code: assignment.classData.class_code,
-      class_name: assignment.classData.class_name,
-      course: assignment.classData.course,
-      year: assignment.classData.year,
-      section: assignment.classData.section,
-      room: assignment.classData.room,
-      start_time: assignment.classData.start_time,
-      end_time: assignment.classData.end_time,
-      schedule: assignment.classData.schedule
-    }));
+    console.log('Found assignments:', JSON.stringify(assignments, null, 2));
 
+    // Map the assignments to the schedule format
+    const schedule = assignments.map(assignment => {
+      // Normalize schedule days to three-letter format
+      let normalizedSchedule = assignment.classData.schedule;
+      if (normalizedSchedule) {
+        normalizedSchedule = normalizedSchedule.split(',')
+          .map(day => {
+            day = day.trim();
+            // Convert full names or single letters to three-letter format
+            switch(day.toLowerCase()) {
+              case 'monday': case 'm': case 'mon': return 'Mon';
+              case 'tuesday': case 't': case 'tue': return 'Tue';
+              case 'wednesday': case 'w': case 'wed': return 'Wed';
+              case 'thursday': case 'th': case 'thu': return 'Thu';
+              case 'friday': case 'f': case 'fri': return 'Fri';
+              case 'saturday': case 'sa': case 'sat': return 'Sat';
+              case 'sunday': case 'su': case 'sun': return 'Sun';
+              default: return day;
+            }
+          })
+          .join(',');
+      }
+
+      return {
+        id: assignment.classData.id,
+        class_code: assignment.classData.class_code,
+        class_name: assignment.classData.class_name,
+        course: assignment.classData.course,
+        year: assignment.classData.year,
+        section: assignment.classData.section,
+        room: assignment.classData.room,
+        start_time: assignment.classData.start_time,
+        end_time: assignment.classData.end_time,
+        schedule: normalizedSchedule,
+        createdAt: assignment.classData.createdAt,
+        updatedAt: assignment.classData.updatedAt
+      };
+    });
+
+    console.log('Returning schedule:', JSON.stringify({ schedule }, null, 2));
     res.json({ schedule });
   } catch (err) {
     console.error('Error in getSchedule:', err);
-    res.status(500).json({ error: 'Failed to retrieve schedule', details: err.message });
+    res.status(500).json({ error: 'Failed to get professor schedule' });
   }
 };
 
