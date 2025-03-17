@@ -5,10 +5,13 @@ const { Op } = require('sequelize');
 exports.updateLocation = async (req, res) => {
     try {
         const { latitude, longitude, classId } = req.body;
-        const userId = req.user?.id;
+        console.log('Request user object:', req.user); // Debug log
+        
+        // Handle both possible user ID field names
+        const userId = req.user?.id || req.user?.userId;
 
         if (!userId) {
-            console.error('No user ID in request');
+            console.error('No user ID in request. User object:', req.user);
             return res.status(401).json({
                 success: false,
                 message: 'User not authenticated'
@@ -27,6 +30,8 @@ exports.updateLocation = async (req, res) => {
             longitude,
             user_id: userId
         });
+
+        console.log('Created location:', location); // Debug log
 
         // Emit the location update through WebSocket
         if (classId) {
@@ -55,10 +60,13 @@ exports.updateLocation = async (req, res) => {
 exports.getClassLocations = async (req, res) => {
     try {
         const { classId } = req.params;
-        const userId = req.user?.id;
+        console.log('Request user object:', req.user); // Debug log
+        
+        // Handle both possible user ID field names
+        const userId = req.user?.id || req.user?.userId;
         
         if (!userId) {
-            console.error('No user ID in request');
+            console.error('No user ID in request. User object:', req.user);
             return res.status(401).json({
                 success: false,
                 message: 'User not authenticated'

@@ -10,9 +10,22 @@ const authenticateToken = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
+        console.log('Decoded token:', decoded); // Debug log
+        
+        if (!decoded.userId && !decoded.id) {
+            console.error('Token missing user ID. Token contents:', decoded);
+            return res.status(401).json({ message: 'Invalid token format - missing user ID' });
+        }
+        
+        req.user = {
+            id: decoded.userId || decoded.id, // Handle both possible field names
+            role: decoded.role
+        };
+        
+        console.log('Set user object:', req.user); // Debug log
         next();
     } catch (error) {
+        console.error('Token verification error:', error);
         return res.status(403).json({ message: 'Invalid or expired token' });
     }
 };
