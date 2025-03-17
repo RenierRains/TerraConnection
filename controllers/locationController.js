@@ -84,7 +84,7 @@ exports.getClassLocations = async (req, res) => {
         const classAccess = await Class_Enrollment.findOne({
             where: {
                 class_id: classId,
-                user_id: userId
+                student_id: userId
             }
         });
 
@@ -100,6 +100,7 @@ exports.getClassLocations = async (req, res) => {
             where: { class_id: classId },
             include: [{
                 model: User,
+                as: 'studentData',
                 attributes: ['id', 'name'],
                 include: [{
                     model: GPS_Location,
@@ -111,9 +112,9 @@ exports.getClassLocations = async (req, res) => {
         });
 
         const locations = enrollments.map(enrollment => ({
-            studentId: enrollment.User.id,
-            studentName: enrollment.User.name,
-            location: enrollment.User.GPS_Locations[0] || null
+            studentId: enrollment.studentData.id,
+            studentName: enrollment.studentData.name,
+            location: enrollment.studentData.GPS_Locations[0] || null
         }));
 
         res.status(200).json({
