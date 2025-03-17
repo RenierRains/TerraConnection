@@ -5,9 +5,8 @@ const { Op } = require('sequelize');
 exports.updateLocation = async (req, res) => {
     try {
         const { latitude, longitude, classId } = req.body;
-        console.log('Request user object:', req.user); // Debug log
+        console.log('Request user object:', req.user);
         
-        // Handle both possible user ID field names
         const userId = req.user?.id || req.user?.userId;
 
         if (!userId) {
@@ -31,15 +30,32 @@ exports.updateLocation = async (req, res) => {
             user_id: userId
         });
 
-        console.log('Created location:', location); // Debug log
+        console.log('Created location:', location);
 
-        // Emit the location update through WebSocket
+        // Get user details for the update message
+        const user = await User.findByPk(userId, {
+            attributes: ['id', 'first_name', 'last_name']
+        });
+
+        const updateMessage = {
+            type: 'location-update',
+            studentId: userId.toString(),
+            studentName: `${user.first_name} ${user.last_name}`,
+            latitude,
+            longitude,
+            timestamp: location.timestamp
+        };
+
+        // Emit the location update through Socket.IO
         if (classId) {
-            req.app.get('io').to(`class-${classId}`).emit('location-update', {
-                userId,
-                latitude,
-                longitude,
-                timestamp: location.timestamp
+            req.app.get('io').to(`class-${classId}`).emit('location-update', updateMessage);
+            
+            // Broadcast to WebSocket clients
+            const wss = req.app.get('wss');
+            wss.clients.forEach(function each(client) {
+                if (client.classId === classId) {
+                    client.send(JSON.stringify(updateMessage));
+                }
             });
         }
 
@@ -60,9 +76,8 @@ exports.updateLocation = async (req, res) => {
 exports.getClassLocations = async (req, res) => {
     try {
         const { classId } = req.params;
-        console.log('Request user object:', req.user); // Debug log
+        console.log('Request user object:', req.user);
         
-        // Handle both possible user ID field names
         const userId = req.user?.id || req.user?.userId;
         
         if (!userId) {
@@ -114,7 +129,7 @@ exports.getClassLocations = async (req, res) => {
         const locations = enrollments.map(enrollment => {
             const latestLocation = enrollment.studentData.GPS_Locations[0];
             return {
-                studentId: enrollment.studentData.id,
+                studentId: enrollment.studentData.id.toString(),
                 studentName: `${enrollment.studentData.first_name} ${enrollment.studentData.last_name}`,
                 latitude: latestLocation?.latitude || null,
                 longitude: latestLocation?.longitude || null,

@@ -10,6 +10,8 @@ const auditMiddleware = require('./middleware/auditMiddleware');
 const modalHandler = require('./middleware/modalHandler');
 const http = require('http');
 const socketIo = require('socket.io');
+const WebSocket = require('ws');
+const { authenticateToken } = require('./middleware/auth');
 
 const adminWebRoutes = require('./routes/adminWeb');
 const authRoutes = require('./routes/auth');
@@ -26,7 +28,7 @@ const locationRoutes = require('./routes/locationRoutes');
 // Create HTTP server
 const server = http.createServer(app);
 
-// Create WebSocket server
+// Create Socket.IO server
 const io = socketIo(server, {
     cors: {
         origin: "*",
@@ -34,12 +36,67 @@ const io = socketIo(server, {
     }
 });
 
+// Create WebSocket server
+const wss = new WebSocket.Server({ noServer: true });
+
 // Store io instance in app for use in routes
 app.set('io', io);
+app.set('wss', wss);
 
-// WebSocket connection handling
+// WebSocket upgrade handling
+server.on('upgrade', function upgrade(request, socket, head) {
+    const pathname = new URL(request.url, 'ws://terraconnection.online').pathname;
+    
+    if (pathname === '/ws') {
+        // Extract token from Authorization header
+        const token = request.headers.authorization?.split(' ')[1];
+        if (!token) {
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+
+        try {
+            // Verify token
+            const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+            request.user = decoded;
+            wss.handleUpgrade(request, socket, head, function done(ws) {
+                wss.emit('connection', ws, request);
+            });
+        } catch (err) {
+            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+            socket.destroy();
+        }
+    } else {
+        socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+        socket.destroy();
+    }
+});
+
+// Raw WebSocket connection handling
+wss.on('connection', function connection(ws, request) {
+    console.log('Raw WebSocket client connected');
+    
+    ws.on('message', function incoming(message) {
+        try {
+            const data = JSON.parse(message);
+            if (data.type === 'join-class' && data.classId) {
+                ws.classId = data.classId;
+                console.log(`Client joined class ${data.classId}`);
+            }
+        } catch (e) {
+            console.error('Error parsing WebSocket message:', e);
+        }
+    });
+    
+    ws.on('close', () => {
+        console.log('Raw WebSocket client disconnected');
+    });
+});
+
+// Socket.IO connection handling
 io.on('connection', (socket) => {
-    console.log('Client connected');
+    console.log('Socket.IO client connected');
     
     socket.on('join-class', (classId) => {
         socket.join(`class-${classId}`);
@@ -50,13 +107,13 @@ io.on('connection', (socket) => {
     });
     
     socket.on('disconnect', () => {
-        console.log('Client disconnected');
+        console.log('Socket.IO client disconnected');
     });
 });
 
 app.enable('trust proxy');  
 app.set('trust proxy', function(ip) {
-    console.log('Evaluating proxy trust for IP:', ip); //test
+    console.log('Evaluating proxy trust for IP:', ip);
     return true; 
 });
 
@@ -78,9 +135,9 @@ app.use(expressLayouts);
 app.set('layout', 'layout');
 
 app.use(session({
-  secret: 'JkdsJGJdsfuJasdM3893024p@**($&%',
-  resave: false,
-  saveUninitialized: false
+    secret: 'JkdsJGJdsfuJasdM3893024p@**($&%',
+    resave: false,
+    saveUninitialized: false
 }));
 
 // use mount
@@ -98,7 +155,7 @@ app.use('/api/location', locationRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
-  res.redirect('/admin/login');
+    res.redirect('/admin/login');
 });
 
 // Export both app and server
