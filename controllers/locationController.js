@@ -101,7 +101,7 @@ exports.getClassLocations = async (req, res) => {
             include: [{
                 model: User,
                 as: 'studentData',
-                attributes: ['id', 'name'],
+                attributes: ['id', 'first_name', 'last_name'],
                 include: [{
                     model: GPS_Location,
                     limit: 1,
@@ -113,7 +113,7 @@ exports.getClassLocations = async (req, res) => {
 
         const locations = enrollments.map(enrollment => ({
             studentId: enrollment.studentData.id,
-            studentName: enrollment.studentData.name,
+            studentName: `${enrollment.studentData.first_name} ${enrollment.studentData.last_name}`,
             location: enrollment.studentData.GPS_Locations[0] || null
         }));
 
