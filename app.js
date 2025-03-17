@@ -8,6 +8,8 @@ const session = require('express-session');
 const methodOverride = require('method-override');
 const auditMiddleware = require('./middleware/auditMiddleware');
 const modalHandler = require('./middleware/modalHandler');
+const http = require('http');
+const socketIo = require('socket.io');
 
 const adminWebRoutes = require('./routes/adminWeb');
 const authRoutes = require('./routes/auth');
@@ -19,7 +21,38 @@ const studentRoutes = require('./routes/student');
 const professorRoutes = require('./routes/professor');
 const guardianRoutes = require('./routes/guardian');
 const userRoutes = require('./routes/user');
+const locationRoutes = require('./routes/locationRoutes');
 
+// Create HTTP server
+const server = http.createServer(app);
+
+// Create WebSocket server
+const io = socketIo(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+// Store io instance in app for use in routes
+app.set('io', io);
+
+// WebSocket connection handling
+io.on('connection', (socket) => {
+    console.log('Client connected');
+    
+    socket.on('join-class', (classId) => {
+        socket.join(`class-${classId}`);
+    });
+    
+    socket.on('leave-class', (classId) => {
+        socket.leave(`class-${classId}`);
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('Client disconnected');
+    });
+});
 
 app.enable('trust proxy');  
 app.set('trust proxy', function(ip) {
@@ -61,10 +94,12 @@ app.use('/api/student', studentRoutes);
 app.use('/api/professor', professorRoutes);
 app.use('/api/guardian', guardianRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/location', locationRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
   res.redirect('/admin/login');
 });
 
-module.exports = app;
+// Export both app and server
+module.exports = { app, server };
