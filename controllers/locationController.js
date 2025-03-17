@@ -111,11 +111,16 @@ exports.getClassLocations = async (req, res) => {
             }]
         });
 
-        const locations = enrollments.map(enrollment => ({
-            studentId: enrollment.studentData.id,
-            studentName: `${enrollment.studentData.first_name} ${enrollment.studentData.last_name}`,
-            location: enrollment.studentData.GPS_Locations[0] || null
-        }));
+        const locations = enrollments.map(enrollment => {
+            const latestLocation = enrollment.studentData.GPS_Locations[0];
+            return {
+                studentId: enrollment.studentData.id,
+                studentName: `${enrollment.studentData.first_name} ${enrollment.studentData.last_name}`,
+                latitude: latestLocation?.latitude || null,
+                longitude: latestLocation?.longitude || null,
+                timestamp: latestLocation?.timestamp || null
+            };
+        }).filter(loc => loc.latitude !== null && loc.longitude !== null);
 
         res.status(200).json({
             success: true,
