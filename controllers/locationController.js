@@ -4,8 +4,23 @@ const { Op } = require('sequelize');
 // Update user's location
 exports.updateLocation = async (req, res) => {
     try {
-        const { latitude, longitude } = req.body;
-        const userId = req.user.id;  // Assuming user is authenticated
+        const { latitude, longitude, classId } = req.body;
+        const userId = req.user?.id;
+
+        if (!userId) {
+            console.error('No user ID in request');
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated'
+            });
+        }
+
+        if (!latitude || !longitude) {
+            return res.status(400).json({
+                success: false,
+                message: 'Latitude and longitude are required'
+            });
+        }
 
         const location = await GPS_Location.create({
             latitude,
@@ -14,12 +29,14 @@ exports.updateLocation = async (req, res) => {
         });
 
         // Emit the location update through WebSocket
-        req.app.get('io').emit(`location-update-${userId}`, {
-            userId,
-            latitude,
-            longitude,
-            timestamp: location.timestamp
-        });
+        if (classId) {
+            req.app.get('io').to(`class-${classId}`).emit('location-update', {
+                userId,
+                latitude,
+                longitude,
+                timestamp: location.timestamp
+            });
+        }
 
         res.status(200).json({
             success: true,
@@ -38,12 +55,28 @@ exports.updateLocation = async (req, res) => {
 exports.getClassLocations = async (req, res) => {
     try {
         const { classId } = req.params;
+        const userId = req.user?.id;
         
+        if (!userId) {
+            console.error('No user ID in request');
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated'
+            });
+        }
+
+        if (!classId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Class ID is required'
+            });
+        }
+
         // Verify if the requester is enrolled in or teaching the class
         const classAccess = await Class_Enrollment.findOne({
             where: {
                 class_id: classId,
-                user_id: req.user.id
+                user_id: userId
             }
         });
 
