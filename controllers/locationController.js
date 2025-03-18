@@ -73,6 +73,62 @@ exports.updateLocation = async (req, res) => {
     }
 };
 
+// Stop sharing location
+exports.stopSharing = async (req, res) => {
+    try {
+        const { classId } = req.body;
+        const userId = req.user?.id || req.user?.userId;
+
+        if (!userId) {
+            console.error('No user ID in request. User object:', req.user);
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated'
+            });
+        }
+
+        if (!classId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Class ID is required'
+            });
+        }
+
+        // Get user details for the stop message
+        const user = await User.findByPk(userId, {
+            attributes: ['id', 'first_name', 'last_name']
+        });
+
+        const stopMessage = {
+            type: 'stop-sharing',
+            studentId: userId.toString(),
+            studentName: `${user.first_name} ${user.last_name}`
+        };
+
+        // Emit the stop sharing message through Socket.IO
+        req.app.get('io').to(`class-${classId}`).emit('stop-sharing', stopMessage);
+        
+        // Broadcast to WebSocket clients
+        const wss = req.app.get('wss');
+        wss.clients.forEach(function each(client) {
+            if (client.classId === classId) {
+                client.send(JSON.stringify(stopMessage));
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Location sharing stopped'
+        });
+    } catch (error) {
+        console.error('Error stopping location sharing:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error stopping location sharing'
+        });
+    }
+};
+
 // Get locations of all students in a class
 exports.getClassLocations = async (req, res) => {
     try {
