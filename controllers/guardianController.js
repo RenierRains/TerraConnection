@@ -46,6 +46,7 @@ exports.getLinkedStudents = async (req, res) => {
         order: [['timestamp', 'DESC']],
         include: [{
           model: db.User,
+          as: 'user',
           attributes: ['id', 'first_name', 'last_name', 'school_id']
         }]
       });
