@@ -129,4 +129,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 👥 Authors
 
-- Initial work - [RenierRains](https://github.com/RenierRains)
+-  Project Manager && Initial work - [RenierRains](https://github.com/RenierRains)
