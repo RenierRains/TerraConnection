@@ -318,7 +318,11 @@ exports.getClassLocations = async (req, res) => {
             }
         });
 
-        if (!classAccess) {
+        // Check if user is a professor
+        const user = await User.findByPk(userId);
+        const isProfessor = user?.role === 'professor';
+
+        if (!classAccess && !isProfessor) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to view this class'
