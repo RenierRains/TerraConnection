@@ -77,12 +77,24 @@ server.on('upgrade', function upgrade(request, socket, head) {
 wss.on('connection', function connection(ws, request) {
     console.log('Raw WebSocket client connected');
     
-    ws.on('message', function incoming(message) {
+    ws.on('message', async function incoming(message) {
         try {
             const data = JSON.parse(message);
             if (data.type === 'join-class' && data.classId) {
                 ws.classId = data.classId;
                 console.log(`Client joined class ${data.classId}`);
+            } else if (data.type === 'get-active-users' && data.classId) {
+                const { getActiveUsersCount } = require('./controllers/locationController');
+                const count = await getActiveUsersCount(data.classId);
+                const response = {
+                    type: 'activeUsers',
+                    classId: data.classId.toString(),
+                    count: count
+                };
+                ws.send(JSON.stringify(response));
+                console.log('Sent active users response:', response);
+            } else if (data.type === 'ping') {
+                ws.send(JSON.stringify({ type: 'pong' }));
             }
         } catch (e) {
             console.error('Error parsing WebSocket message:', e);
