@@ -31,28 +31,37 @@ async function getActiveUsersCount(classId) {
 
 // Helper function to broadcast active users count
 async function broadcastActiveUsersCount(classId, wss, io) {
-    const count = await getActiveUsersCount(classId);
-    const message = {
-        type: 'activeUsers',
-        classId: classId.toString(),
-        count
-    };
+    try {
+        const count = await getActiveUsersCount(classId);
+        console.log(`Broadcasting active users count for class ${classId}: ${count}`);
+        
+        const message = {
+            type: 'activeUsers',
+            classId: classId.toString(),
+            count
+        };
 
-    // Broadcast through WebSocket
-    wss.clients.forEach(function each(client) {
-        if (client.classId === classId) {
-            client.send(JSON.stringify(message));
-        }
-    });
+        // Broadcast through WebSocket
+        wss.clients.forEach(function each(client) {
+            try {
+                client.send(JSON.stringify(message));
+            } catch (err) {
+                console.error('Error sending WebSocket message:', err);
+            }
+        });
 
-    // Broadcast through Socket.IO
-    io.to(`class-${classId}`).emit('activeUsers', message);
+        // Broadcast through Socket.IO
+        io.emit('activeUsers', message); // Broadcast to all connected clients
+    } catch (error) {
+        console.error('Error in broadcastActiveUsersCount:', error);
+    }
 }
 
 // Update user's location
 exports.updateLocation = async (req, res) => {
     try {
         const { latitude, longitude, classId } = req.body;
+        console.log('Location update request:', { latitude, longitude, classId });
         console.log('Request user object:', req.user);
         
         const userId = req.user?.id || req.user?.userId;
@@ -65,20 +74,36 @@ exports.updateLocation = async (req, res) => {
             });
         }
 
-        if (!latitude || !longitude) {
+        if (!latitude || !longitude || !classId) {
             return res.status(400).json({
                 success: false,
-                message: 'Latitude and longitude are required'
+                message: 'Latitude, longitude, and classId are required'
+            });
+        }
+
+        // Verify if the user is enrolled in the class
+        const enrollment = await Class_Enrollment.findOne({
+            where: {
+                class_id: classId,
+                student_id: userId
+            }
+        });
+
+        if (!enrollment) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to share location in this class'
             });
         }
 
         const location = await GPS_Location.create({
             latitude,
             longitude,
-            user_id: userId
+            user_id: userId,
+            timestamp: new Date() // Ensure timestamp is set
         });
 
-        console.log('Created location:', location);
+        console.log('Created location:', location.toJSON());
 
         // Get user details for the update message
         const user = await User.findByPk(userId, {
@@ -96,21 +121,25 @@ exports.updateLocation = async (req, res) => {
         };
 
         // Emit the location update through Socket.IO and WebSocket
-        if (classId) {
-            const io = req.app.get('io');
-            const wss = req.app.get('wss');
-            
-            io.to(`class-${classId}`).emit('location-update', updateMessage);
-            
-            wss.clients.forEach(function each(client) {
-                if (client.classId === classId) {
-                    client.send(JSON.stringify(updateMessage));
-                }
-            });
+        const io = req.app.get('io');
+        const wss = req.app.get('wss');
+        
+        console.log('Broadcasting location update for class:', classId);
+        
+        // Broadcast through WebSocket
+        wss.clients.forEach(function each(client) {
+            try {
+                client.send(JSON.stringify(updateMessage));
+            } catch (err) {
+                console.error('Error sending WebSocket message:', err);
+            }
+        });
 
-            // Update active users count
-            await broadcastActiveUsersCount(classId, wss, io);
-        }
+        // Broadcast through Socket.IO
+        io.emit('location-update', updateMessage);
+
+        // Update active users count
+        await broadcastActiveUsersCount(classId, wss, io);
 
         res.status(200).json({
             success: true,
