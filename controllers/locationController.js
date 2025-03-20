@@ -5,49 +5,33 @@ const { Op } = require('sequelize');
 exports.getActiveUsersCount = async function(classId) {
     const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
     
-    // Get the latest location for each user who is enrolled in the class
-    const latestLocations = await GPS_Location.findAll({
-        attributes: [
-            'user_id',
-            [sequelize.fn('MAX', sequelize.col('GPS_Location.timestamp')), 'latest_timestamp']
-        ],
-        include: [{
-            model: User,
-            required: true,
-            attributes: [],
-            include: [{
-                model: Class,
-                as: 'studentClasses',
-                required: true,
-                where: { id: classId },
-                attributes: [],
-                through: {
-                    attributes: []
-                }
-            }]
-        }],
-        where: {
-            timestamp: {
-                [Op.gte]: oneMinuteAgo
+    try {
+        // Get the count of users with recent locations for this specific class
+        const result = await sequelize.query(`
+            SELECT COUNT(DISTINCT gl.user_id) as count
+            FROM GPS_Locations gl
+            INNER JOIN Class_Enrollments ce ON gl.user_id = ce.student_id
+            WHERE ce.class_id = :classId
+            AND gl.timestamp >= :oneMinuteAgo
+            AND gl.id IN (
+                SELECT MAX(gl2.id)
+                FROM GPS_Locations gl2
+                WHERE gl2.user_id = gl.user_id
+                GROUP BY gl2.user_id
+            )
+        `, {
+            replacements: { 
+                classId: classId,
+                oneMinuteAgo: oneMinuteAgo.toISOString()
             },
-            // Add subquery to filter locations by class
-            id: {
-                [Op.in]: sequelize.literal(`(
-                    SELECT MAX(gl2.id)
-                    FROM GPS_Locations gl2
-                    INNER JOIN Users u2 ON gl2.user_id = u2.id
-                    INNER JOIN Class_Enrollments ce2 ON u2.id = ce2.student_id
-                    WHERE ce2.class_id = ${classId}
-                    AND gl2.timestamp >= '${oneMinuteAgo.toISOString()}'
-                    GROUP BY gl2.user_id
-                )`)
-            }
-        },
-        group: ['user_id'],
-        raw: true
-    });
+            type: sequelize.QueryTypes.SELECT
+        });
 
-    return latestLocations.length;
+        return result[0].count;
+    } catch (error) {
+        console.error('Error in getActiveUsersCount:', error);
+        return 0;
+    }
 }
 
 // Helper function to broadcast active users count
