@@ -220,37 +220,51 @@ exports.getTimeSeriesData = async (req, res) => {
   
   try {
     const { range } = req.query;
-    let interval, days;
+    let interval, days, groupBy, dateSelect;
     
     switch(range) {
       case '24h':
         interval = '24 HOUR';
         days = 1;
+        groupBy = 'HOUR(timestamp)';
+        dateSelect = 'DATE_FORMAT(NOW() - INTERVAL (24-n) HOUR, "%Y-%m-%d %H:00:00") AS date';
         break;
       case 'week':
         interval = '7 DAY';
         days = 7;
+        groupBy = 'DATE(timestamp)';
+        dateSelect = 'CURDATE() - INTERVAL (7-n) DAY AS date';
         break;
       case 'month':
         interval = '30 DAY';
         days = 30;
+        groupBy = 'DATE(timestamp)';
+        dateSelect = 'CURDATE() - INTERVAL (30-n) DAY AS date';
         break;
       case 'year':
         interval = '365 DAY';
         days = 365;
+        groupBy = 'DATE(timestamp)';
+        dateSelect = 'CURDATE() - INTERVAL (365-n) DAY AS date';
         break;
       default:
         interval = '7 DAY';
         days = 7;
+        groupBy = 'DATE(timestamp)';
+        dateSelect = 'CURDATE() - INTERVAL (7-n) DAY AS date';
     }
 
     const [data] = await db.sequelize.query(`
-      WITH RECURSIVE dates AS (
-        SELECT CURDATE() - INTERVAL ${days-1} DAY AS date
+      WITH RECURSIVE numbers AS (
+        SELECT 1 AS n
         UNION ALL
-        SELECT date + INTERVAL 1 DAY
-        FROM dates
-        WHERE date < CURDATE()
+        SELECT n + 1
+        FROM numbers
+        WHERE n < ${days}
+      ),
+      dates AS (
+        SELECT ${dateSelect}
+        FROM numbers
       ),
       categories AS (
         SELECT 'USER' as prefix, 'User Actions' as category
@@ -260,9 +274,9 @@ exports.getTimeSeriesData = async (req, res) => {
         UNION ALL SELECT 'ADMIN', 'Admin Actions'
         UNION ALL SELECT 'REQUEST', 'API Requests'
       ),
-      daily_counts AS (
+      event_counts AS (
         SELECT 
-          DATE(timestamp) as log_date,
+          ${range === '24h' ? 'DATE_FORMAT(timestamp, "%Y-%m-%d %H:00:00")' : 'DATE(timestamp)'} as log_date,
           CASE 
             WHEN action_type LIKE 'USER_%' THEN 'USER'
             WHEN action_type LIKE 'DATA_%' THEN 'DATA'
@@ -274,8 +288,9 @@ exports.getTimeSeriesData = async (req, res) => {
           END as category_prefix,
           COUNT(*) as count
         FROM Audit_Logs
-        WHERE timestamp >= CURDATE() - INTERVAL ${days-1} DAY
-        GROUP BY DATE(timestamp),
+        WHERE timestamp >= NOW() - INTERVAL ${interval}
+        GROUP BY 
+          ${range === '24h' ? 'DATE_FORMAT(timestamp, "%Y-%m-%d %H:00:00")' : 'DATE(timestamp)'},
           CASE 
             WHEN action_type LIKE 'USER_%' THEN 'USER'
             WHEN action_type LIKE 'DATA_%' THEN 'DATA'
@@ -290,10 +305,10 @@ exports.getTimeSeriesData = async (req, res) => {
         c.category,
         c.prefix,
         d.date,
-        COALESCE(dc.count, 0) as count
+        COALESCE(ec.count, 0) as count
       FROM dates d
       CROSS JOIN categories c
-      LEFT JOIN daily_counts dc ON dc.log_date = d.date AND dc.category_prefix = c.prefix
+      LEFT JOIN event_counts ec ON ec.log_date = d.date AND ec.category_prefix = c.prefix
       ORDER BY c.category, d.date;
     `);
 
@@ -311,10 +326,16 @@ exports.getTimeSeriesData = async (req, res) => {
       timeSeriesData[stat.category].counts.push(stat.count);
     });
 
-    res.json({ success: true, data: Object.values(timeSeriesData) });
+    res.json({ 
+      success: true, 
+      data: Object.values(timeSeriesData)
+    });
   } catch (err) {
     console.error('Error getting time series data:', err);
-    res.status(500).json({ success: false, error: 'Failed to fetch data' });
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch time series data'
+    });
   }
 };
 
