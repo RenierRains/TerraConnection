@@ -5,28 +5,34 @@ const { Op } = require('sequelize');
 async function getActiveUsersCount(classId) {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
-    // Get active users through Class_Enrollment first
-    const activeUsers = await Class_Enrollment.findAll({
-        where: { class_id: classId },
+    // First, get the latest location for each user
+    const latestLocations = await GPS_Location.findAll({
+        attributes: ['user_id', 'timestamp'],
+        where: {
+            timestamp: {
+                [Op.gte]: fiveMinutesAgo
+            }
+        },
         include: [{
             model: User,
-            as: 'studentData',
             required: true,
             include: [{
-                model: GPS_Location,
+                model: Class_Enrollment,
                 required: true,
-                where: {
-                    timestamp: {
-                        [Op.gte]: fiveMinutesAgo
-                    }
-                },
-                limit: 1,
-                order: [['timestamp', 'DESC']]
+                where: { class_id: classId }
             }]
-        }]
+        }],
+        group: ['user_id', 'timestamp', 'User.id', 'User.Class_Enrollments.id'],
+        order: [['timestamp', 'DESC']]
     });
 
-    return activeUsers.length;
+    // Count unique users with recent locations
+    const uniqueUsers = new Set();
+    latestLocations.forEach(location => {
+        uniqueUsers.add(location.user_id);
+    });
+
+    return uniqueUsers.size;
 }
 
 // Helper function to broadcast active users count
@@ -44,14 +50,16 @@ async function broadcastActiveUsersCount(classId, wss, io) {
         // Broadcast through WebSocket
         wss.clients.forEach(function each(client) {
             try {
-                client.send(JSON.stringify(message));
+                if (client.classId === classId) {
+                    client.send(JSON.stringify(message));
+                }
             } catch (err) {
                 console.error('Error sending WebSocket message:', err);
             }
         });
 
         // Broadcast through Socket.IO
-        io.emit('activeUsers', message); // Broadcast to all connected clients
+        io.to(`class-${classId}`).emit('activeUsers', message);
     } catch (error) {
         console.error('Error in broadcastActiveUsersCount:', error);
     }
@@ -129,14 +137,16 @@ exports.updateLocation = async (req, res) => {
         // Broadcast through WebSocket
         wss.clients.forEach(function each(client) {
             try {
-                client.send(JSON.stringify(updateMessage));
+                if (client.classId === classId) {
+                    client.send(JSON.stringify(updateMessage));
+                }
             } catch (err) {
                 console.error('Error sending WebSocket message:', err);
             }
         });
 
         // Broadcast through Socket.IO
-        io.emit('location-update', updateMessage);
+        io.to(`class-${classId}`).emit('location-update', updateMessage);
 
         // Update active users count
         await broadcastActiveUsersCount(classId, wss, io);
@@ -190,13 +200,19 @@ exports.stopSharing = async (req, res) => {
         const io = req.app.get('io');
         const wss = req.app.get('wss');
         
-        io.to(`class-${classId}`).emit('stop-sharing', stopMessage);
-        
+        // Broadcast through WebSocket
         wss.clients.forEach(function each(client) {
-            if (client.classId === classId) {
-                client.send(JSON.stringify(stopMessage));
+            try {
+                if (client.classId === classId) {
+                    client.send(JSON.stringify(stopMessage));
+                }
+            } catch (err) {
+                console.error('Error sending WebSocket message:', err);
             }
         });
+
+        // Broadcast through Socket.IO
+        io.to(`class-${classId}`).emit('stop-sharing', stopMessage);
 
         // Update active users count
         await broadcastActiveUsersCount(classId, wss, io);
@@ -302,4 +318,4 @@ exports.getClassLocations = async (req, res) => {
             message: 'Error fetching class locations'
         });
     }
-}; 
+};
