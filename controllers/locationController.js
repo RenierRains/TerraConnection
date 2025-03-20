@@ -1,6 +1,5 @@
-const { GPS_Location, User, Class_Enrollment, Class } = require('../models');
+const { GPS_Location, User, Class_Enrollment, Class, sequelize } = require('../models');
 const { Op } = require('sequelize');
-const sequelize = require('sequelize');
 
 // Helper function to get active users count
 async function getActiveUsersCount(classId) {
@@ -48,13 +47,13 @@ async function broadcastActiveUsersCount(classId, wss, io) {
         const message = {
             type: 'activeUsers',
             classId: classId.toString(),
-            count
+            count: count
         };
 
         // Broadcast through WebSocket
         wss.clients.forEach(function each(client) {
             try {
-                if (client.classId === classId) {
+                if (client.classId === parseInt(classId)) {
                     client.send(JSON.stringify(message));
                 }
             } catch (err) {
@@ -63,7 +62,14 @@ async function broadcastActiveUsersCount(classId, wss, io) {
         });
 
         // Broadcast through Socket.IO
-        io.to(`class-${classId}`).emit('activeUsers', message);
+        io.to(`class-${classId}`).emit('activeUsers', {
+            type: 'activeUsers',
+            classId: classId.toString(),
+            count: count
+        });
+
+        // Log the actual message being sent
+        console.log('Broadcasting message:', message);
     } catch (error) {
         console.error('Error in broadcastActiveUsersCount:', error);
     }
