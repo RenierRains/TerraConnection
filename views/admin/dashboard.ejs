@@ -181,8 +181,11 @@
     <div class="dashboard-title">
       <h2>System Activity Dashboard</h2>
       <div class="btn-group">
-        <button class="btn btn-outline-secondary" onclick="exportData('csv')">
-          <i class="bi bi-file-earmark-spreadsheet"></i> Export Data
+        <button class="btn btn-outline-secondary" onclick="exportData('csv', event)">
+          <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+        </button>
+        <button class="btn btn-outline-secondary" onclick="exportData('json', event)">
+          <i class="bi bi-file-earmark-code"></i> Export JSON
         </button>
         <button class="btn btn-outline-secondary" onclick="window.location.href='/admin/audit-logs'">
           <i class="bi bi-list-ul"></i> View Audit Logs
@@ -247,326 +250,248 @@
       </div>
 
       <div class="time-range-buttons">
-        <button class="time-range-button" data-range="24h">
-          <i class="bi bi-clock"></i> Last 24 hours
-        </button>
-        <button class="time-range-button active" data-range="week">
-          <i class="bi bi-calendar-week"></i> Last week
-        </button>
-        <button class="time-range-button" data-range="month">
-          <i class="bi bi-calendar-month"></i> Last month
-        </button>
-        <button class="time-range-button" data-range="year">
-          <i class="bi bi-calendar4"></i> Last year
-        </button>
+        <button class="time-range-button active" data-range="24h">24 Hours</button>
+        <button class="time-range-button" data-range="week">Week</button>
+        <button class="time-range-button" data-range="month">Month</button>
+        <button class="time-range-button" data-range="year">Year</button>
       </div>
 
       <div class="chart-container">
-        <canvas id="modalChart"></canvas>
-        <div class="loading" style="display: none;">
-          <i class="bi bi-arrow-repeat"></i>
-          <p>Loading data...</p>
-        </div>
+        <canvas id="detailChart"></canvas>
       </div>
     </div>
   </div>
 
   <script>
-    // Initialize dashboard charts and store them in a map
-    const dashboardCharts = new Map();
-    
-    document.querySelectorAll('canvas[id^="chart-"]').forEach(canvas => {
-      const dates = JSON.parse(decodeURIComponent(canvas.dataset.dates));
-      const counts = JSON.parse(decodeURIComponent(canvas.dataset.counts));
-      const color = canvas.dataset.color;
-      const chart = initChart(canvas, dates, counts, color);
-      dashboardCharts.set(canvas.id, chart);
-    });
-
-    function initChart(canvas, dates, counts, color) {
-      const ctx = canvas.getContext('2d');
-      const maxCount = Math.max(...counts);
-      const suggestedMax = maxCount <= 1 ? 5 : Math.ceil(maxCount * 1.2);
-      
-      return new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: dates.map(date => new Date(date).toLocaleDateString()),
-          datasets: [{
-            data: counts,
-            borderColor: color,
-            backgroundColor: color + '20',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0,
-            borderWidth: 1.5,
-            cubicInterpolationMode: 'monotone'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: {
-            duration: 750,
-            easing: 'easeInOutQuart'
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              mode: 'index',
-              intersect: false,
-              callbacks: {
-                title: (items) => {
-                  if (!items.length) return '';
-                  const date = new Date(dates[items[0].dataIndex]);
-                  return date.toLocaleDateString('en-US', { 
-                    weekday: 'short',
-                    month: 'short', 
-                    day: 'numeric'
-                  });
-                },
-                label: (item) => {
-                  return `Events: ${item.raw}`;
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              display: true,
-              grid: {
-                display: false
-              },
-              ticks: {
-                maxRotation: 0,
-                autoSkip: true,
-                maxTicksLimit: 4,
-                color: '#666'
-              }
-            },
-            y: {
-              display: true,
-              beginAtZero: true,
-              suggestedMax: suggestedMax,
-              grid: {
-                color: '#f0f0f0'
-              },
-              ticks: {
-                stepSize: suggestedMax <= 5 ? 1 : undefined,
-                precision: 0,
-                color: '#666'
-              }
-            }
-          }
-        }
-      });
-    }
-
-    // Modal handling
-    const modal = document.getElementById('detailModal');
-    const closeBtn = document.querySelector('.close');
-    let modalChart = null;
     let currentPrefix = null;
+    let detailChart = null;
 
-    // Add click handlers to stat cards
-    document.querySelectorAll('.stat-card').forEach(card => {
-      card.addEventListener('click', async function(e) {
-        e.preventDefault();
-        const prefix = this.dataset.prefix;
-        const category = this.querySelector('.category-badge').textContent;
-        const color = this.querySelector('canvas').dataset.color;
+    // Initialize all charts
+    document.addEventListener('DOMContentLoaded', function() {
+      const cards = document.querySelectorAll('.stat-card');
+      cards.forEach(card => {
+        const canvas = card.querySelector('canvas');
+        const dates = JSON.parse(decodeURIComponent(canvas.dataset.dates));
+        const counts = JSON.parse(decodeURIComponent(canvas.dataset.counts));
+        const color = canvas.dataset.color;
         
-        currentPrefix = prefix;
-        document.getElementById('modalTitle').textContent = category;
-        modal.style.display = 'block';
-        
-        // Initialize modal chart with week view by default
-        await updateModalChart('week', prefix, category, color);
-      });
-    });
-
-    closeBtn.addEventListener('click', function() {
-      modal.style.display = 'none';
-      if (modalChart) {
-        modalChart.destroy();
-        modalChart = null;
-      }
-    });
-
-    window.addEventListener('click', function(event) {
-      if (event.target === modal) {
-        modal.style.display = 'none';
-        if (modalChart) {
-          modalChart.destroy();
-          modalChart = null;
-        }
-      }
-    });
-
-    // Time range buttons
-    document.querySelectorAll('.time-range-button').forEach(button => {
-      button.addEventListener('click', async function() {
-        if (!currentPrefix) return;
-        
-        const range = this.dataset.range;
-        const activeCard = document.querySelector(`.stat-card[data-prefix="${currentPrefix}"]`);
-        const category = activeCard.querySelector('.category-badge').textContent;
-        const color = activeCard.querySelector('canvas').dataset.color;
-
-        // Update active button
-        document.querySelectorAll('.time-range-button').forEach(btn => {
-          btn.classList.remove('active');
-        });
-        this.classList.add('active');
-
-        // Update chart
-        await updateModalChart(range, currentPrefix, category, color);
-      });
-    });
-
-    async function updateModalChart(range, prefix, category, color) {
-      try {
-        // Show loading state
-        document.querySelector('.loading').style.display = 'block';
-        if (modalChart) {
-          modalChart.destroy();
-        }
-
-        const response = await fetch(`/admin/dashboard/data?range=${range}`);
-        const data = await response.json();
-        
-        // Hide loading state
-        document.querySelector('.loading').style.display = 'none';
-        
-        if (!data.success) {
-          console.error('Error:', data.error);
-          document.getElementById('modalTitle').textContent = `${category} - Error loading data`;
-          return;
-        }
-        
-        const seriesData = data.data.find(s => s.prefix === prefix);
-        if (!seriesData) {
-          console.error('Category data not found');
-          document.getElementById('modalTitle').textContent = `${category} - No data available`;
-          return;
-        }
-
-        // Update summary statistics
-        const total = seriesData.counts.reduce((a, b) => a + b, 0);
-        const avg = (total / seriesData.counts.length).toFixed(1);
-        const peak = Math.max(...seriesData.counts);
-        const trend = calculateTrend(seriesData.counts);
-        
-        document.getElementById('totalEvents').textContent = total;
-        document.getElementById('avgEvents').textContent = avg;
-        document.getElementById('peakEvents').textContent = peak;
-        document.getElementById('trendIndicator').innerHTML = getTrendIcon(trend);
-
-        document.getElementById('modalTitle').textContent = category;
-
-        const ctx = document.getElementById('modalChart').getContext('2d');
-        modalChart = new Chart(ctx, {
+        new Chart(canvas, {
           type: 'line',
           data: {
-            labels: seriesData.dates.map(date => new Date(date).toLocaleDateString()),
+            labels: dates,
             datasets: [{
-              data: seriesData.counts,
+              data: counts,
               borderColor: color,
               backgroundColor: color + '20',
               fill: true,
               tension: 0.4,
-              pointRadius: 2,
-              borderWidth: 2
+              pointRadius: 0
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-              duration: 750,
-              easing: 'easeInOutQuart'
-            },
             plugins: {
-              legend: { display: false },
+              legend: {
+                display: false
+              },
               tooltip: {
+                enabled: true,
                 mode: 'index',
-                intersect: false,
-                callbacks: {
-                  title: (items) => {
-                    if (!items.length) return '';
-                    const date = new Date(seriesData.dates[items[0].dataIndex]);
-                    return date.toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric'
-                    });
-                  },
-                  label: (item) => {
-                    return `Events: ${item.raw}`;
-                  }
-                }
+                intersect: false
               }
             },
             scales: {
               x: {
-                display: true,
+                display: false
+              },
+              y: {
+                display: false,
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      });
+    });
+
+    // Handle card clicks
+    document.querySelectorAll('.stat-card').forEach(card => {
+      card.addEventListener('click', async function() {
+        const prefix = this.dataset.prefix;
+        currentPrefix = prefix;
+        const modal = document.getElementById('detailModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const category = this.querySelector('.category-badge').textContent;
+        
+        modalTitle.textContent = `${category} Activity`;
+        modal.style.display = 'block';
+        
+        // Show initial data
+        await updateDetailChart('week');
+      });
+    });
+
+    // Handle modal close
+    document.querySelector('.close').addEventListener('click', function() {
+      document.getElementById('detailModal').style.display = 'none';
+      if (detailChart) {
+        detailChart.destroy();
+        detailChart = null;
+      }
+    });
+
+    // Handle time range buttons
+    document.querySelectorAll('.time-range-button').forEach(button => {
+      button.addEventListener('click', async function() {
+        document.querySelectorAll('.time-range-button').forEach(btn => btn.classList.remove('active'));
+        this.classList.add('active');
+        await updateDetailChart(this.dataset.range);
+      });
+    });
+
+    // Update detail chart
+    async function updateDetailChart(range) {
+      if (!currentPrefix) return;
+      
+      const chartContainer = document.querySelector('#detailChart').parentElement;
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'loading';
+      loadingDiv.innerHTML = '<i class="bi bi-arrow-repeat"></i><br>Loading...';
+      chartContainer.appendChild(loadingDiv);
+      
+      try {
+        const response = await fetch(`/admin/dashboard/data?prefix=${currentPrefix}&range=${range}`);
+        if (!response.ok) throw new Error('Failed to fetch data');
+        const data = await response.json();
+        
+        // Update summary stats
+        document.getElementById('totalEvents').textContent = data.total;
+        document.getElementById('avgEvents').textContent = data.average.toFixed(1);
+        document.getElementById('peakEvents').textContent = data.peak;
+        
+        // Update trend indicator
+        const trendIndicator = document.getElementById('trendIndicator');
+        const trendPercentage = ((data.currentPeriod - data.previousPeriod) / data.previousPeriod * 100).toFixed(1);
+        const trendIcon = trendPercentage > 0 ? '↑' : trendPercentage < 0 ? '↓' : '→';
+        const trendColor = trendPercentage > 0 ? '#28a745' : trendPercentage < 0 ? '#dc3545' : '#6c757d';
+        trendIndicator.innerHTML = `${trendIcon} ${Math.abs(trendPercentage)}%`;
+        trendIndicator.style.color = trendColor;
+        
+        // Update chart
+        if (detailChart) detailChart.destroy();
+        
+        detailChart = new Chart(document.getElementById('detailChart'), {
+          type: 'line',
+          data: {
+            labels: data.dates,
+            datasets: [{
+              data: data.counts,
+              borderColor: data.color,
+              backgroundColor: data.color + '20',
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                mode: 'index',
+                intersect: false
+              }
+            },
+            scales: {
+              x: {
                 grid: {
                   display: false
-                },
-                ticks: {
-                  maxRotation: 0,
-                  autoSkip: true,
-                  maxTicksLimit: 8,
-                  color: '#666',
-                  font: {
-                    size: 12
-                  }
                 }
               },
               y: {
-                display: true,
                 beginAtZero: true,
                 grid: {
                   color: '#f0f0f0'
-                },
-                ticks: {
-                  precision: 0,
-                  color: '#666',
-                  font: {
-                    size: 12
-                  }
                 }
               }
             }
           }
         });
-        modalChart.prefix = prefix;
       } catch (error) {
-        console.error('Error updating modal chart:', error);
-        document.querySelector('.loading').style.display = 'none';
+        console.error('Error updating chart:', error);
+      } finally {
+        chartContainer.removeChild(loadingDiv);
       }
     }
 
-    function calculateTrend(counts) {
-      if (counts.length < 2) return 0;
-      const recentAvg = counts.slice(-3).reduce((a, b) => a + b, 0) / 3;
-      const oldAvg = counts.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
-      return recentAvg - oldAvg;
-    }
-
-    function getTrendIcon(trend) {
-      if (trend > 0) {
-        return '<i class="bi bi-arrow-up-circle-fill text-success"></i> Increasing';
-      } else if (trend < 0) {
-        return '<i class="bi bi-arrow-down-circle-fill text-danger"></i> Decreasing';
+    // Export function
+    async function exportData(format, event) {
+      event.preventDefault();
+      const button = event.target.closest('button');
+      const originalText = button.innerHTML;
+      
+      try {
+        // Show loading state
+        button.disabled = true;
+        button.innerHTML = `<i class="bi bi-arrow-repeat spin"></i> Exporting...`;
+        
+        // Get current range from active button
+        const activeRangeButton = document.querySelector('.time-range-button.active');
+        const range = activeRangeButton ? activeRangeButton.dataset.range : 'week';
+        
+        // Create loading overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+        overlay.innerHTML = '<div><i class="bi bi-arrow-repeat spin"></i><br>Preparing export...</div>';
+        document.body.appendChild(overlay);
+        
+        // Build query parameters
+        const params = new URLSearchParams({
+          format,
+          range,
+          prefix: currentPrefix || 'all'
+        });
+        
+        // Fetch export data
+        const response = await fetch(`/admin/dashboard/export?${params.toString()}`);
+        if (!response.ok) throw new Error('Export failed');
+        
+        // Get filename from response headers
+        const contentDisposition = response.headers.get('content-disposition');
+        const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/);
+        const filename = filenameMatch ? filenameMatch[1] : `dashboard_export.${format}`;
+        
+        // Download the file
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        // Show success message
+        button.innerHTML = `<i class="bi bi-check-circle"></i> Exported!`;
+        setTimeout(() => {
+          button.disabled = false;
+          button.innerHTML = originalText;
+        }, 2000);
+      } catch (error) {
+        console.error('Export error:', error);
+        button.innerHTML = `<i class="bi bi-x-circle"></i> Export Failed`;
+        setTimeout(() => {
+          button.disabled = false;
+          button.innerHTML = originalText;
+        }, 2000);
+      } finally {
+        // Remove loading overlay
+        const overlay = document.querySelector('.loading-overlay');
+        if (overlay) document.body.removeChild(overlay);
       }
-      return '<i class="bi bi-dash-circle-fill text-warning"></i> Stable';
-    }
-
-    function exportData(format) {
-      const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set('export', format);
-      window.location.href = currentUrl.toString();
     }
   </script>
 </body>

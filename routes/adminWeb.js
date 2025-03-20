@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminWebController = require('../controllers/adminWebController');
+const exportController = require('../controllers/exportController');
 const upload = require('../middleware/upload');
 
 router.get('/login', adminWebController.showLoginForm);
@@ -16,6 +17,7 @@ router.use((req, res, next) => {
 // protected test
 
 router.get('/dashboard/data', adminWebController.getTimeSeriesData);
+router.get('/dashboard/export', exportController.exportDashboardData);
 
 router.get('/users/import', (req, res) => {
   res.render('admin/users/import', { 
@@ -59,6 +61,7 @@ router.put('/rfid-cards/:id', adminWebController.rfidCardsEdit);
 router.delete('/rfid-cards/:id', adminWebController.rfidCardsDelete);
 
 router.get('/audit-logs', adminWebController.auditLogs);
+router.get('/audit-logs/export', exportController.exportAuditLogs);
 
 router.get('/guardian-link', adminWebController.guardianLinksIndex);
 router.get('/guardian-link/new', adminWebController.guardianLinkNewForm);
