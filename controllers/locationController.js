@@ -11,11 +11,6 @@ exports.getActiveUsersCount = async function(classId) {
             'user_id',
             [sequelize.fn('MAX', sequelize.col('GPS_Location.timestamp')), 'latest_timestamp']
         ],
-        where: {
-            timestamp: {
-                [Op.gte]: oneMinuteAgo
-            }
-        },
         include: [{
             model: User,
             required: true,
@@ -31,6 +26,23 @@ exports.getActiveUsersCount = async function(classId) {
                 }
             }]
         }],
+        where: {
+            timestamp: {
+                [Op.gte]: oneMinuteAgo
+            },
+            // Add subquery to filter locations by class
+            id: {
+                [Op.in]: sequelize.literal(`(
+                    SELECT MAX(gl2.id)
+                    FROM GPS_Locations gl2
+                    INNER JOIN Users u2 ON gl2.user_id = u2.id
+                    INNER JOIN Class_Enrollments ce2 ON u2.id = ce2.student_id
+                    WHERE ce2.class_id = ${classId}
+                    AND gl2.timestamp >= '${oneMinuteAgo.toISOString()}'
+                    GROUP BY gl2.user_id
+                )`)
+            }
+        },
         group: ['user_id'],
         raw: true
     });
