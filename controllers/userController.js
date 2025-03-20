@@ -1,5 +1,6 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const db = require('../models');
 
 const storage = multer.diskStorage({
@@ -26,6 +27,19 @@ exports.updateProfilePicture = async (req, res) => {
     // Fetch the original user record to get the current profile picture
     const originalUser = await db.User.findByPk(userId);
     const originalProfilePic = originalUser.profile_picture;
+
+    // Delete the old profile picture if it exists
+    if (originalProfilePic) {
+      const oldFilePath = path.join(__dirname, '..', originalProfilePic);
+      try {
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+      } catch (err) {
+        console.error('Error deleting old profile picture:', err);
+        // Continue with the update even if delete fails
+      }
+    }
 
     // Update the profile picture field
     await db.User.update({ profile_picture: filePath }, { where: { id: userId } });
