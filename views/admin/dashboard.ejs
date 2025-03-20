@@ -393,32 +393,130 @@
       try {
         const response = await fetch(`/admin/dashboard/data?prefix=${currentPrefix}&range=${range}`);
         if (!response.ok) throw new Error('Failed to fetch data');
-        const data = await response.json();
+        const responseData = await response.json();
+        
+        // Check if we have valid data
+        if (!responseData || !responseData.success || !responseData.data) {
+          throw new Error('Invalid data received');
+        }
+
+        console.log('Received data:', responseData); // Debug log
+        
+        // Find the matching data series for the current prefix
+        const data = responseData.data.find(series => series.prefix === currentPrefix);
+        if (!data) {
+          throw new Error('No matching data found for prefix');
+        }
         
         // Update summary stats
-        document.getElementById('totalEvents').textContent = data.total;
-        document.getElementById('avgEvents').textContent = data.average.toFixed(1);
-        document.getElementById('peakEvents').textContent = data.peak;
+        const total = data.counts ? data.counts.reduce((sum, count) => sum + count, 0) : 0;
+        document.getElementById('totalEvents').textContent = total;
         
-        // Update trend indicator
+        // Calculate average based on time range
+        let avgDivisor = 1;
+        switch(range) {
+          case '24h':
+            avgDivisor = 24; // 24 hours
+            break;
+          case 'week':
+            avgDivisor = 7; // 7 days
+            break;
+          case 'month':
+            avgDivisor = 30; // 30 days
+            break;
+          case 'year':
+            avgDivisor = 365; // 365 days
+            break;
+        }
+        const average = total / avgDivisor;
+        document.getElementById('avgEvents').textContent = average.toFixed(1);
+        
+        // Find peak count
+        const peak = data.counts ? Math.max(...data.counts) : 0;
+        document.getElementById('peakEvents').textContent = peak;
+        
+        // Calculate trend (compare current period with previous period)
         const trendIndicator = document.getElementById('trendIndicator');
-        const trendPercentage = ((data.currentPeriod - data.previousPeriod) / data.previousPeriod * 100).toFixed(1);
-        const trendIcon = trendPercentage > 0 ? '↑' : trendPercentage < 0 ? '↓' : '→';
-        const trendColor = trendPercentage > 0 ? '#28a745' : trendPercentage < 0 ? '#dc3545' : '#6c757d';
-        trendIndicator.innerHTML = `${trendIcon} ${Math.abs(trendPercentage)}%`;
-        trendIndicator.style.color = trendColor;
+        if (data.counts && data.counts.length >= 2) {
+          // For 24h, compare last hour with average of previous 23 hours
+          // For other ranges, compare last period with previous period
+          let currentValue, previousValue;
+          
+          if (range === '24h') {
+            currentValue = data.counts[data.counts.length - 1];
+            const previousHours = data.counts.slice(0, -1);
+            previousValue = previousHours.length > 0 ? 
+              previousHours.reduce((sum, count) => sum + count, 0) / previousHours.length : 0;
+          } else {
+            // Split the data into two periods
+            const halfLength = Math.floor(data.counts.length / 2);
+            const currentPeriod = data.counts.slice(halfLength);
+            const previousPeriod = data.counts.slice(0, halfLength);
+            
+            currentValue = currentPeriod.reduce((sum, count) => sum + count, 0) / currentPeriod.length;
+            previousValue = previousPeriod.reduce((sum, count) => sum + count, 0) / previousPeriod.length;
+          }
+          
+          if (previousValue !== 0) {
+            const trendPercentage = ((currentValue - previousValue) / previousValue * 100).toFixed(1);
+            const trendIcon = trendPercentage > 0 ? '↑' : trendPercentage < 0 ? '↓' : '→';
+            const trendColor = trendPercentage > 0 ? '#28a745' : trendPercentage < 0 ? '#dc3545' : '#6c757d';
+            trendIndicator.innerHTML = `${trendIcon} ${Math.abs(trendPercentage)}%`;
+            trendIndicator.style.color = trendColor;
+          } else {
+            trendIndicator.innerHTML = '→ N/A';
+            trendIndicator.style.color = '#6c757d';
+          }
+        } else {
+          trendIndicator.innerHTML = '→ N/A';
+          trendIndicator.style.color = '#6c757d';
+        }
         
         // Update chart
         if (detailChart) detailChart.destroy();
         
+        // Configure x-axis based on time range
+        const xAxisConfig = {
+          display: true,
+          grid: {
+            display: false
+          },
+          ticks: {
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: range === '24h' ? 24 : 8
+          },
+          title: {
+            display: true,
+            text: range === '24h' ? 'Hour' : 'Time'
+          }
+        };
+        
+        // Format dates based on range
+        const formattedLabels = data.dates.map(date => {
+          const d = new Date(date);
+          switch(range) {
+            case '24h':
+              return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            case 'week':
+              return d.toLocaleDateString([], { weekday: 'short' });
+            case 'month':
+              return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+            case 'year':
+              return d.toLocaleDateString([], { month: 'short' });
+            default:
+              return d.toLocaleDateString();
+          }
+        });
+        
         detailChart = new Chart(document.getElementById('detailChart'), {
           type: 'line',
           data: {
-            labels: data.dates,
+            labels: formattedLabels,
             datasets: [{
-              data: data.counts,
-              borderColor: data.color,
-              backgroundColor: data.color + '20',
+              data: data.counts || [],
+              borderColor: data.color || '#2196F3',
+              backgroundColor: (data.color || '#2196F3') + '20',
               fill: true,
               tension: 0.4
             }]
@@ -432,25 +530,16 @@
               },
               tooltip: {
                 mode: 'index',
-                intersect: false
+                intersect: false,
+                callbacks: {
+                  label: function(context) {
+                    return `Events: ${context.parsed.y}`;
+                  }
+                }
               }
             },
             scales: {
-              x: {
-                display: true,
-                grid: {
-                  display: false
-                },
-                ticks: {
-                  maxRotation: 0,
-                  autoSkip: true,
-                  maxTicksLimit: 8
-                },
-                title: {
-                  display: true,
-                  text: 'Time'
-                }
-              },
+              x: xAxisConfig,
               y: {
                 display: true,
                 beginAtZero: true,
@@ -458,7 +547,10 @@
                   color: '#f0f0f0'
                 },
                 ticks: {
-                  precision: 0
+                  precision: 0,
+                  callback: function(value) {
+                    return Math.round(value);
+                  }
                 },
                 title: {
                   display: true,
@@ -470,6 +562,13 @@
         });
       } catch (error) {
         console.error('Error updating chart:', error);
+        // Show error message in the chart area
+        const chartArea = document.getElementById('detailChart').parentElement;
+        chartArea.innerHTML = `
+          <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> Failed to load chart data. Please try again.
+          </div>
+        `;
       } finally {
         chartContainer.removeChild(loadingDiv);
       }
