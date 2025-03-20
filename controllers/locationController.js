@@ -5,7 +5,7 @@ const { Op } = require('sequelize');
 async function getActiveUsersCount(classId) {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
-    // First, get the latest location for each user
+    // Get the latest location for each user who is enrolled in the class
     const latestLocations = await GPS_Location.findAll({
         attributes: ['user_id', 'timestamp'],
         where: {
@@ -16,13 +16,19 @@ async function getActiveUsersCount(classId) {
         include: [{
             model: User,
             required: true,
+            attributes: ['id'],
             include: [{
-                model: Class_Enrollment,
+                model: Class,
+                as: 'studentClasses',
                 required: true,
-                where: { class_id: classId }
+                where: { id: classId },
+                through: {
+                    model: Class_Enrollment,
+                    attributes: []
+                }
             }]
         }],
-        group: ['user_id', 'timestamp', 'User.id', 'User.Class_Enrollments.id'],
+        group: ['user_id', 'timestamp', 'User.id', 'User.studentClasses.id'],
         order: [['timestamp', 'DESC']]
     });
 
