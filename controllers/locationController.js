@@ -107,7 +107,7 @@ exports.updateLocation = async (req, res) => {
             });
         }
 
-        // Verify if the user is enrolled in the class
+        // Verify if the user is enrolled in the class or is a professor
         const enrollment = await Class_Enrollment.findOne({
             where: {
                 class_id: classId,
@@ -115,7 +115,11 @@ exports.updateLocation = async (req, res) => {
             }
         });
 
-        if (!enrollment) {
+        // Check if user is a professor
+        const user = await User.findByPk(userId);
+        const isProfessor = user?.role === 'professor';
+
+        if (!enrollment && !isProfessor) {
             await logLocationAudit(userId, 'UPDATE', {
                 error: 'Not authorized for class',
                 status: 'denied',
@@ -136,10 +140,6 @@ exports.updateLocation = async (req, res) => {
         });
 
         // Get user details for the update message
-        const user = await User.findByPk(userId, {
-            attributes: ['id', 'first_name', 'last_name', 'profile_picture', 'role']
-        });
-
         const updateMessage = {
             type: 'location-update',
             studentId: userId.toString(),
