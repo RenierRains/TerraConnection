@@ -12,8 +12,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     email: {
       type: DataTypes.STRING(255),
-      unique: true,
-      allowNull: false
+      allowNull: false,
+      unique: {
+        name: 'email_unique',
+        msg: 'This email is already registered'
+      }
     },
     school_id: {
       type: DataTypes.STRING(50),
@@ -28,14 +31,24 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 'student'
     },
-    profile_picture: { type: DataTypes.STRING, allowNull: true },
+    profile_picture: { 
+      type: DataTypes.STRING, 
+      allowNull: true 
+    },
     fcm_token: {
       type: DataTypes.STRING,
       allowNull: true
     }
   }, {
     tableName: 'Users',
-    underscored: true
+    underscored: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['email'],
+        name: 'email_unique'
+      }
+    ]
   });
 
   User.associate = function(models) {

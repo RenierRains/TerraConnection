@@ -3,8 +3,11 @@ module.exports = (sequelize, DataTypes) => {
   const RFID_Card = sequelize.define('RFID_Card', {
     card_uid: {
       type: DataTypes.STRING(100),
-      unique: true,
-      allowNull: false
+      allowNull: false,
+      unique: {
+        name: 'card_uid_unique',
+        msg: 'This RFID card is already registered'
+      }
     },
     is_active: {
       type: DataTypes.BOOLEAN,
@@ -14,7 +17,14 @@ module.exports = (sequelize, DataTypes) => {
     deactivated_at: DataTypes.DATE
   }, {
     tableName: 'RFID_Cards',
-    underscored: true
+    underscored: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['card_uid'],
+        name: 'card_uid_unique'
+      }
+    ]
   });
 
   RFID_Card.associate = function(models) {
