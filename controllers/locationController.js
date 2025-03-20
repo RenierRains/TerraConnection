@@ -3,7 +3,7 @@ const { Op } = require('sequelize');
 
 // Helper function to get active users count
 exports.getActiveUsersCount = async function(classId) {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
     
     // Get the latest location for each user who is enrolled in the class
     const latestLocations = await GPS_Location.findAll({
@@ -13,7 +13,7 @@ exports.getActiveUsersCount = async function(classId) {
         ],
         where: {
             timestamp: {
-                [Op.gte]: fiveMinutesAgo
+                [Op.gte]: oneMinuteAgo
             }
         },
         include: [{
@@ -53,7 +53,9 @@ async function broadcastActiveUsersCount(classId, wss, io) {
         // Broadcast through WebSocket
         wss.clients.forEach(function each(client) {
             try {
-                if (client.classId === parseInt(classId)) {
+                // Make sure to compare as strings or numbers consistently
+                if (client.classId && client.classId.toString() === classId.toString()) {
+                    console.log('Sending active users count to client in class:', client.classId);
                     client.send(JSON.stringify(message));
                 }
             } catch (err) {
@@ -147,7 +149,9 @@ exports.updateLocation = async (req, res) => {
         // Broadcast through WebSocket
         wss.clients.forEach(function each(client) {
             try {
-                if (client.classId === classId) {
+                // Make sure to compare as strings or numbers consistently
+                if (client.classId && client.classId.toString() === classId.toString()) {
+                    console.log('Sending location update to client in class:', client.classId);
                     client.send(JSON.stringify(updateMessage));
                 }
             } catch (err) {
@@ -158,7 +162,7 @@ exports.updateLocation = async (req, res) => {
         // Broadcast through Socket.IO
         io.to(`class-${classId}`).emit('location-update', updateMessage);
 
-        // Update active users count
+        // Update active users count only for this class
         await broadcastActiveUsersCount(classId, wss, io);
 
         res.status(200).json({
@@ -296,11 +300,11 @@ exports.getClassLocations = async (req, res) => {
 
         // Get current timestamp for filtering active locations
         const currentTime = new Date();
-        const fiveMinutesAgo = new Date(currentTime - 5 * 60 * 1000);
+        const oneMinuteAgo = new Date(currentTime - 1 * 60 * 1000);
 
         const locations = enrollments.map(enrollment => {
             const latestLocation = enrollment.studentData.GPS_Locations[0];
-            const isActive = latestLocation && new Date(latestLocation.timestamp) >= fiveMinutesAgo;
+            const isActive = latestLocation && new Date(latestLocation.timestamp) >= oneMinuteAgo;
             
             return {
                 studentId: enrollment.studentData.id.toString(),
