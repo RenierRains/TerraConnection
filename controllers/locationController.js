@@ -5,26 +5,28 @@ const { Op } = require('sequelize');
 async function getActiveUsersCount(classId) {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
-    const activeLocations = await GPS_Location.findAll({
-        attributes: ['user_id'],
-        where: {
-            timestamp: {
-                [Op.gte]: fiveMinutesAgo
-            }
-        },
-        group: ['user_id'],
+    // Get active users through Class_Enrollment first
+    const activeUsers = await Class_Enrollment.findAll({
+        where: { class_id: classId },
         include: [{
             model: User,
+            as: 'studentData',
             required: true,
             include: [{
-                model: Class_Enrollment,
+                model: GPS_Location,
                 required: true,
-                where: { class_id: classId }
+                where: {
+                    timestamp: {
+                        [Op.gte]: fiveMinutesAgo
+                    }
+                },
+                limit: 1,
+                order: [['timestamp', 'DESC']]
             }]
         }]
     });
 
-    return activeLocations.length;
+    return activeUsers.length;
 }
 
 // Helper function to broadcast active users count
@@ -38,11 +40,13 @@ async function broadcastActiveUsersCount(classId, wss, io) {
 
     // Broadcast through WebSocket
     wss.clients.forEach(function each(client) {
-        client.send(JSON.stringify(message));
+        if (client.classId === classId) {
+            client.send(JSON.stringify(message));
+        }
     });
 
     // Broadcast through Socket.IO
-    io.emit('activeUsers', message);
+    io.to(`class-${classId}`).emit('activeUsers', message);
 }
 
 // Update user's location
