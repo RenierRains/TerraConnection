@@ -2,7 +2,7 @@ const { GPS_Location, User, Class_Enrollment, Class, sequelize } = require('../m
 const { Op } = require('sequelize');
 
 // Helper function to get active users count
-async function getActiveUsersCount(classId) {
+exports.getActiveUsersCount = async function(classId) {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
     // Get the latest location for each user who is enrolled in the class
@@ -41,7 +41,7 @@ async function getActiveUsersCount(classId) {
 // Helper function to broadcast active users count
 async function broadcastActiveUsersCount(classId, wss, io) {
     try {
-        const count = await getActiveUsersCount(classId);
+        const count = await exports.getActiveUsersCount(classId);
         console.log(`Broadcasting active users count for class ${classId}: ${count}`);
         
         const message = {

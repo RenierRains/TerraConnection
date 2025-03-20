@@ -12,6 +12,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const WebSocket = require('ws');
 const { authenticateToken } = require('./middleware/auth');
+const locationController = require('./controllers/locationController');
 
 const adminWebRoutes = require('./routes/adminWeb');
 const authRoutes = require('./routes/auth');
@@ -83,9 +84,18 @@ wss.on('connection', function connection(ws, request) {
             if (data.type === 'join-class' && data.classId) {
                 ws.classId = data.classId;
                 console.log(`Client joined class ${data.classId}`);
+                
+                // Send initial active users count when joining
+                const count = await locationController.getActiveUsersCount(data.classId);
+                const response = {
+                    type: 'activeUsers',
+                    classId: data.classId.toString(),
+                    count: count
+                };
+                ws.send(JSON.stringify(response));
+                console.log('Sent initial active users count:', response);
             } else if (data.type === 'get-active-users' && data.classId) {
-                const { getActiveUsersCount } = require('./controllers/locationController');
-                const count = await getActiveUsersCount(data.classId);
+                const count = await locationController.getActiveUsersCount(data.classId);
                 const response = {
                     type: 'activeUsers',
                     classId: data.classId.toString(),
@@ -97,7 +107,7 @@ wss.on('connection', function connection(ws, request) {
                 ws.send(JSON.stringify({ type: 'pong' }));
             }
         } catch (e) {
-            console.error('Error parsing WebSocket message:', e);
+            console.error('Error handling WebSocket message:', e);
         }
     });
     
