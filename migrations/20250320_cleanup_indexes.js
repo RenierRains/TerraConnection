@@ -2,56 +2,86 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // Drop duplicate indexes from Users table
-    const userIndexes = Array.from({length: 63}, (_, i) => i + 2)
-      .map(num => `email_${num}`);
-    
-    for (const index of userIndexes) {
-      try {
-        await queryInterface.removeIndex('Users', index);
-      } catch (error) {
-        console.log(`Index ${index} might not exist, continuing...`);
-      }
+    // Drop all existing indexes from Users table except PRIMARY
+    try {
+      await queryInterface.sequelize.query(`
+        SELECT DISTINCT INDEX_NAME 
+        FROM information_schema.STATISTICS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'Users' 
+        AND INDEX_NAME != 'PRIMARY'
+      `).then(async ([results]) => {
+        for (const row of results) {
+          try {
+            await queryInterface.sequelize.query(`DROP INDEX \`${row.INDEX_NAME}\` ON Users`);
+            console.log(`Dropped index ${row.INDEX_NAME} from Users`);
+          } catch (error) {
+            console.log(`Error dropping index ${row.INDEX_NAME}: ${error.message}`);
+          }
+        }
+      });
+    } catch (error) {
+      console.log('Error getting Users indexes:', error.message);
     }
 
-    // Drop duplicate indexes from RFID_Cards table
-    const rfidIndexes = Array.from({length: 62}, (_, i) => i + 2)
-      .map(num => `card_uid_${num}`);
-    
-    for (const index of rfidIndexes) {
-      try {
-        await queryInterface.removeIndex('RFID_Cards', index);
-      } catch (error) {
-        console.log(`Index ${index} might not exist, continuing...`);
-      }
+    // Drop all existing indexes from RFID_Cards table except PRIMARY
+    try {
+      await queryInterface.sequelize.query(`
+        SELECT DISTINCT INDEX_NAME 
+        FROM information_schema.STATISTICS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'RFID_Cards' 
+        AND INDEX_NAME != 'PRIMARY'
+      `).then(async ([results]) => {
+        for (const row of results) {
+          try {
+            await queryInterface.sequelize.query(`DROP INDEX \`${row.INDEX_NAME}\` ON RFID_Cards`);
+            console.log(`Dropped index ${row.INDEX_NAME} from RFID_Cards`);
+          } catch (error) {
+            console.log(`Error dropping index ${row.INDEX_NAME}: ${error.message}`);
+          }
+        }
+      });
+    } catch (error) {
+      console.log('Error getting RFID_Cards indexes:', error.message);
     }
 
-    // Ensure we have the correct unique indexes with proper names
-    await queryInterface.addIndex('Users', ['email'], {
-      name: 'email_unique',
-      unique: true,
-      type: 'UNIQUE'
-    });
+    // Create new unique indexes with proper names
+    try {
+      await queryInterface.sequelize.query(`
+        CREATE UNIQUE INDEX \`email_unique\` ON Users (\`email\`)
+      `);
+      console.log('Created email_unique index on Users');
+    } catch (error) {
+      console.log('Error creating email_unique index:', error.message);
+    }
 
-    await queryInterface.addIndex('RFID_Cards', ['card_uid'], {
-      name: 'card_uid_unique',
-      unique: true,
-      type: 'UNIQUE'
-    });
+    try {
+      await queryInterface.sequelize.query(`
+        CREATE UNIQUE INDEX \`card_uid_unique\` ON RFID_Cards (\`card_uid\`)
+      `);
+      console.log('Created card_uid_unique index on RFID_Cards');
+    } catch (error) {
+      console.log('Error creating card_uid_unique index:', error.message);
+    }
   },
 
   down: async (queryInterface, Sequelize) => {
     // If needed to rollback, we just ensure the main unique indexes exist
-    await queryInterface.addIndex('Users', ['email'], {
-      name: 'email_unique',
-      unique: true,
-      type: 'UNIQUE'
-    });
+    try {
+      await queryInterface.sequelize.query(`
+        CREATE UNIQUE INDEX \`email_unique\` ON Users (\`email\`)
+      `);
+    } catch (error) {
+      console.log('Error creating email_unique index:', error.message);
+    }
 
-    await queryInterface.addIndex('RFID_Cards', ['card_uid'], {
-      name: 'card_uid_unique',
-      unique: true,
-      type: 'UNIQUE'
-    });
+    try {
+      await queryInterface.sequelize.query(`
+        CREATE UNIQUE INDEX \`card_uid_unique\` ON RFID_Cards (\`card_uid\`)
+      `);
+    } catch (error) {
+      console.log('Error creating card_uid_unique index:', error.message);
+    }
   }
 }; 
