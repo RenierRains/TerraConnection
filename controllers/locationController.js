@@ -12,11 +12,13 @@ exports.getActiveUsersCount = async function(classId) {
             FROM GPS_Locations gl
             INNER JOIN Class_Enrollments ce ON gl.user_id = ce.student_id
             WHERE ce.class_id = :classId
+            AND gl.class_id = :classId
             AND gl.timestamp >= :oneMinuteAgo
             AND gl.id IN (
                 SELECT MAX(gl2.id)
                 FROM GPS_Locations gl2
                 WHERE gl2.user_id = gl.user_id
+                AND gl2.class_id = :classId
                 GROUP BY gl2.user_id
             )
         `, {
@@ -116,7 +118,8 @@ exports.updateLocation = async (req, res) => {
             latitude,
             longitude,
             user_id: userId,
-            timestamp: new Date() // Ensure timestamp is set
+            class_id: classId, // Store which class this location update is for
+            timestamp: new Date()
         });
 
         console.log('Created location:', location.toJSON());
