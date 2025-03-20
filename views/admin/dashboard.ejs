@@ -303,42 +303,72 @@
             },
             scales: {
               x: {
-                display: false
+                display: true,
+                grid: {
+                  display: false
+                },
+                ticks: {
+                  maxRotation: 0,
+                  autoSkip: true,
+                  maxTicksLimit: 5
+                }
               },
               y: {
-                display: false,
-                beginAtZero: true
+                display: true,
+                beginAtZero: true,
+                grid: {
+                  color: '#f0f0f0'
+                },
+                ticks: {
+                  precision: 0
+                }
               }
             }
           }
         });
-      });
-    });
 
-    // Handle card clicks
-    document.querySelectorAll('.stat-card').forEach(card => {
-      card.addEventListener('click', async function() {
-        const prefix = this.dataset.prefix;
-        currentPrefix = prefix;
+        // Add click event listener to each card
+        card.addEventListener('click', async function() {
+          const prefix = this.dataset.prefix;
+          currentPrefix = prefix;
+          const modal = document.getElementById('detailModal');
+          const modalTitle = document.getElementById('modalTitle');
+          const category = this.querySelector('.category-badge').textContent;
+          
+          modalTitle.textContent = `${category} Activity`;
+          modal.style.display = 'block';
+          
+          // Show initial data with week range
+          const weekButton = document.querySelector('.time-range-button[data-range="week"]');
+          if (weekButton) {
+            document.querySelectorAll('.time-range-button').forEach(btn => btn.classList.remove('active'));
+            weekButton.classList.add('active');
+          }
+          await updateDetailChart('week');
+        });
+      });
+
+      // Close modal when clicking outside
+      window.addEventListener('click', function(event) {
         const modal = document.getElementById('detailModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const category = this.querySelector('.category-badge').textContent;
-        
-        modalTitle.textContent = `${category} Activity`;
-        modal.style.display = 'block';
-        
-        // Show initial data
-        await updateDetailChart('week');
+        if (event.target === modal) {
+          modal.style.display = 'none';
+          if (detailChart) {
+            detailChart.destroy();
+            detailChart = null;
+          }
+        }
       });
-    });
 
-    // Handle modal close
-    document.querySelector('.close').addEventListener('click', function() {
-      document.getElementById('detailModal').style.display = 'none';
-      if (detailChart) {
-        detailChart.destroy();
-        detailChart = null;
-      }
+      // Handle modal close button
+      document.querySelector('.close').addEventListener('click', function() {
+        const modal = document.getElementById('detailModal');
+        modal.style.display = 'none';
+        if (detailChart) {
+          detailChart.destroy();
+          detailChart = null;
+        }
+      });
     });
 
     // Handle time range buttons
@@ -407,14 +437,32 @@
             },
             scales: {
               x: {
+                display: true,
                 grid: {
                   display: false
+                },
+                ticks: {
+                  maxRotation: 0,
+                  autoSkip: true,
+                  maxTicksLimit: 8
+                },
+                title: {
+                  display: true,
+                  text: 'Time'
                 }
               },
               y: {
+                display: true,
                 beginAtZero: true,
                 grid: {
                   color: '#f0f0f0'
+                },
+                ticks: {
+                  precision: 0
+                },
+                title: {
+                  display: true,
+                  text: 'Number of Events'
                 }
               }
             }

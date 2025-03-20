@@ -531,8 +531,23 @@
         document.querySelectorAll('.quick-filter').forEach(f => f.classList.remove('active'));
         this.classList.add('active');
         
+        // Reset all form fields except actionType
+        form.querySelectorAll('input:not([name="actionType"]), select:not([name="actionType"])').forEach(input => {
+          if (input.type === 'hidden') return; // Skip hidden inputs
+          if (input.type === 'datetime-local') {
+            input.value = '';
+          } else if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0;
+          } else {
+            input.value = '';
+          }
+        });
+        
         // Set action type based on filter
         switch(type) {
+          case 'all':
+            actionTypeInput.value = '';
+            break;
           case 'security':
             actionTypeInput.value = 'SECURITY_';
             break;
@@ -551,12 +566,13 @@
           case 'data':
             actionTypeInput.value = 'DATA_';
             break;
-          default:
-            actionTypeInput.value = '';
         }
         
         // Reset page number and submit form
-        form.querySelector('[name="page"]').value = '1';
+        const pageInput = form.querySelector('[name="page"]');
+        if (pageInput) pageInput.value = '1';
+        
+        // Submit form
         form.submit();
       });
     });
@@ -570,6 +586,10 @@
       // Show loading state
       submitButton.disabled = true;
       submitButton.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Applying...';
+      
+      // Reset page number on filter change
+      const pageInput = this.querySelector('[name="page"]');
+      if (pageInput) pageInput.value = '1';
       
       // Submit the form
       this.submit();
