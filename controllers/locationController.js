@@ -1,5 +1,6 @@
 const { GPS_Location, User, Class_Enrollment, Class, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const { logLocationAudit } = require('./auditLogger');
 
 // Helper function to get active users count
 exports.getActiveUsersCount = async function(classId) {
@@ -51,7 +52,6 @@ async function broadcastActiveUsersCount(classId, wss, io) {
         // Broadcast through WebSocket
         wss.clients.forEach(function each(client) {
             try {
-                // Make sure to compare as strings or numbers consistently
                 if (client.classId && client.classId.toString() === classId.toString()) {
                     console.log('Sending active users count to client in class:', client.classId);
                     client.send(JSON.stringify(message));
@@ -68,7 +68,6 @@ async function broadcastActiveUsersCount(classId, wss, io) {
             count: count
         });
 
-        // Log the actual message being sent
         console.log('Broadcasting message:', message);
     } catch (error) {
         console.error('Error in broadcastActiveUsersCount:', error);
@@ -78,14 +77,18 @@ async function broadcastActiveUsersCount(classId, wss, io) {
 // Update user's location
 exports.updateLocation = async (req, res) => {
     try {
-        const { latitude, longitude, classId } = req.body;
+        const { latitude, longitude, classId, accuracy, provider } = req.body;
         console.log('Location update request:', { latitude, longitude, classId });
-        console.log('Request user object:', req.user);
         
         const userId = req.user?.id || req.user?.userId;
 
         if (!userId) {
             console.error('No user ID in request. User object:', req.user);
+            await logLocationAudit(null, 'UPDATE', {
+                error: 'User not authenticated',
+                status: 'failed',
+                locationContext: { classId }
+            }, req);
             return res.status(401).json({
                 success: false,
                 message: 'User not authenticated'
@@ -93,6 +96,11 @@ exports.updateLocation = async (req, res) => {
         }
 
         if (!latitude || !longitude || !classId) {
+            await logLocationAudit(userId, 'UPDATE', {
+                error: 'Missing required fields',
+                status: 'failed',
+                locationContext: { classId }
+            }, req);
             return res.status(400).json({
                 success: false,
                 message: 'Latitude, longitude, and classId are required'
@@ -108,6 +116,11 @@ exports.updateLocation = async (req, res) => {
         });
 
         if (!enrollment) {
+            await logLocationAudit(userId, 'UPDATE', {
+                error: 'Not authorized for class',
+                status: 'denied',
+                locationContext: { classId }
+            }, req);
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to share location in this class'
@@ -118,11 +131,9 @@ exports.updateLocation = async (req, res) => {
             latitude,
             longitude,
             user_id: userId,
-            class_id: classId, // Store which class this location update is for
+            class_id: classId,
             timestamp: new Date()
         });
-
-        console.log('Created location:', location.toJSON());
 
         // Get user details for the update message
         const user = await User.findByPk(userId, {
@@ -143,14 +154,10 @@ exports.updateLocation = async (req, res) => {
         const io = req.app.get('io');
         const wss = req.app.get('wss');
         
-        console.log('Broadcasting location update for class:', classId);
-        
-        // Broadcast through WebSocket
+        // Broadcast through WebSocket and Socket.IO
         wss.clients.forEach(function each(client) {
             try {
-                // Make sure to compare as strings or numbers consistently
                 if (client.classId && client.classId.toString() === classId.toString()) {
-                    console.log('Sending location update to client in class:', client.classId);
                     client.send(JSON.stringify(updateMessage));
                 }
             } catch (err) {
@@ -158,11 +165,22 @@ exports.updateLocation = async (req, res) => {
             }
         });
 
-        // Broadcast through Socket.IO
         io.to(`class-${classId}`).emit('location-update', updateMessage);
 
-        // Update active users count only for this class
+        // Update active users count
         await broadcastActiveUsersCount(classId, wss, io);
+
+        await logLocationAudit(userId, 'UPDATE', {
+            status: 'success',
+            accuracy,
+            provider,
+            locationContext: {
+                classId,
+                latitude,
+                longitude,
+                timestamp: location.timestamp
+            }
+        }, req);
 
         res.status(200).json({
             success: true,
@@ -170,6 +188,11 @@ exports.updateLocation = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating location:', error);
+        await logLocationAudit(req.user?.id || req.user?.userId, 'UPDATE', {
+            error: error.message,
+            status: 'failed',
+            locationContext: { classId: req.body?.classId }
+        }, req);
         res.status(500).json({
             success: false,
             message: 'Error updating location'
@@ -184,7 +207,11 @@ exports.stopSharing = async (req, res) => {
         const userId = req.user?.id || req.user?.userId;
 
         if (!userId) {
-            console.error('No user ID in request. User object:', req.user);
+            await logLocationAudit(null, 'TRACKING_STOP', {
+                error: 'User not authenticated',
+                status: 'failed',
+                locationContext: { classId }
+            }, req);
             return res.status(401).json({
                 success: false,
                 message: 'User not authenticated'
@@ -192,6 +219,10 @@ exports.stopSharing = async (req, res) => {
         }
 
         if (!classId) {
+            await logLocationAudit(userId, 'TRACKING_STOP', {
+                error: 'Class ID required',
+                status: 'failed'
+            }, req);
             return res.status(400).json({
                 success: false,
                 message: 'Class ID is required'
@@ -213,7 +244,7 @@ exports.stopSharing = async (req, res) => {
         const io = req.app.get('io');
         const wss = req.app.get('wss');
         
-        // Broadcast through WebSocket
+        // Broadcast through WebSocket and Socket.IO
         wss.clients.forEach(function each(client) {
             try {
                 if (client.classId === classId) {
@@ -224,11 +255,18 @@ exports.stopSharing = async (req, res) => {
             }
         });
 
-        // Broadcast through Socket.IO
         io.to(`class-${classId}`).emit('stop-sharing', stopMessage);
 
         // Update active users count
         await broadcastActiveUsersCount(classId, wss, io);
+
+        await logLocationAudit(userId, 'TRACKING_STOP', {
+            status: 'success',
+            locationContext: {
+                classId,
+                timestamp: new Date()
+            }
+        }, req);
 
         res.status(200).json({
             success: true,
@@ -236,6 +274,11 @@ exports.stopSharing = async (req, res) => {
         });
     } catch (error) {
         console.error('Error stopping location sharing:', error);
+        await logLocationAudit(req.user?.id || req.user?.userId, 'TRACKING_STOP', {
+            error: error.message,
+            status: 'failed',
+            locationContext: { classId: req.body?.classId }
+        }, req);
         res.status(500).json({
             success: false,
             message: 'Error stopping location sharing'
