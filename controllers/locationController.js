@@ -1,5 +1,6 @@
 const { GPS_Location, User, Class_Enrollment, Class } = require('../models');
 const { Op } = require('sequelize');
+const sequelize = require('sequelize');
 
 // Helper function to get active users count
 async function getActiveUsersCount(classId) {
@@ -7,7 +8,10 @@ async function getActiveUsersCount(classId) {
     
     // Get the latest location for each user who is enrolled in the class
     const latestLocations = await GPS_Location.findAll({
-        attributes: ['user_id', 'timestamp'],
+        attributes: [
+            'user_id',
+            [sequelize.fn('MAX', sequelize.col('GPS_Location.timestamp')), 'latest_timestamp']
+        ],
         where: {
             timestamp: {
                 [Op.gte]: fiveMinutesAgo
@@ -16,29 +20,23 @@ async function getActiveUsersCount(classId) {
         include: [{
             model: User,
             required: true,
-            attributes: ['id'],
+            attributes: [],
             include: [{
                 model: Class,
                 as: 'studentClasses',
                 required: true,
                 where: { id: classId },
+                attributes: [],
                 through: {
-                    model: Class_Enrollment,
                     attributes: []
                 }
             }]
         }],
-        group: ['user_id', 'timestamp', 'User.id', 'User.studentClasses.id'],
-        order: [['timestamp', 'DESC']]
+        group: ['user_id'],
+        raw: true
     });
 
-    // Count unique users with recent locations
-    const uniqueUsers = new Set();
-    latestLocations.forEach(location => {
-        uniqueUsers.add(location.user_id);
-    });
-
-    return uniqueUsers.size;
+    return latestLocations.length;
 }
 
 // Helper function to broadcast active users count
