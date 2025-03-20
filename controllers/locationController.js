@@ -1,6 +1,50 @@
 const { GPS_Location, User, Class_Enrollment, Class } = require('../models');
 const { Op } = require('sequelize');
 
+// Helper function to get active users count
+async function getActiveUsersCount(classId) {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    
+    const activeLocations = await GPS_Location.findAll({
+        attributes: ['user_id'],
+        where: {
+            timestamp: {
+                [Op.gte]: fiveMinutesAgo
+            }
+        },
+        group: ['user_id'],
+        include: [{
+            model: User,
+            required: true,
+            include: [{
+                model: Class_Enrollment,
+                required: true,
+                where: { class_id: classId }
+            }]
+        }]
+    });
+
+    return activeLocations.length;
+}
+
+// Helper function to broadcast active users count
+async function broadcastActiveUsersCount(classId, wss, io) {
+    const count = await getActiveUsersCount(classId);
+    const message = {
+        type: 'activeUsers',
+        classId: classId.toString(),
+        count
+    };
+
+    // Broadcast through WebSocket
+    wss.clients.forEach(function each(client) {
+        client.send(JSON.stringify(message));
+    });
+
+    // Broadcast through Socket.IO
+    io.emit('activeUsers', message);
+}
+
 // Update user's location
 exports.updateLocation = async (req, res) => {
     try {
@@ -47,17 +91,21 @@ exports.updateLocation = async (req, res) => {
             timestamp: location.timestamp
         };
 
-        // Emit the location update through Socket.IO
+        // Emit the location update through Socket.IO and WebSocket
         if (classId) {
-            req.app.get('io').to(`class-${classId}`).emit('location-update', updateMessage);
-            
-            // Broadcast to WebSocket clients
+            const io = req.app.get('io');
             const wss = req.app.get('wss');
+            
+            io.to(`class-${classId}`).emit('location-update', updateMessage);
+            
             wss.clients.forEach(function each(client) {
                 if (client.classId === classId) {
                     client.send(JSON.stringify(updateMessage));
                 }
             });
+
+            // Update active users count
+            await broadcastActiveUsersCount(classId, wss, io);
         }
 
         res.status(200).json({
@@ -105,16 +153,20 @@ exports.stopSharing = async (req, res) => {
             studentName: `${user.first_name} ${user.last_name}`
         };
 
-        // Emit the stop sharing message through Socket.IO
-        req.app.get('io').to(`class-${classId}`).emit('stop-sharing', stopMessage);
-        
-        // Broadcast to WebSocket clients
+        // Emit messages through Socket.IO and WebSocket
+        const io = req.app.get('io');
         const wss = req.app.get('wss');
+        
+        io.to(`class-${classId}`).emit('stop-sharing', stopMessage);
+        
         wss.clients.forEach(function each(client) {
             if (client.classId === classId) {
                 client.send(JSON.stringify(stopMessage));
             }
         });
+
+        // Update active users count
+        await broadcastActiveUsersCount(classId, wss, io);
 
         res.status(200).json({
             success: true,
@@ -183,17 +235,28 @@ exports.getClassLocations = async (req, res) => {
             }]
         });
 
+        // Get current timestamp for filtering active locations
+        const currentTime = new Date();
+        const fiveMinutesAgo = new Date(currentTime - 5 * 60 * 1000);
+
         const locations = enrollments.map(enrollment => {
             const latestLocation = enrollment.studentData.GPS_Locations[0];
+            const isActive = latestLocation && new Date(latestLocation.timestamp) >= fiveMinutesAgo;
+            
             return {
                 studentId: enrollment.studentData.id.toString(),
                 studentName: `${enrollment.studentData.first_name} ${enrollment.studentData.last_name}`,
                 profilePicture: enrollment.studentData.profile_picture,
-                latitude: latestLocation?.latitude || null,
-                longitude: latestLocation?.longitude || null,
-                timestamp: latestLocation?.timestamp || null
+                latitude: isActive ? latestLocation.latitude : null,
+                longitude: isActive ? latestLocation.longitude : null,
+                timestamp: isActive ? latestLocation.timestamp : null
             };
         }).filter(loc => loc.latitude !== null && loc.longitude !== null);
+
+        // Send initial active users count along with locations
+        const io = req.app.get('io');
+        const wss = req.app.get('wss');
+        await broadcastActiveUsersCount(classId, wss, io);
 
         res.status(200).json({
             success: true,
