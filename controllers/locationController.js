@@ -137,7 +137,7 @@ exports.updateLocation = async (req, res) => {
 
         // Get user details for the update message
         const user = await User.findByPk(userId, {
-            attributes: ['id', 'first_name', 'last_name', 'profile_picture']
+            attributes: ['id', 'first_name', 'last_name', 'profile_picture', 'role']
         });
 
         const updateMessage = {
@@ -145,6 +145,7 @@ exports.updateLocation = async (req, res) => {
             studentId: userId.toString(),
             studentName: `${user.first_name} ${user.last_name}`,
             profilePicture: user.profile_picture,
+            role: user.role,
             latitude,
             longitude,
             timestamp: location.timestamp
@@ -330,7 +331,7 @@ exports.getClassLocations = async (req, res) => {
             include: [{
                 model: User,
                 as: 'studentData',
-                attributes: ['id', 'first_name', 'last_name', 'profile_picture'],
+                attributes: ['id', 'first_name', 'last_name', 'profile_picture', 'role'],
                 include: [{
                     model: GPS_Location,
                     limit: 1,
@@ -352,6 +353,7 @@ exports.getClassLocations = async (req, res) => {
                 studentId: enrollment.studentData.id.toString(),
                 studentName: `${enrollment.studentData.first_name} ${enrollment.studentData.last_name}`,
                 profilePicture: enrollment.studentData.profile_picture,
+                role: enrollment.studentData.role,
                 latitude: isActive ? latestLocation.latitude : null,
                 longitude: isActive ? latestLocation.longitude : null,
                 timestamp: isActive ? latestLocation.timestamp : null
