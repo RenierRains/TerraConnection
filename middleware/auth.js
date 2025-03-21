@@ -30,6 +30,22 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
+const isStudent = (req, res, next) => {
+    if (!req.user || req.user.role !== 'student') {
+        return res.status(403).json({ message: 'Access denied. Student role required.' });
+    }
+    next();
+};
+
+const isGuardian = (req, res, next) => {
+    if (!req.user || req.user.role !== 'guardian') {
+        return res.status(403).json({ message: 'Access denied. Guardian role required.' });
+    }
+    next();
+};
+
 module.exports = {
-    authenticateToken
+    authenticateToken,
+    isStudent,
+    isGuardian
 }; 
