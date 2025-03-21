@@ -167,3 +167,41 @@ exports.markNotificationAsRead = async (req, res) => {
     res.status(500).json({ error: 'Failed to mark notification as read' });
   }
 };
+
+exports.getLinkedGuardians = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Verify that the user is a student
+    const user = await db.User.findByPk(userId);
+    if (!user || user.role !== 'student') {
+      return res.status(403).json({ error: 'Access denied. User must be a student.' });
+    }
+
+    // Get all linked guardians for the student
+    const guardianRelations = await db.Guardian_Student.findAll({
+      where: { student_id: userId },
+      include: [{
+        model: db.User,
+        as: 'guardian',
+        attributes: ['id', 'first_name', 'last_name', 'email', 'phone_number']
+      }]
+    });
+
+    // Format the response
+    const guardians = guardianRelations.map(relation => ({
+      id: relation.guardian.id,
+      first_name: relation.guardian.first_name,
+      last_name: relation.guardian.last_name,
+      email: relation.guardian.email,
+      phone_number: relation.guardian.phone_number
+    }));
+
+    res.json({ guardians });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve linked guardians' });
+  }
+};
+
+module.exports = exports;
