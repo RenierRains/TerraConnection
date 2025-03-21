@@ -32,7 +32,7 @@ exports.getLinkedStudents = async (req, res) => {
       include: [{
         model: db.User,
         as: 'student',
-        attributes: ['id', 'first_name', 'last_name', 'school_id']
+        attributes: ['id', 'first_name', 'last_name', 'school_id', 'profile_picture']
       }]
     });
 
@@ -47,7 +47,7 @@ exports.getLinkedStudents = async (req, res) => {
         include: [{
           model: db.User,
           as: 'user',
-          attributes: ['id', 'first_name', 'last_name', 'school_id']
+          attributes: ['id', 'first_name', 'last_name', 'school_id', 'profile_picture']
         }]
       });
 
@@ -67,6 +67,7 @@ exports.getLinkedStudents = async (req, res) => {
         first_name: student.first_name,
         last_name: student.last_name,
         school_id: student.school_id,
+        profile_picture: student.profile_picture,
         onCampus,
         lastLog,
         lastGPS
