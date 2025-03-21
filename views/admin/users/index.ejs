@@ -18,6 +18,34 @@
       </div>
     </div>
 
+    <!-- Search Form -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <form method="GET" action="/admin/users" class="row g-3">
+          <div class="col-12">
+            <div class="input-group">
+              <input type="text" 
+                     class="form-control" 
+                     name="search" 
+                     placeholder="Search by name, email, role (student/professor/guardian/admin)..." 
+                     value="<%= searchParams?.search || '' %>"
+                     aria-label="Search users">
+              <button type="submit" class="btn btn-primary">Search</button>
+              <a href="/admin/users" class="btn btn-secondary">Reset</a>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="show_related" id="show_related" value="1" <%= searchParams?.show_related ? 'checked' : '' %>>
+              <label class="form-check-label" for="show_related">
+                Show related users (student-guardian relationships)
+              </label>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <table class="table table-bordered">
       <thead>
         <tr>
@@ -25,6 +53,7 @@
           <th>Name</th>
           <th>Email</th>
           <th>Role</th>
+          <th>Related Users</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -35,6 +64,22 @@
             <td><%= user.first_name %> <%= user.last_name %></td>
             <td><%= user.email %></td>
             <td><%= user.role %></td>
+            <td>
+              <% if (user.related_users && user.related_users.length > 0) { %>
+                <ul class="list-unstyled mb-0">
+                  <% user.related_users.forEach(function(related){ %>
+                    <li>
+                      <%= related.role === 'student' ? '👨‍🎓' : '👥' %>
+                      <%= related.first_name %> <%= related.last_name %>
+                      (<%= related.role %>)
+                      <a href="/admin/users/<%= related.id %>" class="btn btn-link btn-sm p-0" data-modal="true">View</a>
+                    </li>
+                  <% }); %>
+                </ul>
+              <% } else { %>
+                -
+              <% } %>
+            </td>
             <td>
               <a href="/admin/users/<%= user.id %>" class="btn btn-info btn-sm" data-modal="true">View</a>
               <a href="/admin/users/<%= user.id %>/edit" class="btn btn-warning btn-sm" data-modal="true">Edit</a>

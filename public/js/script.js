@@ -2,21 +2,24 @@ let lastScrollTop = 0;
 const header = document.querySelector('.admin-panel header');
 const scrollThreshold = 100;
 
-window.addEventListener('scroll', () => {
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-  
-  if (Math.abs(lastScrollTop - scrollTop) <= scrollThreshold) return;
-  
-  if (scrollTop > lastScrollTop && scrollTop > header.offsetHeight) {
-    header.classList.add('scroll-down');
-    header.classList.remove('scroll-up');
-  } else {
-    header.classList.remove('scroll-down');
-    header.classList.add('scroll-up');
-  }
-  
-  lastScrollTop = scrollTop;
-});
+// Only add scroll event listener if header exists
+if (header) {
+  window.addEventListener('scroll', () => {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    
+    if (Math.abs(lastScrollTop - scrollTop) <= scrollThreshold) return;
+    
+    if (scrollTop > lastScrollTop && scrollTop > header.offsetHeight) {
+      header.classList.add('scroll-down');
+      header.classList.remove('scroll-up');
+    } else {
+      header.classList.remove('scroll-down');
+      header.classList.add('scroll-up');
+    }
+    
+    lastScrollTop = scrollTop;
+  });
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   const currentPath = window.location.pathname;
@@ -77,10 +80,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displayResults(results) {
         searchResults.innerHTML = results.map(result => `
-            <div class="search-result-item" onclick="window.location.href='${result.url}'">
+            <div class="search-result-item" data-url="${result.url}" data-modal="true">
                 <span class="result-type">${result.type}</span>
                 <span>${result.title}</span>
             </div>
         `).join('');
+
+        // Add click handlers for search results
+        searchResults.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = this.dataset.url;
+                const modal = $('#appModal');
+                const bsModal = new bootstrap.Modal(modal[0]);
+                
+                modal.find('.modal-title').text('Loading...');
+                bsModal.show();
+                
+                $.ajax({
+                    url: url,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(response) {
+                        const cleanResponse = response.trim();
+                        modal.find('.modal-body').html(cleanResponse);
+                        
+                        const title = $(cleanResponse).find('h2').first().text().trim() || 'Details';
+                        modal.find('.modal-title').text(title);
+                        
+                        // Hide search results after selecting an item
+                        searchResults.style.display = 'none';
+                    },
+                    error: function(xhr) {
+                        modal.find('.modal-body').html('<div class="alert alert-danger">Error loading content. Please try again.</div>');
+                        modal.find('.modal-title').text('Error');
+                    }
+                });
+            });
+        });
     }
 });

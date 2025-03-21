@@ -4,43 +4,242 @@
   <meta charset="UTF-8">
   <title>Edit User</title>
   <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .nav-tabs { 
+      display: flex;
+      list-style: none;
+      padding: 0;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .nav-tabs li {
+      margin-right: 10px;
+    }
+    .nav-tabs a {
+      display: block;
+      padding: 8px 15px;
+      text-decoration: none;
+      color: #495057;
+      border: 1px solid transparent;
+      border-radius: 4px 4px 0 0;
+    }
+    .nav-tabs a.active {
+      color: #007bff;
+      background-color: #fff;
+      border-color: #dee2e6 #dee2e6 #fff;
+      margin-bottom: -1px;
+    }
+    .status.active { color: #28a745; }
+    .status.inactive { color: #dc3545; }
+    .guardian-item, .student-item, .rfid-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+  </style>
 </head>
 <body>
   <%- include('../../partials/modal-styles') %>
 
   <div class="modal-content-wrapper">
     <h2>Edit User</h2>
-    <form action="/admin/users/<%= user.id %>?_method=PUT" method="POST">
-      <div class="form-group">
-        <label for="first_name">First Name</label>
-        <input id="first_name" type="text" name="first_name" class="form-control" value="<%= user.first_name %>" required>
+
+    <ul class="nav-tabs">
+      <li><a href="#details" class="active">Basic Details</a></li>
+      <% if (user.role === 'student') { %>
+        <li><a href="#guardians">Manage Guardians</a></li>
+      <% } %>
+      <% if (user.role === 'guardian') { %>
+        <li><a href="#students">Manage Students</a></li>
+      <% } %>
+      <li><a href="#rfid">Manage RFID Cards</a></li>
+    </ul>
+
+    <div id="details" class="tab-content active">
+      <form action="/admin/users/<%= user.id %>?_method=PUT" method="POST">
+        <div class="form-group">
+          <label for="first_name">First Name</label>
+          <input id="first_name" type="text" name="first_name" class="form-control" value="<%= user.first_name %>" required>
+        </div>
+        <div class="form-group">
+          <label for="last_name">Last Name</label>
+          <input id="last_name" type="text" name="last_name" class="form-control" value="<%= user.last_name %>" required>
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input id="email" type="email" name="email" class="form-control" value="<%= user.email %>" required>
+        </div>
+        <div class="form-group">
+          <label for="role">Role</label>
+          <select id="role" name="role" class="form-control" required>
+            <option value="student" <%= user.role === 'student' ? 'selected' : '' %>>Student</option>
+            <option value="professor" <%= user.role === 'professor' ? 'selected' : '' %>>Professor</option>
+            <option value="guardian" <%= user.role === 'guardian' ? 'selected' : '' %>>Guardian</option>
+            <option value="admin" <%= user.role === 'admin' ? 'selected' : '' %>>Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="school_id">School ID</label>
+          <input id="school_id" type="text" name="school_id" class="form-control" value="<%= user.school_id %>">
+        </div>
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">Update User</button>
+        </div>
+      </form>
+    </div>
+
+    <% if (user.role === 'student') { %>
+    <div id="guardians" class="tab-content">
+      <h3>Manage Guardians</h3>
+      <div class="guardian-list">
+        <% if (user.Guardians && user.Guardians.length > 0) { %>
+          <% user.Guardians.forEach(function(guardian) { %>
+            <div class="guardian-item">
+              <span><%= guardian.first_name %> <%= guardian.last_name %></span>
+              <button class="btn btn-danger btn-sm" onclick="unlinkGuardian('<%= guardian.id %>', '<%= user.id %>')">Unlink</button>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <p>No guardians linked</p>
+        <% } %>
       </div>
-      <div class="form-group">
-        <label for="last_name">Last Name</label>
-        <input id="last_name" type="text" name="last_name" class="form-control" value="<%= user.last_name %>" required>
+      <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#linkGuardianModal">Link New Guardian</button>
+    </div>
+    <% } %>
+
+    <% if (user.role === 'guardian') { %>
+    <div id="students" class="tab-content">
+      <h3>Manage Students</h3>
+      <div class="students-list">
+        <% if (user.StudentsMonitored && user.StudentsMonitored.length > 0) { %>
+          <% user.StudentsMonitored.forEach(function(student) { %>
+            <div class="student-item">
+              <span><%= student.first_name %> <%= student.last_name %></span>
+              <button class="btn btn-danger btn-sm" onclick="unlinkStudent('<%= user.id %>', '<%= student.id %>')">Unlink</button>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <p>No students linked</p>
+        <% } %>
       </div>
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input id="email" type="email" name="email" class="form-control" value="<%= user.email %>" required>
+      <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#linkStudentModal">Link New Student</button>
+    </div>
+    <% } %>
+
+    <div id="rfid" class="tab-content">
+      <h3>Manage RFID Cards</h3>
+      <div class="rfid-list">
+        <% if (user.RFID_Cards && user.RFID_Cards.length > 0) { %>
+          <% user.RFID_Cards.forEach(function(card) { %>
+            <div class="rfid-item">
+              <span>Card UID: <%= card.card_uid %></span>
+              <span class="status <%= card.is_active ? 'active' : 'inactive' %>">
+                (<%= card.is_active ? 'Active' : 'Inactive' %>)
+              </span>
+              <div class="actions">
+                <button class="btn btn-warning btn-sm" onclick="editRFIDCard('<%= card.id %>')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="toggleRFIDCard('<%= card.id %>', '<%= !card.is_active %>')">
+                  <%= card.is_active ? 'Deactivate' : 'Activate' %>
+                </button>
+              </div>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <p>No RFID cards assigned</p>
+        <% } %>
       </div>
-      <div class="form-group">
-        <label for="role">Role</label>
-        <select id="role" name="role" class="form-control" required>
-          <option value="student" <%= user.role === 'student' ? 'selected' : '' %>>Student</option>
-          <option value="professor" <%= user.role === 'professor' ? 'selected' : '' %>>Professor</option>
-          <option value="guardian" <%= user.role === 'guardian' ? 'selected' : '' %>>Guardian</option>
-          <option value="admin" <%= user.role === 'admin' ? 'selected' : '' %>>Admin</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="school_id">School ID</label>
-        <input id="school_id" type="text" name="school_id" class="form-control" value="<%= user.school_id %>">
-      </div>
-      <div class="button-group">
-        <button type="submit" class="btn btn-primary">Update User</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-      </div>
-    </form>
+      <button class="btn btn-primary mt-3" onclick="showAddRFIDCardModal('<%= user.id %>')">Add RFID Card</button>
+    </div>
+
+    <div class="button-group mt-4">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    </div>
   </div>
+
+  <!-- Include the guardian link modal -->
+  <%- include('./partials/link-guardian-modal') %>
+
+  <!-- Include the student link modal -->
+  <%- include('./partials/link-student-modal') %>
+
+  <script>
+    document.querySelectorAll('.nav-tabs a').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Remove active class from all tabs and contents
+        document.querySelectorAll('.nav-tabs a').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        // Add active class to clicked tab and corresponding content
+        tab.classList.add('active');
+        document.querySelector(tab.getAttribute('href')).classList.add('active');
+      });
+    });
+
+    // Functions for guardian/student linking
+    async function unlinkGuardian(guardianId, studentId) {
+      if (!confirm('Are you sure you want to unlink this guardian?')) return;
+      try {
+        const response = await fetch(`/admin/guardian-links/unlink`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guardianId, studentId })
+        });
+        if (response.ok) location.reload();
+        else alert('Failed to unlink guardian');
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to unlink guardian');
+      }
+    }
+
+    async function unlinkStudent(guardianId, studentId) {
+      if (!confirm('Are you sure you want to unlink this student?')) return;
+      try {
+        const response = await fetch(`/admin/guardian-links/unlink`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guardianId, studentId })
+        });
+        if (response.ok) location.reload();
+        else alert('Failed to unlink student');
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to unlink student');
+      }
+    }
+
+    // Functions for RFID card management
+    async function toggleRFIDCard(cardId, newState) {
+      try {
+        const response = await fetch(`/admin/rfid-cards/${cardId}/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: newState })
+        });
+        if (response.ok) location.reload();
+        else alert('Failed to update RFID card status');
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to update RFID card status');
+      }
+    }
+
+    function showAddRFIDCardModal(userId) {
+      window.location.href = `/admin/rfid-cards/new?user_id=${userId}`;
+    }
+
+    function editRFIDCard(cardId) {
+      window.location.href = `/admin/rfid-cards/${cardId}/edit`;
+    }
+  </script>
 </body>
 </html>

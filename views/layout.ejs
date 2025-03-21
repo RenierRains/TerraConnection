@@ -57,10 +57,73 @@
       width: 3rem;
       height: 3rem;
     }
+    
+    /* Sidebar toggle styles */
+    .sidebar-toggle {
+      background: none;
+      border: none;
+      color: #333;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 8px;
+      margin-right: 10px;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-toggle:hover {
+      transform: scale(1.1);
+    }
+
+    .admin-body-container {
+      display: flex;
+      transition: all 0.3s ease;
+    }
+
+    .admin-sidebar {
+      width: 250px;
+      transition: all 0.3s ease;
+      overflow-x: hidden;
+    }
+
+    .admin-sidebar.collapsed {
+      width: 0;
+      padding: 0;
+    }
+
+    .admin-content {
+      flex: 1;
+      transition: all 0.3s ease;
+    }
+
+    .admin-content.expanded {
+      margin-left: 0;
+    }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/script.js"></script>
+  <script>
+    // Sidebar toggle functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const sidebar = document.querySelector('.admin-sidebar');
+      const content = document.querySelector('.admin-content');
+      
+      // Check if there's a saved state in localStorage
+      const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+      if (sidebarCollapsed) {
+        sidebar.classList.add('collapsed');
+        content.classList.add('expanded');
+      }
+      
+      sidebarToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('collapsed');
+        content.classList.toggle('expanded');
+        // Save state to localStorage
+        localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+      });
+    });
+  </script>
 </head>
 <body class="admin-panel">
   <div class="dashboard">
@@ -86,22 +149,12 @@
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/admin/rfid-cards">
-              <i class="fa-solid fa-id-card"></i> Manage RFID Cards
-            </a>
-          </li>
-          <li class="nav-item">
             <a class="nav-link" href="/admin/audit-logs">
               <i class="fa-solid fa-clipboard-list"></i> Audit Logs
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/admin/guardian-link">
-              <i class="fa-solid fa-link"></i> Guardian Link
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/admin/logout">
+            <a class="nav-link" href="/admin/logout" id="logoutLink">
               <i class="fa-solid fa-sign-out-alt"></i> Logout
             </a>
           </li>
@@ -139,7 +192,29 @@
       const modal = $('#appModal');
       const bsModal = new bootstrap.Modal(modal[0]);
       
+      // Add logout confirmation handler
+      $('#logoutLink').on('click', function(e) {
+        e.preventDefault();
+        
+        modal.find('.modal-dialog').removeClass('modal-lg');
+        modal.find('.modal-title').text('Confirm Logout');
+        modal.find('.modal-body').html(`
+          <div class="text-center py-4">
+            <i class="fas fa-sign-out-alt fa-3x text-danger mb-3"></i>
+            <h4>Are you sure you want to logout?</h4>
+            <p class="text-muted">You will be redirected to the login page.</p>
+            <div class="mt-4">
+              <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+              <a href="/admin/logout" class="btn btn-danger">Yes, Logout</a>
+            </div>
+          </div>
+        `);
+        
+        bsModal.show();
+      });
+      
       modal.on('hidden.bs.modal', function() {
+        modal.find('.modal-dialog').addClass('modal-lg');
         modal.find('form').off('submit');
         modal.find('.modal-body').html('<div class="modal-loading"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>');
         modal.find('.modal-title').empty();

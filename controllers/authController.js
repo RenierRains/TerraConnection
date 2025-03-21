@@ -6,7 +6,7 @@ const { logUserEvent, logUserAudit, logSecurityAudit, logAnomalyAudit } = requir
 const { sendOtpEmail } = require('../utils/emailService');
 
 const loginFailures = {};
-const otpStore = new Map(); // Store OTPs in memory (consider using Redis in production)
+const otpStore = new Map(); 
 
 const generateOTP = () => {
   return crypto.randomInt(100000, 999999).toString();

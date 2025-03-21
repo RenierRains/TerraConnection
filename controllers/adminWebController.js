@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const csv = require('csvtojson');
 const ExcelJS = require('exceljs');
+const { Op } = require('sequelize');
 
 const loginFailures = {};
 
@@ -343,28 +344,79 @@ exports.getTimeSeriesData = async (req, res) => {
 
 exports.usersIndex = async (req, res) => {
   try {
+    if (!req.session.admin) {
+      return res.redirect('/admin/login');
+    }
+
     const page = parseInt(req.query.page) || 1;
-    const limit = 10; 
+    const limit = 10;
     const offset = (page - 1) * limit;
+    const searchParams = req.query;
+
+    let whereConditions = {};
+    let includeConditions = [];
+
+    if (searchParams.search && searchParams.search.trim()) {
+      const searchTerms = searchParams.search.trim().split(/\s+/);
+      
+      whereConditions = {
+        [Op.or]: searchTerms.map(term => ({
+          [Op.or]: [
+            { first_name: { [Op.like]: `%${term}%` } },
+            { last_name: { [Op.like]: `%${term}%` } },
+            { email: { [Op.like]: `%${term}%` } },
+            db.Sequelize.where(
+              db.Sequelize.fn('LOWER', db.Sequelize.col('role')),
+              'LIKE',
+              `%${term.toLowerCase()}%`
+            )
+          ]
+        }))
+      };
+    }
+
+    if (searchParams.show_related) {
+      includeConditions = [
+        {
+          model: db.User,
+          as: 'Guardian',
+          through: 'StudentGuardian',
+          required: false
+        },
+        {
+          model: db.User,
+          as: 'Student',
+          through: 'StudentGuardian',
+          required: false
+        }
+      ];
+    }
 
     const { count, rows: users } = await db.User.findAndCountAll({
-      order: [['id', 'ASC']],
-      limit: limit,
-      offset: offset
+      where: whereConditions,
+      include: includeConditions,
+      limit,
+      offset,
+      distinct: true
     });
 
     const totalPages = Math.ceil(count / limit);
 
-    res.render('admin/users/index', { 
-      users, 
-      title: 'Manage Users', 
-      admin: req.session.admin,
+    res.render('admin/users/index', {
+      users,
       currentPage: page,
-      totalPages: totalPages,
-      totalUsers: count
+      totalPages,
+      totalUsers: count,
+      searchParams,
+      admin: req.session.admin,
+      title: 'Manage Users'
     });
-  } catch (err) {
-    res.status(500).send('Error retrieving users');
+  } catch (error) {
+    console.error('Error in usersIndex:', error);
+    res.status(500).render('error', { 
+      message: 'An error occurred while fetching users',
+      error: process.env.NODE_ENV === 'development' ? error : {}
+    });
   }
 };
 
@@ -401,9 +453,47 @@ exports.usersCreate = async (req, res) => {
 
 exports.usersEditForm = async (req, res) => {
   try {
-    const user = await db.User.findByPk(req.params.id);
-    res.render('admin/users/edit', { user, title: 'Edit User', admin: req.session.admin });
+    const user = await db.User.findByPk(req.params.id, {
+      include: [
+        { model: db.User, as: 'Guardians' },
+        { model: db.User, as: 'StudentsMonitored' },
+        { model: db.RFID_Card }
+      ]
+    });
+
+    // Fetch available guardians (excluding already linked ones)
+    const availableGuardians = user.role === 'student' ? 
+      await db.User.findAll({
+        where: {
+          role: 'guardian',
+          id: {
+            [db.Sequelize.Op.notIn]: user.Guardians.map(g => g.id)
+          }
+        },
+        attributes: ['id', 'first_name', 'last_name', 'email']
+      }) : [];
+
+    // Fetch available students (excluding already linked ones)
+    const availableStudents = user.role === 'guardian' ?
+      await db.User.findAll({
+        where: {
+          role: 'student',
+          id: {
+            [db.Sequelize.Op.notIn]: user.StudentsMonitored.map(s => s.id)
+          }
+        },
+        attributes: ['id', 'first_name', 'last_name', 'email']
+      }) : [];
+
+    res.render('admin/users/edit', { 
+      user,
+      availableGuardians,
+      availableStudents,
+      title: 'Edit User',
+      admin: req.session.admin
+    });
   } catch (err) {
+    console.error('Error in usersEditForm:', err);
     res.status(500).send('Error retrieving user');
   }
 };
@@ -461,28 +551,81 @@ exports.usersDelete = async (req, res) => {
 
 exports.classesIndex = async (req, res) => {
   try {
+    if (!req.session.admin) {
+      return res.redirect('/admin/login');
+    }
+
     const page = parseInt(req.query.page) || 1;
     const limit = 10;
     const offset = (page - 1) * limit;
+    const searchParams = req.query;
 
-    const { count, rows: classes } = await db.Class.findAndCountAll({
-      order: [['id', 'ASC']],
-      limit: limit,
-      offset: offset
+    let whereConditions = {};
+    let includeConditions = [
+      { 
+        model: db.User, 
+        as: 'professors',
+        attributes: ['id', 'first_name', 'last_name'],
+        required: false
+      },
+      {
+        model: db.User,
+        as: 'students',
+        attributes: ['id', 'first_name', 'last_name'],
+        required: false
+      }
+    ];
+
+    if (searchParams.search && searchParams.search.trim()) {
+      const searchTerms = searchParams.search.trim().split(/\s+/);
+      
+      whereConditions = {
+        [Op.or]: [
+          ...searchTerms.map(term => ({
+            [Op.or]: [
+              { class_code: { [Op.like]: `%${term}%` } },
+              { class_name: { [Op.like]: `%${term}%` } },
+              { course: { [Op.like]: `%${term}%` } },
+              { year: { [Op.like]: `%${term}%` } },
+              { section: { [Op.like]: `%${term}%` } },
+              { room: { [Op.like]: `%${term}%` } },
+              { schedule: { [Op.like]: `%${term}%` } }
+            ]
+          }))
+        ]
+      };
+    }
+
+    // First get the total count
+    const totalCount = await db.Class.count({
+      where: whereConditions,
+      distinct: true
     });
 
-    const totalPages = Math.ceil(count / limit);
+    // Then get the paginated results with includes
+    const classes = await db.Class.findAll({
+      where: whereConditions,
+      include: includeConditions,
+      order: [['id', 'ASC']],
+      limit,
+      offset,
+      distinct: true
+    });
+
+    const totalPages = Math.ceil(totalCount / limit);
 
     res.render('admin/classes/index', { 
       classes, 
-      title: 'Manage Classes', 
-      admin: req.session.admin,
       currentPage: page,
-      totalPages: totalPages,
-      totalClasses: count
+      totalPages,
+      totalClasses: totalCount,
+      searchParams,
+      admin: req.session.admin,
+      title: 'Manage Classes'
     });
-  } catch (err) {
-    res.status(500).send('Error retrieving classes');
+  } catch (error) {
+    console.error('Error in classesIndex:', error);
+    res.redirect('/admin/classes');
   }
 };
 
