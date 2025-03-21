@@ -25,7 +25,6 @@ const professorRoutes = require('./routes/professor');
 const guardianRoutes = require('./routes/guardian');
 const userRoutes = require('./routes/user');
 const locationRoutes = require('./routes/locationRoutes');
-const guardianLocationRoutes = require('./routes/guardianLocationRoutes');
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -175,7 +174,6 @@ app.use('/api/professor', professorRoutes);
 app.use('/api/guardian', guardianRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/location', locationRoutes);
-app.use('/api/guardian-location', guardianLocationRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
