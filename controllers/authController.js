@@ -1,9 +1,24 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const db = require('../models');
 const { logUserEvent, logUserAudit, logSecurityAudit, logAnomalyAudit } = require('./auditLogger');
+const { sendOtpEmail } = require('../utils/emailService');
 
 const loginFailures = {};
+const otpStore = new Map(); // Store OTPs in memory (consider using Redis in production)
+
+const generateOTP = () => {
+  return crypto.randomInt(100000, 999999).toString();
+};
+
+const generateTempToken = (userId, role) => {
+  return jwt.sign(
+    { userId, role, temp: true },
+    process.env.JWT_SECRET || 'SuperSecretKey',
+    { expiresIn: '5m' }
+  );
+};
 
 exports.verifyToken = (req, res, next) => {
   try {
@@ -59,7 +74,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // find
+    // find user
     const user = await db.User.findOne({ where: { email } });
 
     if (!user) {
@@ -71,7 +86,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // compre password
+    // compare password
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       loginFailures[ip] = (loginFailures[ip] || 0) + 1;
@@ -84,21 +99,93 @@ exports.login = async (req, res) => {
 
     loginFailures[ip] = 0;
 
-    // generate JWT
-    const token = jwt.sign(
-      { userId: user.id, role: user.role },
-      process.env.JWT_SECRET || 'SuperSecretKey',
-      { expiresIn: '8h' }
-    );
+    // For admin users, skip OTP
+    if (user.role === 'admin') {
+      const token = jwt.sign(
+        { userId: user.id, role: user.role },
+        process.env.JWT_SECRET || 'SuperSecretKey',
+        { expiresIn: '8h' }
+      );
+      
+      await logUserAudit(user.id, 'LOGIN_SUCCESS', { email });
+      return res.json({ 
+        message: 'Login successful',
+        otpRequired: false,
+        tempToken: token
+      });
+    }
+
+    // For non-admin users, generate and send OTP
+    const otp = generateOTP();
+    const tempToken = generateTempToken(user.id, user.role);
     
+    // Store OTP with expiration
+    otpStore.set(tempToken, {
+      otp,
+      userId: user.id,
+      role: user.role,
+      expiresAt: Date.now() + 5 * 60 * 1000 // 5 minutes
+    });
 
-    await logUserAudit(user.id, 'LOGIN_SUCCESS', { email });
+    // Send OTP via email
+    const emailSent = await sendOtpEmail(email, otp);
+    if (!emailSent) {
+      return res.status(500).json({ error: 'Failed to send OTP email' });
+    }
 
-    res.json({ message: 'Login successful', token });
+    await logUserAudit(user.id, 'OTP_SENT', { email });
+    
+    res.json({
+      message: 'OTP sent to email',
+      otpRequired: true,
+      tempToken
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
-  } 
+  }
+};
+
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { tempToken, otp } = req.body;
+    
+    const storedData = otpStore.get(tempToken);
+    if (!storedData) {
+      return res.status(401).json({ error: 'Invalid or expired OTP session' });
+    }
+
+    if (Date.now() > storedData.expiresAt) {
+      otpStore.delete(tempToken);
+      return res.status(401).json({ error: 'OTP has expired' });
+    }
+
+    if (storedData.otp !== otp) {
+      await logSecurityAudit(storedData.userId, 'OTP_VERIFICATION_FAILED', { reason: 'Invalid OTP' });
+      return res.status(401).json({ error: 'Invalid OTP' });
+    }
+
+    // Generate final token
+    const token = jwt.sign(
+      { userId: storedData.userId, role: storedData.role },
+      process.env.JWT_SECRET || 'SuperSecretKey',
+      { expiresIn: '8h' }
+    );
+
+    // Clean up
+    otpStore.delete(tempToken);
+
+    await logUserAudit(storedData.userId, 'OTP_VERIFICATION_SUCCESS', {});
+    
+    res.json({
+      message: 'OTP verified successfully',
+      token,
+      role: storedData.role
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'OTP verification failed' });
+  }
 };
 
 exports.getMe = async (req, res) => {
