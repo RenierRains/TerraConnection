@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/app.css">
+  <!-- Include jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    .autocomplete-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    .suggestions {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #ccc;
+      width: 100%;
+      z-index: 1000;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .suggestion-item {
+      padding: 8px;
+      cursor: pointer;
+    }
+    .suggestion-item:hover {
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../../partials/modal-styles') %>
+
+  <div class="modal-content-wrapper">
+    <h2><%= title %></h2>
+    <form action="<%= action %>" method="POST">
+      <% if (method === 'PUT') { %>
+        <input type="hidden" name="_method" value="PUT">
+      <% } %>
+
+      <div class="form-group">
+        <label for="guardian_search">Guardian</label>
+        <div class="autocomplete-container">
+          <input type="text" id="guardian_search" class="form-control" placeholder="Search guardian by name or email" value="<%= guardian ? guardian.first_name + ' ' + guardian.last_name + ' (' + guardian.email + ')' : '' %>">
+          <input type="hidden" id="guardianId" name="guardianId" value="<%= guardian ? guardian.id : '' %>">
+          <div id="guardian_suggestions" class="suggestions"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="student_search">Student</label>
+        <div class="autocomplete-container">
+          <input type="text" id="student_search" class="form-control" placeholder="Search student by name or email" value="<%= student ? student.first_name + ' ' + student.last_name + ' (' + student.email + ')' : '' %>">
+          <input type="hidden" id="studentId" name="studentId" value="<%= student ? student.id : '' %>">
+          <div id="student_suggestions" class="suggestions"></div>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button type="submit" class="btn btn-primary"><%= submitLabel %></button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+  
+  <script>
+    $(document).ready(function(){
+      $('#guardian_search').on('input', function(){
+        var query = $(this).val().trim();
+        if(query.length < 2){
+          $('#guardian_suggestions').empty();
+          return;
+        }
+        $.ajax({
+          url: '/admin/guardians/search',
+          data: { q: query },
+          success: function(data){
+            var html = '';
+            data.guardians.forEach(function(guardian){
+              html += `<div class="suggestion-item" data-id="${guardian.id}">${guardian.first_name} ${guardian.last_name} (${guardian.email})</div>`;
+            });
+            $('#guardian_suggestions').html(html);
+          },
+          error: function(err){
+            console.error(err);
+          }
+        });
+      });
+      
+      $('#guardian_suggestions').on('click', '.suggestion-item', function(){
+        var id = $(this).data('id');
+        var text = $(this).text();
+        $('#guardianId').val(id);
+        $('#guardian_search').val(text);
+        $('#guardian_suggestions').empty();
+      });
+      
+      // Student autocomplete
+      $('#student_search').on('input', function(){
+        var query = $(this).val().trim();
+        if(query.length < 2){
+          $('#student_suggestions').empty();
+          return;
+        }
+        $.ajax({
+          url: '/admin/students/search',
+          data: { q: query },
+          success: function(data){
+            var html = '';
+            data.students.forEach(function(student){
+              html += `<div class="suggestion-item" data-id="${student.id}">${student.first_name} ${student.last_name} (${student.email})</div>`;
+            });
+            $('#student_suggestions').html(html);
+          },
+          error: function(err){
+            console.error(err);
+          }
+        });
+      });
+      
+      $('#student_suggestions').on('click', '.suggestion-item', function(){
+        var id = $(this).data('id');
+        var text = $(this).text();
+        $('#studentId').val(id);
+        $('#student_search').val(text);
+        $('#student_suggestions').empty();
+      });
+    });
+  </script>
+</body>
+</html>

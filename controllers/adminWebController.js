@@ -401,47 +401,9 @@ exports.usersCreate = async (req, res) => {
 
 exports.usersEditForm = async (req, res) => {
   try {
-    const user = await db.User.findByPk(req.params.id, {
-      include: [
-        { model: db.User, as: 'Guardians' },
-        { model: db.User, as: 'StudentsMonitored' },
-        { model: db.RFID_Card }
-      ]
-    });
-
-    // Fetch available guardians (excluding already linked ones)
-    const availableGuardians = user.role === 'student' ? 
-      await db.User.findAll({
-        where: {
-          role: 'guardian',
-          id: {
-            [db.Sequelize.Op.notIn]: user.Guardians.map(g => g.id)
-          }
-        },
-        attributes: ['id', 'first_name', 'last_name', 'email']
-      }) : [];
-
-    // Fetch available students (excluding already linked ones)
-    const availableStudents = user.role === 'guardian' ?
-      await db.User.findAll({
-        where: {
-          role: 'student',
-          id: {
-            [db.Sequelize.Op.notIn]: user.StudentsMonitored.map(s => s.id)
-          }
-        },
-        attributes: ['id', 'first_name', 'last_name', 'email']
-      }) : [];
-
-    res.render('admin/users/edit', { 
-      user,
-      availableGuardians,
-      availableStudents,
-      title: 'Edit User',
-      admin: req.session.admin
-    });
+    const user = await db.User.findByPk(req.params.id);
+    res.render('admin/users/edit', { user, title: 'Edit User', admin: req.session.admin });
   } catch (err) {
-    console.error('Error in usersEditForm:', err);
     res.status(500).send('Error retrieving user');
   }
 };

@@ -4,152 +4,42 @@
   <meta charset="UTF-8">
   <title>User Details</title>
   <link rel="stylesheet" href="/css/app.css">
-  <style>
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .nav-tabs { 
-      display: flex;
-      list-style: none;
-      padding: 0;
-      margin-bottom: 20px;
-      border-bottom: 1px solid #dee2e6;
-    }
-    .nav-tabs li {
-      margin-right: 10px;
-    }
-    .nav-tabs a {
-      display: block;
-      padding: 8px 15px;
-      text-decoration: none;
-      color: #495057;
-      border: 1px solid transparent;
-      border-radius: 4px 4px 0 0;
-    }
-    .nav-tabs a.active {
-      color: #007bff;
-      background-color: #fff;
-      border-color: #dee2e6 #dee2e6 #fff;
-      margin-bottom: -1px;
-    }
-    .status.active { color: #28a745; }
-    .status.inactive { color: #dc3545; }
-  </style>
 </head>
 <body>
   <%- include('../../partials/modal-styles') %>
 
   <div class="modal-content-wrapper">
-    <h2>User Information</h2>
-
-    <ul class="nav-tabs">
-      <li><a href="#details" class="active">Details</a></li>
-      <% if (user.role === 'student') { %>
-        <li><a href="#guardians">Guardians</a></li>
-      <% } %>
-      <% if (user.role === 'guardian') { %>
-        <li><a href="#students">Students</a></li>
-      <% } %>
-      <li><a href="#rfid">RFID Cards</a></li>
-    </ul>
-
-    <div id="details" class="tab-content active">
-      <div class="details-group">
-        <div class="details-label">ID</div>
-        <div class="details-value"><%= user.id %></div>
-      </div>
-      
-      <div class="details-group">
-        <div class="details-label">Name</div>
-        <div class="details-value"><%= user.first_name %> <%= user.last_name %></div>
-      </div>
-      
-      <div class="details-group">
-        <div class="details-label">Email</div>
-        <div class="details-value"><%= user.email %></div>
-      </div>
-      
-      <div class="details-group">
-        <div class="details-label">Role</div>
-        <div class="details-value"><%= user.role %></div>
-      </div>
-      
-      <div class="details-group">
-        <div class="details-label">School ID</div>
-        <div class="details-value"><%= user.school_id || 'N/A' %></div>
-      </div>
+    <h2>User Details</h2>
+    
+    <div class="details-group">
+      <div class="details-label">ID</div>
+      <div class="details-value"><%= user.id %></div>
     </div>
-
-    <% if (user.role === 'student') { %>
-    <div id="guardians" class="tab-content">
-      <h3>Linked Guardians</h3>
-      <div class="guardian-list">
-        <% if (user.Guardians && user.Guardians.length > 0) { %>
-          <% user.Guardians.forEach(function(guardian) { %>
-            <div class="guardian-item">
-              <span><%= guardian.first_name %> <%= guardian.last_name %></span>
-            </div>
-          <% }); %>
-        <% } else { %>
-          <p>No guardians linked</p>
-        <% } %>
-      </div>
+    
+    <div class="details-group">
+      <div class="details-label">Name</div>
+      <div class="details-value"><%= user.first_name %> <%= user.last_name %></div>
     </div>
-    <% } %>
-
-    <% if (user.role === 'guardian') { %>
-    <div id="students" class="tab-content">
-      <h3>Monitored Students</h3>
-      <div class="students-list">
-        <% if (user.StudentsMonitored && user.StudentsMonitored.length > 0) { %>
-          <% user.StudentsMonitored.forEach(function(student) { %>
-            <div class="student-item">
-              <span><%= student.first_name %> <%= student.last_name %></span>
-            </div>
-          <% }); %>
-        <% } else { %>
-          <p>No students linked</p>
-        <% } %>
-      </div>
+    
+    <div class="details-group">
+      <div class="details-label">Email</div>
+      <div class="details-value"><%= user.email %></div>
     </div>
-    <% } %>
-
-    <div id="rfid" class="tab-content">
-      <h3>RFID Cards</h3>
-      <div class="rfid-list">
-        <% if (user.RFID_Cards && user.RFID_Cards.length > 0) { %>
-          <% user.RFID_Cards.forEach(function(card) { %>
-            <div class="rfid-item">
-              <span>Card UID: <%= card.card_uid %></span>
-              <span class="status <%= card.is_active ? 'active' : 'inactive' %>">
-                (<%= card.is_active ? 'Active' : 'Inactive' %>)
-              </span>
-            </div>
-          <% }); %>
-        <% } else { %>
-          <p>No RFID cards assigned</p>
-        <% } %>
-      </div>
+    
+    <div class="details-group">
+      <div class="details-label">Role</div>
+      <div class="details-value"><%= user.role %></div>
     </div>
-
-    <div class="button-group mt-4">
-      <a href="/admin/users/<%= user.id %>/edit" class="btn btn-warning" data-modal="true">Edit User</a>
+    
+    <div class="details-group">
+      <div class="details-label">School ID</div>
+      <div class="details-value"><%= user.school_id || 'N/A' %></div>
+    </div>
+    
+    <div class="button-group">
+      <a href="/admin/users/<%= user.id %>/edit" class="btn btn-warning" data-modal="true">Edit</a>
       <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
     </div>
   </div>
-
-  <script>
-    document.querySelectorAll('.nav-tabs a').forEach(tab => {
-      tab.addEventListener('click', (e) => {
-        e.preventDefault();
-        // Remove active class from all tabs and contents
-        document.querySelectorAll('.nav-tabs a').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        
-        // Add active class to clicked tab and corresponding content
-        tab.classList.add('active');
-        document.querySelector(tab.getAttribute('href')).classList.add('active');
-      });
-    });
-  </script>
 </body>
 </html>

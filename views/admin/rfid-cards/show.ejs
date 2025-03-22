@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RFID Card Details</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <%- include('../../partials/modal-styles') %>
+
+  <div class="modal-content-wrapper">
+    <h2>RFID Card Details</h2>
+    
+    <div class="details-group">
+      <div class="details-label">ID</div>
+      <div class="details-value"><%= card.id %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Card UID</div>
+      <div class="details-value"><%= card.card_uid %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">User ID</div>
+      <div class="details-value"><%= card.user_id %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Active</div>
+      <div class="details-value"><%= card.is_active ? 'Yes' : 'No' %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Issued At</div>
+      <div class="details-value"><%= card.issued_at %></div>
+    </div>
+    
+    <div class="button-group">
+      <a href="/admin/rfid-cards/<%= card.id %>/edit" class="btn btn-warning" data-modal="true">Edit</a>
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    </div>
+  </div>
+</body>
+</html>
