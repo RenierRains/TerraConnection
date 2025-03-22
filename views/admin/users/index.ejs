@@ -65,14 +65,21 @@
             <td><%= user.email %></td>
             <td><%= user.role %></td>
             <td>
-              <% if (user.related_users && user.related_users.length > 0) { %>
+              <% if (user.role === 'student' && user.Guardian && user.Guardian.length > 0) { %>
                 <ul class="list-unstyled mb-0">
-                  <% user.related_users.forEach(function(related){ %>
+                  <% user.Guardian.forEach(function(guardian){ %>
                     <li>
-                      <%= related.role === 'student' ? '👨‍🎓' : '👥' %>
-                      <%= related.first_name %> <%= related.last_name %>
-                      (<%= related.role %>)
-                      <a href="/admin/users/<%= related.id %>" class="btn btn-link btn-sm p-0" data-modal="true">View</a>
+                      👥 Guardian: <%= guardian.first_name %> <%= guardian.last_name %>
+                      <a href="/admin/users/<%= guardian.id %>" class="btn btn-link btn-sm p-0" data-modal="true">View</a>
+                    </li>
+                  <% }); %>
+                </ul>
+              <% } else if (user.role === 'guardian' && user.Student && user.Student.length > 0) { %>
+                <ul class="list-unstyled mb-0">
+                  <% user.Student.forEach(function(student){ %>
+                    <li>
+                      👨‍🎓 Student: <%= student.first_name %> <%= student.last_name %>
+                      <a href="/admin/users/<%= student.id %>" class="btn btn-link btn-sm p-0" data-modal="true">View</a>
                     </li>
                   <% }); %>
                 </ul>

@@ -354,7 +354,22 @@ exports.usersIndex = async (req, res) => {
     const searchParams = req.query;
 
     let whereConditions = {};
-    let includeConditions = [];
+    let includeConditions = [
+      {
+        model: db.User,
+        as: 'Guardian',
+        through: 'StudentGuardian',
+        attributes: ['id', 'first_name', 'last_name', 'email'],
+        required: false
+      },
+      {
+        model: db.User,
+        as: 'Student',
+        through: 'StudentGuardian',
+        attributes: ['id', 'first_name', 'last_name', 'email'],
+        required: false
+      }
+    ];
 
     if (searchParams.search && searchParams.search.trim()) {
       const searchTerms = searchParams.search.trim().split(/\s+/);
@@ -375,26 +390,10 @@ exports.usersIndex = async (req, res) => {
       };
     }
 
-    if (searchParams.show_related) {
-      includeConditions = [
-        {
-          model: db.User,
-          as: 'Guardian',
-          through: 'StudentGuardian',
-          required: false
-        },
-        {
-          model: db.User,
-          as: 'Student',
-          through: 'StudentGuardian',
-          required: false
-        }
-      ];
-    }
-
     const { count, rows: users } = await db.User.findAndCountAll({
       where: whereConditions,
       include: includeConditions,
+      order: [['id', 'ASC']],
       limit,
       offset,
       distinct: true
@@ -415,7 +414,8 @@ exports.usersIndex = async (req, res) => {
     console.error('Error in usersIndex:', error);
     res.status(500).render('error', { 
       message: 'An error occurred while fetching users',
-      error: process.env.NODE_ENV === 'development' ? error : {}
+      error: process.env.NODE_ENV === 'development' ? error : {},
+      admin: req.session.admin
     });
   }
 };
@@ -843,10 +843,33 @@ exports.rfidCardsEdit = async (req, res) => {
 
 exports.rfidCardsShow = async (req, res) => {
   try {
-    const card = await db.RFID_Card.findByPk(req.params.id);
-    res.render('admin/rfid-cards/show', { card, title: 'RFID Card Details', admin: req.session.admin });
-  } catch (err) {
-    res.status(500).send('Error retrieving RFID card');
+    const card = await db.RFID_Card.findByPk(req.params.id, {
+      include: [{
+        model: db.User,
+        attributes: ['id', 'first_name', 'last_name', 'email']
+      }]
+    });
+
+    if (!card) {
+      return res.status(404).render('error', { 
+        message: 'RFID card not found',
+        error: { status: 404 },
+        admin: req.session.admin
+      });
+    }
+
+    res.render('admin/rfid-cards/show', { 
+      card, 
+      title: 'RFID Card Details', 
+      admin: req.session.admin 
+    });
+  } catch (error) {
+    console.error('Error in rfidCardsShow:', error);
+    res.status(500).render('error', { 
+      message: 'Error retrieving RFID card',
+      error: process.env.NODE_ENV === 'development' ? error : {},
+      admin: req.session.admin
+    });
   }
 };
 
