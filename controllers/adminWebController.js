@@ -10,7 +10,6 @@ const fs = require('fs');
 const path = require('path');
 const csv = require('csvtojson');
 const ExcelJS = require('exceljs');
-const { Op } = require('sequelize');
 
 const loginFailures = {};
 
@@ -344,79 +343,28 @@ exports.getTimeSeriesData = async (req, res) => {
 
 exports.usersIndex = async (req, res) => {
   try {
-    if (!req.session.admin) {
-      return res.redirect('/admin/login');
-    }
-
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = 10; 
     const offset = (page - 1) * limit;
-    const searchParams = req.query;
-
-    let whereConditions = {};
-    let includeConditions = [
-      {
-        model: db.User,
-        as: 'Guardians',
-        through: 'Guardian_Student',
-        attributes: ['id', 'first_name', 'last_name', 'email'],
-        required: false
-      },
-      {
-        model: db.User,
-        as: 'StudentsMonitored',
-        through: 'Guardian_Student',
-        attributes: ['id', 'first_name', 'last_name', 'email'],
-        required: false
-      }
-    ];
-
-    if (searchParams.search && searchParams.search.trim()) {
-      const searchTerms = searchParams.search.trim().split(/\s+/);
-      
-      whereConditions = {
-        [Op.or]: searchTerms.map(term => ({
-          [Op.or]: [
-            { first_name: { [Op.like]: `%${term}%` } },
-            { last_name: { [Op.like]: `%${term}%` } },
-            { email: { [Op.like]: `%${term}%` } },
-            db.Sequelize.where(
-              db.Sequelize.fn('LOWER', db.Sequelize.col('role')),
-              'LIKE',
-              `%${term.toLowerCase()}%`
-            )
-          ]
-        }))
-      };
-    }
 
     const { count, rows: users } = await db.User.findAndCountAll({
-      where: whereConditions,
-      include: includeConditions,
       order: [['id', 'ASC']],
-      limit,
-      offset,
-      distinct: true
+      limit: limit,
+      offset: offset
     });
 
     const totalPages = Math.ceil(count / limit);
 
-    res.render('admin/users/index', {
-      users,
-      currentPage: page,
-      totalPages,
-      totalUsers: count,
-      searchParams,
+    res.render('admin/users/index', { 
+      users, 
+      title: 'Manage Users', 
       admin: req.session.admin,
-      title: 'Manage Users'
+      currentPage: page,
+      totalPages: totalPages,
+      totalUsers: count
     });
-  } catch (error) {
-    console.error('Error in usersIndex:', error);
-    res.status(500).render('error', { 
-      message: 'An error occurred while fetching users',
-      error: process.env.NODE_ENV === 'development' ? error : {},
-      admin: req.session.admin
-    });
+  } catch (err) {
+    res.status(500).send('Error retrieving users');
   }
 };
 
@@ -551,81 +499,28 @@ exports.usersDelete = async (req, res) => {
 
 exports.classesIndex = async (req, res) => {
   try {
-    if (!req.session.admin) {
-      return res.redirect('/admin/login');
-    }
-
     const page = parseInt(req.query.page) || 1;
     const limit = 10;
     const offset = (page - 1) * limit;
-    const searchParams = req.query;
 
-    let whereConditions = {};
-    let includeConditions = [
-      { 
-        model: db.User, 
-        as: 'professors',
-        attributes: ['id', 'first_name', 'last_name'],
-        required: false
-      },
-      {
-        model: db.User,
-        as: 'students',
-        attributes: ['id', 'first_name', 'last_name'],
-        required: false
-      }
-    ];
-
-    if (searchParams.search && searchParams.search.trim()) {
-      const searchTerms = searchParams.search.trim().split(/\s+/);
-      
-      whereConditions = {
-        [Op.or]: [
-          ...searchTerms.map(term => ({
-            [Op.or]: [
-              { class_code: { [Op.like]: `%${term}%` } },
-              { class_name: { [Op.like]: `%${term}%` } },
-              { course: { [Op.like]: `%${term}%` } },
-              { year: { [Op.like]: `%${term}%` } },
-              { section: { [Op.like]: `%${term}%` } },
-              { room: { [Op.like]: `%${term}%` } },
-              { schedule: { [Op.like]: `%${term}%` } }
-            ]
-          }))
-        ]
-      };
-    }
-
-    // First get the total count
-    const totalCount = await db.Class.count({
-      where: whereConditions,
-      distinct: true
-    });
-
-    // Then get the paginated results with includes
-    const classes = await db.Class.findAll({
-      where: whereConditions,
-      include: includeConditions,
+    const { count, rows: classes } = await db.Class.findAndCountAll({
       order: [['id', 'ASC']],
-      limit,
-      offset,
-      distinct: true
+      limit: limit,
+      offset: offset
     });
 
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalPages = Math.ceil(count / limit);
 
     res.render('admin/classes/index', { 
       classes, 
-      currentPage: page,
-      totalPages,
-      totalClasses: totalCount,
-      searchParams,
+      title: 'Manage Classes', 
       admin: req.session.admin,
-      title: 'Manage Classes'
+      currentPage: page,
+      totalPages: totalPages,
+      totalClasses: count
     });
-  } catch (error) {
-    console.error('Error in classesIndex:', error);
-    res.redirect('/admin/classes');
+  } catch (err) {
+    res.status(500).send('Error retrieving classes');
   }
 };
 
@@ -843,33 +738,10 @@ exports.rfidCardsEdit = async (req, res) => {
 
 exports.rfidCardsShow = async (req, res) => {
   try {
-    const card = await db.RFID_Card.findByPk(req.params.id, {
-      include: [{
-        model: db.User,
-        attributes: ['id', 'first_name', 'last_name', 'email']
-      }]
-    });
-
-    if (!card) {
-      return res.status(404).render('error', { 
-        message: 'RFID card not found',
-        error: { status: 404 },
-        admin: req.session.admin
-      });
-    }
-
-    res.render('admin/rfid-cards/show', { 
-      card, 
-      title: 'RFID Card Details', 
-      admin: req.session.admin 
-    });
-  } catch (error) {
-    console.error('Error in rfidCardsShow:', error);
-    res.status(500).render('error', { 
-      message: 'Error retrieving RFID card',
-      error: process.env.NODE_ENV === 'development' ? error : {},
-      admin: req.session.admin
-    });
+    const card = await db.RFID_Card.findByPk(req.params.id);
+    res.render('admin/rfid-cards/show', { card, title: 'RFID Card Details', admin: req.session.admin });
+  } catch (err) {
+    res.status(500).send('Error retrieving RFID card');
   }
 };
 

@@ -18,26 +18,6 @@
       </div>
     </div>
 
-    <!-- Search Form -->
-    <div class="card mb-3">
-      <div class="card-body">
-        <form method="GET" action="/admin/classes" class="row g-3">
-          <div class="col-12">
-            <div class="input-group">
-              <input type="text" 
-                     class="form-control" 
-                     name="search" 
-                     placeholder="Search by class code, name, course, year, section, room, schedule, professor or student name..." 
-                     value="<%= searchParams?.search || '' %>"
-                     aria-label="Search classes">
-              <button type="submit" class="btn btn-primary">Search</button>
-              <a href="/admin/classes" class="btn btn-secondary">Reset</a>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-
     <table class="table table-bordered">
       <thead>
         <tr>
@@ -49,8 +29,6 @@
           <th>Section</th>
           <th>Room</th>
           <th>Schedule</th>
-          <th>Professor</th>
-          <th>Students</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -65,40 +43,6 @@
             <td><%= cls.section %></td>
             <td><%= cls.room %></td>
             <td><%= cls.schedule %></td>
-            <td>
-              <% if (cls.professors && cls.professors.length > 0) { %>
-                <div style="max-height: 100px; overflow-y: auto;">
-                  <ul class="list-unstyled mb-0">
-                    <% cls.professors.forEach(function(professor){ %>
-                      <li>
-                        👨‍🏫 <%= professor.first_name %> <%= professor.last_name %>
-                        <a href="/admin/users/<%= professor.id %>" class="btn btn-link btn-sm p-0" data-modal="true">View</a>
-                      </li>
-                    <% }); %>
-                  </ul>
-                </div>
-                <small class="text-muted">Total: <%= cls.professors.length %></small>
-              <% } else { %>
-                -
-              <% } %>
-            </td>
-            <td>
-              <% if (cls.students && cls.students.length > 0) { %>
-                <div style="max-height: 100px; overflow-y: auto;">
-                  <ul class="list-unstyled mb-0">
-                    <% cls.students.forEach(function(student){ %>
-                      <li>
-                        👨‍🎓 <%= student.first_name %> <%= student.last_name %>
-                        <a href="/admin/users/<%= student.id %>" class="btn btn-link btn-sm p-0" data-modal="true">View</a>
-                      </li>
-                    <% }); %>
-                  </ul>
-                </div>
-                <small class="text-muted">Total: <%= cls.students.length %></small>
-              <% } else { %>
-                -
-              <% } %>
-            </td>
             <td>
               <a href="/admin/classes/<%= cls.id %>" class="btn btn-info btn-sm" data-modal="true">View</a>
               <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-warning btn-sm" data-modal="true">Edit</a>
