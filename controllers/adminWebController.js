@@ -354,21 +354,18 @@ exports.usersIndex = async (req, res) => {
     const searchParams = req.query;
 
     let whereConditions = {};
-    let includeConditions = [];
-
-    // Add guardian and student associations with proper aliases
-    includeConditions = [
+    let includeConditions = [
       {
         model: db.User,
-        as: 'Guardian',
-        through: 'StudentGuardian',
+        as: 'Guardians',
+        through: 'Guardian_Student',
         attributes: ['id', 'first_name', 'last_name', 'email'],
         required: false
       },
       {
         model: db.User,
-        as: 'Student',
-        through: 'StudentGuardian',
+        as: 'StudentsMonitored',
+        through: 'Guardian_Student',
         attributes: ['id', 'first_name', 'last_name', 'email'],
         required: false
       }
