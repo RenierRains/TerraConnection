@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TerraConnection - Admin Login</title>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
   <style>
     @keyframes gradientBG {
       0% { background-position: 0% 50%; }
@@ -247,6 +248,13 @@
         font-size: 0.875rem;
       }
     }
+
+    /* Add styles for CAPTCHA container */
+    .captcha-container {
+      margin: 1rem 0;
+      display: flex;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -287,6 +295,13 @@
             <div class="error-message" id="passwordError">Please enter a password</div>
           </div>
         </div>
+        
+        <!-- Add CAPTCHA -->
+        <div class="captcha-container">
+          <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>"></div>
+          <div class="error-message" id="captchaError">Please complete the CAPTCHA</div>
+        </div>
+
         <div>
           <button type="submit">Login</button>
         </div>
@@ -340,6 +355,16 @@
       } else {
         password.classList.remove('error');
         passwordError.classList.remove('visible');
+      }
+
+      // CAPTCHA validation
+      const captchaResponse = grecaptcha.getResponse();
+      const captchaError = document.getElementById('captchaError');
+      if (!captchaResponse) {
+        captchaError.classList.add('visible');
+        isValid = false;
+      } else {
+        captchaError.classList.remove('visible');
       }
 
       // If form is valid, submit it

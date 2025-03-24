@@ -5,6 +5,7 @@ const { logAnomalyAudit } = require('./auditLogger');
 const { logDataAudit } = require('./auditLogger');
 const { logUserAudit } = require('./auditLogger');
 const { logSecurityAudit } = require('./auditLogger');
+const axios = require('axios');
 
 const fs = require('fs');
 const path = require('path');
@@ -83,13 +84,56 @@ exports.searchGuardians = async (req, res) => {
 };
 
 exports.showLoginForm = (req, res) => {
-  res.render('admin/login', { title: 'Admin Login', layout: false });
+  res.render('admin/login', { 
+    title: 'Admin Login', 
+    layout: false,
+    recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || ''
+  });
 };
 
 exports.login = async (req, res) => {
   try {
     const ip = req.ip;
-    const { email, password } = req.body;
+    const { email, password, 'g-recaptcha-response': recaptchaResponse } = req.body;
+
+    // Verify CAPTCHA
+    if (!recaptchaResponse) {
+      return res.render('admin/login', { 
+        error: 'Please complete the CAPTCHA', 
+        title: 'Admin Login', 
+        layout: false,
+        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || ''
+      });
+    }
+
+    try {
+      const verifyUrl = 'https://www.google.com/recaptcha/api/siteverify';
+      const response = await axios.post(verifyUrl, null, {
+        params: {
+          secret: process.env.RECAPTCHA_SECRET_KEY,
+          response: recaptchaResponse
+        }
+      });
+
+      if (!response.data.success) {
+        await logSecurityAudit(null, 'ADMIN_CAPTCHA_FAILED', { ip });
+        return res.render('admin/login', { 
+          error: 'CAPTCHA verification failed', 
+          title: 'Admin Login', 
+          layout: false,
+          recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || ''
+        });
+      }
+    } catch (error) {
+      console.error('CAPTCHA verification error:', error);
+      return res.render('admin/login', { 
+        error: 'Error verifying CAPTCHA', 
+        title: 'Admin Login', 
+        layout: false,
+        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || ''
+      });
+    }
+
     const admin = await db.User.findOne({ where: { email, role: 'admin' } });
     if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
       loginFailures[ip] = (loginFailures[ip] || 0) + 1;
@@ -97,14 +141,24 @@ exports.login = async (req, res) => {
       if (loginFailures[ip] > 5) {
         await logAnomalyAudit(ip, 'ADMIN_MULTIPLE_LOGIN_FAILURES', { ip, count: loginFailures[ip] });
       }
-      return res.render('admin/login', { error: 'Invalid credentials or not an admin', title: 'Admin Login', layout: false });
+      return res.render('admin/login', { 
+        error: 'Invalid credentials or not an admin', 
+        title: 'Admin Login', 
+        layout: false,
+        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || ''
+      });
     }
     req.session.admin = admin;
     await logUserAudit(admin.id, 'ADMIN_LOGIN_SUCCESS', { email });
     res.redirect('/admin/dashboard');
   } catch (err) {
     console.error(err);
-    res.render('admin/login', { error: 'Login failed', title: 'Admin Login', layout: false });
+    res.render('admin/login', { 
+      error: 'Login failed', 
+      title: 'Admin Login', 
+      layout: false,
+      recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || ''
+    });
   }
 };
 
