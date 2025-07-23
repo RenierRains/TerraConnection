@@ -36,6 +36,15 @@
         <label for="school_id">School ID</label>
         <input id="school_id" type="text" name="school_id" class="form-control" value="<%= user.school_id %>">
       </div>
+      <div class="form-group">
+        <label for="department">Department</label>
+        <select id="department" name="department" class="form-control">
+          <option value="">Select Department</option>
+          <% departments.forEach(function(dept){ %>
+            <option value="<%= dept.code %>" <%= user.department === dept.code ? 'selected' : '' %>><%= dept.name %> (<%= dept.code %>)</option>
+          <% }) %>
+        </select>
+      </div>
       <div class="button-group">
         <button type="submit" class="btn btn-primary">Update User</button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

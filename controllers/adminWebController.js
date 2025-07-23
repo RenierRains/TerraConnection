@@ -400,8 +400,16 @@ exports.usersIndex = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = 10; 
     const offset = (page - 1) * limit;
+    const departmentFilter = req.query.department;
+
+    // Build where clause for department filtering
+    const whereClause = {};
+    if (departmentFilter) {
+      whereClause.department = departmentFilter;
+    }
 
     const { count, rows: users } = await db.User.findAndCountAll({
+      where: whereClause,
       order: [['id', 'ASC']],
       limit: limit,
       offset: offset
@@ -409,26 +417,47 @@ exports.usersIndex = async (req, res) => {
 
     const totalPages = Math.ceil(count / limit);
 
+    // Get departments for filter dropdown
+    const departments = await db.Department.findAll({
+      where: { is_active: true },
+      order: [['code', 'ASC']]
+    });
+
     res.render('admin/users/index', { 
       users, 
       title: 'Manage Users', 
       admin: req.session.admin,
       currentPage: page,
       totalPages: totalPages,
-      totalUsers: count
+      totalUsers: count,
+      departments: departments,
+      req: req
     });
   } catch (err) {
     res.status(500).send('Error retrieving users');
   }
 };
 
-exports.usersCreateForm = (req, res) => {
-  res.render('admin/users/create', { title: 'Create User', admin: req.session.admin });
+exports.usersCreateForm = async (req, res) => {
+  try {
+    const departments = await db.Department.findAll({
+      where: { is_active: true },
+      order: [['code', 'ASC']]
+    });
+    res.render('admin/users/create', { 
+      title: 'Create User', 
+      admin: req.session.admin,
+      departments: departments
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error loading create user form');
+  }
 };
 
 exports.usersCreate = async (req, res) => {
   try {
-    const { first_name, last_name, email, role, school_id, password } = req.body;
+    const { first_name, last_name, email, role, school_id, department, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await db.User.create({
       first_name,
@@ -436,6 +465,7 @@ exports.usersCreate = async (req, res) => {
       email,
       role,
       school_id,
+      department,
       password_hash: hashedPassword
     });
     
@@ -444,7 +474,8 @@ exports.usersCreate = async (req, res) => {
       last_name,
       email,
       role,
-      school_id
+      school_id,
+      department
     });
 
     res.redirect('/admin/users');
@@ -456,17 +487,27 @@ exports.usersCreate = async (req, res) => {
 exports.usersEditForm = async (req, res) => {
   try {
     const user = await db.User.findByPk(req.params.id);
-    res.render('admin/users/edit', { user, title: 'Edit User', admin: req.session.admin });
+    const departments = await db.Department.findAll({
+      where: { is_active: true },
+      order: [['code', 'ASC']]
+    });
+    res.render('admin/users/edit', { 
+      user, 
+      title: 'Edit User', 
+      admin: req.session.admin,
+      departments: departments
+    });
   } catch (err) {
+    console.error(err);
     res.status(500).send('Error retrieving user');
   }
 };
 
 exports.usersEdit = async (req, res) => {
   try {
-    const { first_name, last_name, email, role, school_id } = req.body;
+    const { first_name, last_name, email, role, school_id, department } = req.body;
     await db.User.update(
-      { first_name, last_name, email, role, school_id },
+      { first_name, last_name, email, role, school_id, department },
       { where: { id: req.params.id } }
     );
 
@@ -475,7 +516,8 @@ exports.usersEdit = async (req, res) => {
       last_name,
       email,
       role,
-      school_id
+      school_id,
+      department
     });
     
     res.redirect('/admin/users');
@@ -1314,4 +1356,172 @@ exports.globalSearch = async (req, res) => {
         console.error(err);
         res.status(500).json({ error: 'Error performing search' });
     }
+};
+
+// ========= Departments =========
+
+exports.departmentsIndex = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    const { count, rows: departments } = await db.Department.findAndCountAll({
+      order: [['code', 'ASC']],
+      limit: limit,
+      offset: offset
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    res.render('admin/departments/index', {
+      departments,
+      title: 'Manage Departments',
+      admin: req.session.admin,
+      currentPage: page,
+      totalPages: totalPages,
+      totalDepartments: count
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error retrieving departments');
+  }
+};
+
+exports.departmentsCreateForm = (req, res) => {
+  res.render('admin/departments/create', { 
+    title: 'Create Department', 
+    admin: req.session.admin 
+  });
+};
+
+exports.departmentsCreate = async (req, res) => {
+  try {
+    const { name, code, description, is_active } = req.body;
+    const newDepartment = await db.Department.create({
+      name,
+      code: code.toUpperCase(),
+      description,
+      is_active: is_active === 'true' || is_active === true
+    });
+
+    await logDataAudit(req.session.admin.id, 'DEPARTMENT_CREATED', {
+      name,
+      code: code.toUpperCase(),
+      description,
+      is_active: is_active === 'true' || is_active === true
+    });
+
+    res.redirect('/admin/departments');
+  } catch (err) {
+    console.error(err);
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      res.status(400).send('Department code already exists');
+    } else if (err.name === 'SequelizeValidationError') {
+      res.status(400).send('Validation error: ' + err.errors.map(e => e.message).join(', '));
+    } else {
+      res.status(500).send('Error creating department');
+    }
+  }
+};
+
+exports.departmentsEditForm = async (req, res) => {
+  try {
+    const department = await db.Department.findByPk(req.params.id);
+    if (!department) {
+      return res.status(404).send('Department not found');
+    }
+    res.render('admin/departments/edit', { 
+      department, 
+      title: 'Edit Department', 
+      admin: req.session.admin 
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error retrieving department');
+  }
+};
+
+exports.departmentsEdit = async (req, res) => {
+  try {
+    const { name, code, description, is_active } = req.body;
+    const [updatedRows] = await db.Department.update({
+      name,
+      code: code.toUpperCase(),
+      description,
+      is_active: is_active === 'true' || is_active === true
+    }, {
+      where: { id: req.params.id }
+    });
+
+    if (updatedRows === 0) {
+      return res.status(404).send('Department not found');
+    }
+
+    await logDataAudit(req.session.admin.id, 'DEPARTMENT_UPDATED', {
+      id: req.params.id,
+      name,
+      code: code.toUpperCase(),
+      description,
+      is_active: is_active === 'true' || is_active === true
+    });
+
+    res.redirect('/admin/departments');
+  } catch (err) {
+    console.error(err);
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      res.status(400).send('Department code already exists');
+    } else if (err.name === 'SequelizeValidationError') {
+      res.status(400).send('Validation error: ' + err.errors.map(e => e.message).join(', '));
+    } else {
+      res.status(500).send('Error updating department');
+    }
+  }
+};
+
+exports.departmentsShow = async (req, res) => {
+  try {
+    const department = await db.Department.findByPk(req.params.id);
+    if (!department) {
+      return res.status(404).send('Department not found');
+    }
+    res.render('admin/departments/show', { 
+      department, 
+      title: 'Department Details', 
+      admin: req.session.admin 
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error retrieving department');
+  }
+};
+
+exports.departmentsDelete = async (req, res) => {
+  try {
+    const department = await db.Department.findByPk(req.params.id);
+    if (!department) {
+      return res.status(404).send('Department not found');
+    }
+
+    // Check if department is being used by any users
+    const usersCount = await db.User.count({
+      where: { department: department.code }
+    });
+
+    if (usersCount > 0) {
+      return res.status(400).send(`Cannot delete department: ${usersCount} users are assigned to this department`);
+    }
+
+    await logDataAudit(req.session.admin.id, 'DEPARTMENT_DELETED', {
+      id: req.params.id,
+      name: department.name,
+      code: department.code
+    });
+
+    await db.Department.destroy({ where: { id: req.params.id } });
+    res.redirect('/admin/departments');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error deleting department');
+  }
 };

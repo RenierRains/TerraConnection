@@ -31,6 +31,11 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 'student'
     },
+    department: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      comment: 'Department or college the user belongs to (e.g., CMA, MBA, SHS)'
+    },
     profile_picture: { 
       type: DataTypes.STRING, 
       allowNull: true 
@@ -41,7 +46,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   }, {
     tableName: 'Users',
-    underscored: true,
+    timestamps: true,
+    underscored: false,
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
     indexes: [
       {
         unique: true,
@@ -102,6 +110,13 @@ module.exports = (sequelize, DataTypes) => {
       as: 'Guardians',
       foreignKey: 'student_id',
       otherKey: 'guardian_id'
+    });
+
+    // User belongs to a department
+    User.belongsTo(models.Department, {
+      foreignKey: 'department',
+      targetKey: 'code',
+      as: 'departmentInfo'
     });
   };
 

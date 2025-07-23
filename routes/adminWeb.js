@@ -36,6 +36,14 @@ router.get('/users/:id/edit', adminWebController.usersEditForm);
 router.put('/users/:id', adminWebController.usersEdit);
 router.delete('/users/:id', adminWebController.usersDelete);
 
+router.get('/departments', adminWebController.departmentsIndex);
+router.get('/departments/create', adminWebController.departmentsCreateForm);
+router.post('/departments', adminWebController.departmentsCreate);
+router.get('/departments/:id', adminWebController.departmentsShow);
+router.get('/departments/:id/edit', adminWebController.departmentsEditForm);
+router.put('/departments/:id', adminWebController.departmentsEdit);
+router.delete('/departments/:id', adminWebController.departmentsDelete);
+
 router.get('/classes/import', (req, res) => {
   res.render('admin/classes/import', { 
     title: 'Import Classes',

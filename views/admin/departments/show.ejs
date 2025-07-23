@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Department Details</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <%- include('../../partials/modal-styles') %>
+
+  <div class="modal-content-wrapper">
+    <h2>Department Details</h2>
+    
+    <div class="details-group">
+      <div class="details-label">ID</div>
+      <div class="details-value"><%= department.id %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Department Code</div>
+      <div class="details-value"><strong><%= department.code %></strong></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Department Name</div>
+      <div class="details-value"><%= department.name %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Description</div>
+      <div class="details-value"><%= department.description || 'N/A' %></div>
+    </div>
+    
+    <div class="details-group">
+      <div class="details-label">Status</div>
+      <div class="details-value">
+        <span class="badge <%= department.is_active ? 'bg-success' : 'bg-secondary' %>">
+          <%= department.is_active ? 'Active' : 'Inactive' %>
+        </span>
+      </div>
+    </div>
+
+    <div class="details-group">
+      <div class="details-label">Created</div>
+      <div class="details-value"><%= new Date(department.created_at).toLocaleDateString() %></div>
+    </div>
+
+    <div class="details-group">
+      <div class="details-label">Last Updated</div>
+      <div class="details-value"><%= new Date(department.updated_at).toLocaleDateString() %></div>
+    </div>
+    
+    <div class="button-group">
+      <a href="/admin/departments/<%= department.id %>/edit" class="btn btn-warning" data-modal="true">Edit</a>
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    </div>
+  </div>
+</body>
+</html> 
