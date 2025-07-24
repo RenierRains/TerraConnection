@@ -36,6 +36,10 @@ module.exports = (sequelize, DataTypes) => {
     schedule: {
       type: DataTypes.STRING(255),
       allowNull: true
+    },
+    department: {
+      type: DataTypes.STRING(100),
+      allowNull: true
     }
   }, {
     tableName: 'Classes',

@@ -61,6 +61,11 @@
       <div class="details-value"><%= cls.schedule %></div>
     </div>
     
+    <div class="details-group">
+      <div class="details-label">Department</div>
+      <div class="details-value"><%= cls.department || 'N/A' %></div>
+    </div>
+    
     <div class="button-group">
       <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-warning" data-modal="true">Edit</a>
       <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

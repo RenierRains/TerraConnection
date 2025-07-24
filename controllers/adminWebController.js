@@ -175,96 +175,89 @@ exports.dashboard = async (req, res) => {
   if (!req.session.admin) return res.redirect('/admin/login');
   
   try {
-    const categoryColors = {
-      'User Actions': '#4CAF50',
-      'Data Operations': '#2196F3',
-      'Security Events': '#FFC107',
-      'Anomalies': '#F44336',
-      'Admin Actions': '#9C27B0',
-      'API Requests': '#FF9800'
-    };
+    const { department, dateRange } = req.query;
+    const selectedDepartment = department || '';
+    const selectedDateRange = dateRange || 'week';
+    
+    // Get departments for filtering
+    const departments = await db.Department.findAll({
+      where: { is_active: true },
+      order: [['name', 'ASC']]
+    });
 
-    // Default to 7 days for the main dashboard
-    const [categoryStats] = await db.sequelize.query(`
-      WITH RECURSIVE dates AS (
-        SELECT CURDATE() - INTERVAL 6 DAY AS date
-        UNION ALL
-        SELECT date + INTERVAL 1 DAY
-        FROM dates
-        WHERE date < CURDATE()
-      ),
-      categories AS (
-        SELECT 'USER' as prefix, 'User Actions' as category
-        UNION ALL SELECT 'DATA', 'Data Operations'
-        UNION ALL SELECT 'SECURITY', 'Security Events'
-        UNION ALL SELECT 'ANOMALY', 'Anomalies'
-        UNION ALL SELECT 'ADMIN', 'Admin Actions'
-        UNION ALL SELECT 'REQUEST', 'API Requests'
-      ),
-      daily_counts AS (
-        SELECT 
-          DATE(timestamp) as log_date,
-          CASE 
-            WHEN action_type LIKE 'USER_%' THEN 'USER'
-            WHEN action_type LIKE 'DATA_%' THEN 'DATA'
-            WHEN action_type LIKE 'SECURITY_%' THEN 'SECURITY'
-            WHEN action_type LIKE 'ANOMALY_%' THEN 'ANOMALY'
-            WHEN action_type LIKE 'ADMIN_%' THEN 'ADMIN'
-            WHEN action_type LIKE 'REQUEST' THEN 'REQUEST'
-            ELSE 'OTHER'
-          END as category_prefix,
-          COUNT(*) as count
-        FROM Audit_Logs
-        WHERE timestamp >= CURDATE() - INTERVAL 6 DAY
-        GROUP BY DATE(timestamp),
-          CASE 
-            WHEN action_type LIKE 'USER_%' THEN 'USER'
-            WHEN action_type LIKE 'DATA_%' THEN 'DATA'
-            WHEN action_type LIKE 'SECURITY_%' THEN 'SECURITY'
-            WHEN action_type LIKE 'ANOMALY_%' THEN 'ANOMALY'
-            WHEN action_type LIKE 'ADMIN_%' THEN 'ADMIN'
-            WHEN action_type LIKE 'REQUEST' THEN 'REQUEST'
-            ELSE 'OTHER'
-          END
-      )
+    // Build date range filter
+    let dateFilter = '';
+    const now = new Date();
+    switch (selectedDateRange) {
+      case 'today':
+        dateFilter = `AND DATE(al.timestamp) = CURDATE()`;
+        break;
+      case 'week':
+        dateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+        break;
+      case 'month':
+        dateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)`;
+        break;
+      default:
+        dateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+    }
+
+    // Build department filter
+    let departmentFilter = '';
+    if (selectedDepartment) {
+      departmentFilter = `AND u.department = '${selectedDepartment}'`;
+    }
+
+    // Get essential statistics
+    const [statsResult] = await db.sequelize.query(`
       SELECT 
-        c.category,
-        c.prefix,
-        d.date,
-        COALESCE(dc.count, 0) as count
-      FROM dates d
-      CROSS JOIN categories c
-      LEFT JOIN daily_counts dc ON dc.log_date = d.date AND dc.category_prefix = c.prefix
-      ORDER BY c.category, d.date;
+        SUM(CASE WHEN al.action_type LIKE '%ENTRY_%' OR al.action_type LIKE '%ACCESS_GRANTED%' THEN 1 ELSE 0 END) as totalEntries,
+        SUM(CASE WHEN al.action_type LIKE '%EXIT_%' OR al.action_type LIKE '%LOGOUT%' THEN 1 ELSE 0 END) as totalExits,
+        SUM(CASE WHEN al.action_type LIKE 'ANOMALY_%' OR al.action_type LIKE 'SECURITY_%' THEN 1 ELSE 0 END) as totalAnomalies,
+        COUNT(DISTINCT u.id) as activeUsers
+      FROM Audit_Logs al
+      LEFT JOIN Users u ON al.user_id = u.id
+      WHERE 1=1 ${dateFilter} ${departmentFilter}
     `);
 
-    const timeSeriesData = {};
-    categoryStats.forEach(stat => {
-      if (!timeSeriesData[stat.category]) {
-        timeSeriesData[stat.category] = {
-          category: stat.category,
-          prefix: stat.prefix,
-          dates: [],
-          counts: []
-        };
-      }
-      timeSeriesData[stat.category].dates.push(stat.date);
-      timeSeriesData[stat.category].counts.push(stat.count);
+    const stats = statsResult[0] || {
+      totalEntries: 0,
+      totalExits: 0,
+      totalAnomalies: 0,
+      activeUsers: 0
+    };
+
+    // Get recent activities
+    const recentActivities = await db.Audit_Log.findAll({
+      limit: 10,
+      order: [['timestamp', 'DESC']],
+      include: [{
+        model: db.User,
+        attributes: ['first_name', 'last_name'],
+        required: false,
+        where: selectedDepartment ? { department: selectedDepartment } : {}
+      }]
     });
 
     res.render('admin/dashboard', { 
       admin: req.session.admin, 
       title: 'Dashboard',
-      timeSeriesData: Object.values(timeSeriesData),
-      categoryColors
+      departments,
+      selectedDepartment,
+      selectedDateRange,
+      stats,
+      recentActivities
     });
   } catch (err) {
     console.error('Error getting dashboard stats:', err);
     res.render('admin/dashboard', { 
       admin: req.session.admin, 
       title: 'Dashboard',
-      timeSeriesData: [],
-      categoryColors: {}
+      departments: [],
+      selectedDepartment: '',
+      selectedDateRange: 'week',
+      stats: { totalEntries: 0, totalExits: 0, totalAnomalies: 0, activeUsers: 0 },
+      recentActivities: []
     });
   }
 };
@@ -582,13 +575,30 @@ exports.classesIndex = async (req, res) => {
   }
 };
 
-exports.classesCreateForm = (req, res) => {
-  res.render('admin/classes/create', { title: 'Create Class', admin: req.session.admin });
+exports.classesCreateForm = async (req, res) => {
+  try {
+    const departments = await db.Department.findAll({
+      where: { is_active: true },
+      order: [['name', 'ASC']]
+    });
+    res.render('admin/classes/create', { 
+      title: 'Create Class', 
+      admin: req.session.admin,
+      departments 
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/classes/create', { 
+      title: 'Create Class', 
+      admin: req.session.admin,
+      departments: [] 
+    });
+  }
 };
 
 exports.classesCreate = async (req, res) => {
   try {
-    const { class_code, class_name, course, year, section, room, start_time, end_time, schedule, professorIds } = req.body;
+    const { class_code, class_name, course, year, section, room, start_time, end_time, schedule, department, professorIds } = req.body;
     const newClass = await db.Class.create({
       class_code,
       class_name,
@@ -598,7 +608,8 @@ exports.classesCreate = async (req, res) => {
       room,
       start_time,
       end_time,
-      schedule  
+      schedule,
+      department  
     });
 
     await logDataAudit(req.session.admin.id, 'CLASS_CREATED', {
@@ -610,7 +621,8 @@ exports.classesCreate = async (req, res) => {
       room,
       start_time,
       end_time,
-      schedule
+      schedule,
+      department
     });
 
     if (professorIds) {
@@ -632,8 +644,15 @@ exports.classesEditForm = async (req, res) => {
       ]
     });
     if (!cls) return res.status(404).send('Class not found');
-    res.render('admin/classes/edit', { cls, title: 'Edit Class', admin: req.session.admin });
+    
+    const departments = await db.Department.findAll({
+      where: { is_active: true },
+      order: [['name', 'ASC']]
+    });
+    
+    res.render('admin/classes/edit', { cls, departments, title: 'Edit Class', admin: req.session.admin });
   } catch (err) {
+    console.error(err);
     res.status(500).send('Error retrieving class');
   }
 };
@@ -641,14 +660,14 @@ exports.classesEditForm = async (req, res) => {
 exports.classesEdit = async (req, res) => {
   try {
     const {
-      class_code, class_name, course, year, section, room, start_time, end_time, schedule, professorIds, studentIds,
+      class_code, class_name, course, year, section, room, start_time, end_time, schedule, department, professorIds, studentIds,
     } = req.body;
 
     const original = await db.Class.findByPk(req.params.id);
 
     await db.Class.update(
       {
-        class_code, class_name, course, year, section, room, start_time, end_time, schedule,
+        class_code, class_name, course, year, section, room, start_time, end_time, schedule, department,
       },
       { where: { id: req.params.id } }
     );
@@ -830,59 +849,65 @@ exports.rfidCardsDelete = async (req, res) => {
 exports.auditLogs = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = 20; // Fixed limit for simplicity
     const offset = (page - 1) * limit;
 
     const {
       startDate,
       endDate,
       actionType,
-      userId,
-      searchTerm
+      department
     } = req.query;
 
+    const filters = { startDate, endDate, actionType, department };
     const where = {};
     const { Op } = require('sequelize');
 
-    let parsedStartDate = startDate ? new Date(startDate) : null;
-    let parsedEndDate = endDate ? new Date(endDate) : null;
+    // Get departments for filtering
+    const departments = await db.Department.findAll({
+      where: { is_active: true },
+      order: [['name', 'ASC']]
+    });
 
-
-    if (parsedStartDate && !isNaN(parsedStartDate.getTime()) && parsedEndDate && !isNaN(parsedEndDate.getTime())) {
-
-      parsedStartDate.setHours(0, 0, 0, 0);
-      parsedEndDate.setHours(23, 59, 59, 999);
-      
-      where.timestamp = {
-        [Op.between]: [parsedStartDate, parsedEndDate]
-      };
-    } else if (parsedStartDate && !isNaN(parsedStartDate.getTime())) {
-      parsedStartDate.setHours(0, 0, 0, 0);
-      where.timestamp = {
-        [Op.gte]: parsedStartDate
-      };
-    } else if (parsedEndDate && !isNaN(parsedEndDate.getTime())) {
-      parsedEndDate.setHours(23, 59, 59, 999);
-      where.timestamp = {
-        [Op.lte]: parsedEndDate
-      };
+    // Date filtering with simplified logic
+    if (startDate) {
+      const parsedStartDate = new Date(startDate);
+      if (!isNaN(parsedStartDate.getTime())) {
+        parsedStartDate.setHours(0, 0, 0, 0);
+        where.timestamp = { [Op.gte]: parsedStartDate };
+      }
     }
 
-    if (actionType && actionType !== 'undefined') {
+    if (endDate) {
+      const parsedEndDate = new Date(endDate);
+      if (!isNaN(parsedEndDate.getTime())) {
+        parsedEndDate.setHours(23, 59, 59, 999);
+        if (where.timestamp) {
+          where.timestamp[Op.lte] = parsedEndDate;
+        } else {
+          where.timestamp = { [Op.lte]: parsedEndDate };
+        }
+      }
+    }
+
+    // Action type filtering
+    if (actionType && actionType.trim() !== '') {
       where.action_type = {
         [Op.like]: `${actionType}%`
       };
     }
 
-    if (userId && userId !== 'undefined') {
-      where.user_id = userId;
-    }
+    // Build include array for User model with department filtering
+    const includeOptions = [{
+      model: db.User,
+      attributes: ['first_name', 'last_name', 'email', 'department'],
+      required: false
+    }];
 
-    if (searchTerm && searchTerm !== 'undefined') {
-      where[Op.or] = [
-        { action_type: { [Op.like]: `%${searchTerm}%` } },
-        { details: { [Op.like]: `%${searchTerm}%` } }
-      ];
+    // Add department filtering if specified
+    if (department && department.trim() !== '') {
+      includeOptions[0].where = { department: department };
+      includeOptions[0].required = true; // Only get logs from users in specified department
     }
 
     const { count, rows: logs } = await db.Audit_Log.findAndCountAll({
@@ -890,69 +915,20 @@ exports.auditLogs = async (req, res) => {
       order: [['timestamp', 'DESC']],
       limit: limit,
       offset: offset,
-      include: [{
-        model: db.User,
-        attributes: ['first_name', 'last_name', 'email'],
-        required: false
-      }]
+      include: includeOptions
     });
 
     const totalPages = Math.ceil(count / limit);
 
-    const actionStats = await db.Audit_Log.findAll({
-      where,
-      attributes: [
-        'action_type',
-        [db.sequelize.fn('COUNT', '*'), 'count']
-      ],
-      group: ['action_type'],
-      order: [[db.sequelize.fn('COUNT', '*'), 'DESC']]
-    });
- 
-    const userStats = await db.Audit_Log.findAll({
-      where,
-      attributes: [
-        'user_id',
-        [db.sequelize.fn('COUNT', '*'), 'count']
-      ],
-      include: [{
-        model: db.User,
-        attributes: ['first_name', 'last_name', 'email'],
-        required: false
-      }],
-      group: ['user_id', 'User.id', 'User.first_name', 'User.last_name', 'User.email'],
-      order: [[db.sequelize.fn('COUNT', '*'), 'DESC']],
-      limit: 10
-    });
-
-    const hourlyActivity = await db.sequelize.query(`
-      SELECT 
-        DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as hour,
-        COUNT(*) as count
-      FROM Audit_Logs
-      WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-      GROUP BY DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00')
-      ORDER BY hour ASC
-    `, { type: db.sequelize.QueryTypes.SELECT });
-
     res.render('admin/audit-logs', { 
       logs,
-      actionStats,
-      userStats,
-      hourlyActivity,
+      departments,
       title: 'Audit Logs',
       admin: req.session.admin,
       currentPage: page,
       totalPages: totalPages,
       totalLogs: count,
-      filters: {
-        startDate: startDate || '',
-        endDate: endDate || '',
-        actionType: actionType || '',
-        userId: userId || '',
-        searchTerm: searchTerm || '',
-        limit
-      }
+      filters
     });
   } catch (err) {
     console.error('Error retrieving audit logs:', err);
