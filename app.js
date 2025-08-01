@@ -6,6 +6,7 @@ const app = express();
 const expressLayouts = require('express-ejs-layouts');
 const session = require('express-session');
 const methodOverride = require('method-override');
+const multer = require('multer');
 const auditMiddleware = require('./middleware/auditMiddleware');
 const modalHandler = require('./middleware/modalHandler');
 const http = require('http');
@@ -116,6 +117,14 @@ wss.on('connection', function connection(ws, request) {
     });
 });
 
+// Initialize Dashboard WebSocket Service
+const DashboardWebSocketService = require('./services/dashboardWebSocket');
+const dashboardWS = new DashboardWebSocketService(io);
+dashboardWS.init();
+
+// Store dashboard service in app for use in routes
+app.set('dashboardWS', dashboardWS);
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
     console.log('Socket.IO client connected');
@@ -143,7 +152,19 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(methodOverride('_method'));
+// Configure method-override to work with multipart forms
+app.use(methodOverride(function (req, res) {
+  if (req.body && typeof req.body === 'object' && '_method' in req.body) {
+    // look in urlencoded POST bodies and delete it
+    var method = req.body._method;
+    delete req.body._method;
+    return method;
+  }
+  // look in query parameters
+  if (req.query && req.query._method) {
+    return req.query._method;
+  }
+}));
 
 app.set('view engine', 'ejs');
 
@@ -174,10 +195,88 @@ app.use('/api/professor', professorRoutes);
 app.use('/api/guardian', guardianRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/location', locationRoutes);
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve uploads directory with proper headers
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, path) => {
+    // Set proper headers for images
+    if (path.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      res.setHeader('Content-Type', 'image/' + path.split('.').pop().toLowerCase());
+      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year cache
+    }
+  }
+}));
+
+console.log('📁 Uploads directory served at /uploads -> ', path.join(__dirname, 'uploads'));
 
 app.get('/', (req, res) => {
     res.redirect('/admin/login');
+});
+
+// Test route for profile pictures
+app.get('/test-profile-pics', async (req, res) => {
+    try {
+        const db = require('./models');
+        const users = await db.User.findAll({
+            where: {
+                profile_picture: {
+                    [db.Sequelize.Op.ne]: null
+                }
+            },
+            attributes: ['id', 'first_name', 'last_name', 'profile_picture'],
+            limit: 10
+        });
+
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Test Profile Pictures</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    .user { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+                    img { max-width: 200px; margin: 10px; }
+                    .error { color: red; }
+                    .success { color: green; }
+                </style>
+            </head>
+            <body>
+                <h1>Profile Picture Test</h1>
+                <h2>Users with Profile Pictures:</h2>
+        `;
+
+        users.forEach(user => {
+            let profileUrl = user.profile_picture;
+            if (profileUrl && !profileUrl.startsWith('/') && !profileUrl.startsWith('http')) {
+                profileUrl = `/uploads/profile_pics/${profileUrl}`;
+            }
+            
+            html += `
+                <div class="user">
+                    <h3>${user.first_name} ${user.last_name} (ID: ${user.id})</h3>
+                    <p>DB Value: <code>${user.profile_picture}</code></p>
+                    <p>Formatted URL: <code>${profileUrl}</code></p>
+                    <img src="${profileUrl}" alt="${user.first_name}'s photo" 
+                         onload="this.nextSibling.innerHTML='✅ Image loaded successfully'" 
+                         onerror="this.nextSibling.innerHTML='❌ Image failed to load'">
+                    <span class="status"></span>
+                </div>
+            `;
+        });
+
+        html += `
+                <h2>Direct File Test:</h2>
+                <p>Testing direct access to uploaded files:</p>
+                <img src="/uploads/profile_pics/2-1754027682570.jpg" alt="Direct test" style="border: 2px solid blue;">
+                <img src="/uploads/profile_pics/2-1754026101183.jpg" alt="Direct test" style="border: 2px solid blue;">
+                <img src="/uploads/profile_pics/1-1754026059152.png" alt="Direct test" style="border: 2px solid blue;">
+            </body>
+            </html>
+        `;
+        
+        res.send(html);
+    } catch (error) {
+        res.status(500).send(`Error: ${error.message}`);
+    }
 });
 
 // Export both app and server

@@ -1,8 +1,13 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const adminWebController = require('../controllers/adminWebController');
 const exportController = require('../controllers/exportController');
 const upload = require('../middleware/upload');
+const { upload: profileUpload } = require('../middleware/profileUpload');
+
+// Create multer instance for handling multipart forms without file uploads
+const formUpload = multer();
 
 router.get('/login', adminWebController.showLoginForm);
 router.post('/login', adminWebController.login);
@@ -17,6 +22,7 @@ router.use((req, res, next) => {
 // protected test
 
 router.get('/dashboard/data', adminWebController.getTimeSeriesData);
+router.get('/dashboard/departments', adminWebController.getDepartmentData);
 router.get('/dashboard/export', exportController.exportDashboardData);
 
 router.get('/users/import', (req, res) => {
@@ -30,18 +36,18 @@ router.post('/users/import', upload.single('importFile'), adminWebController.imp
 router.get('/dashboard', adminWebController.dashboard);
 router.get('/users', adminWebController.usersIndex);
 router.get('/users/create', adminWebController.usersCreateForm);
-router.post('/users', adminWebController.usersCreate);
+router.post('/users', profileUpload.single('profile_picture'), adminWebController.usersCreate);
 router.get('/users/:id', adminWebController.usersShow);
 router.get('/users/:id/edit', adminWebController.usersEditForm);
-router.put('/users/:id', adminWebController.usersEdit);
+router.put('/users/:id', profileUpload.single('profile_picture'), adminWebController.usersEdit);
 router.delete('/users/:id', adminWebController.usersDelete);
 
 router.get('/departments', adminWebController.departmentsIndex);
 router.get('/departments/create', adminWebController.departmentsCreateForm);
-router.post('/departments', adminWebController.departmentsCreate);
+router.post('/departments', formUpload.none(), adminWebController.departmentsCreate);
 router.get('/departments/:id', adminWebController.departmentsShow);
 router.get('/departments/:id/edit', adminWebController.departmentsEditForm);
-router.put('/departments/:id', adminWebController.departmentsEdit);
+router.put('/departments/:id', formUpload.none(), adminWebController.departmentsEdit);
 router.delete('/departments/:id', adminWebController.departmentsDelete);
 
 router.get('/classes/import', (req, res) => {

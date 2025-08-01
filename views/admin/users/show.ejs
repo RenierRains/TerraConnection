@@ -4,12 +4,22 @@
   <meta charset="UTF-8">
   <title>User Details</title>
   <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/profile-pictures.css">
 </head>
 <body>
   <%- include('../../partials/modal-styles') %>
 
   <div class="modal-content-wrapper">
     <h2>User Details</h2>
+    
+    <% if (user.profile_picture) { %>
+      <div class="details-group">
+        <div class="details-label">Profile Picture</div>
+                 <div class="details-value">
+           <img src="/uploads/profile_pics/<%= user.profile_picture %>" alt="Profile Picture" class="profile-large">
+         </div>
+      </div>
+    <% } %>
     
     <div class="details-group">
       <div class="details-label">ID</div>

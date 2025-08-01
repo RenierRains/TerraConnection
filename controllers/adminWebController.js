@@ -6,6 +6,7 @@ const { logDataAudit } = require('./auditLogger');
 const { logUserAudit } = require('./auditLogger');
 const { logSecurityAudit } = require('./auditLogger');
 const axios = require('axios');
+const { deleteOldProfilePicture, getProfilePictureUrl } = require('../middleware/profileUpload');
 
 const fs = require('fs');
 const path = require('path');
@@ -13,6 +14,111 @@ const csv = require('csvtojson');
 const ExcelJS = require('exceljs');
 
 const loginFailures = {};
+
+exports.globalSearch = async (req, res) => {
+  try {
+    const q = req.query.q || '';
+    if (q.length < 2) {
+      return res.json([]);
+    }
+
+    const { Op } = require('sequelize');
+    const results = [];
+
+    // Search users
+    const users = await db.User.findAll({
+      where: {
+        [Op.or]: [
+          { first_name: { [Op.like]: `%${q}%` } },
+          { last_name: { [Op.like]: `%${q}%` } },
+          { email: { [Op.like]: `%${q}%` } }
+        ]
+      },
+      limit: 5,
+      order: [['first_name', 'ASC']]
+    });
+
+    users.forEach(user => {
+      results.push({
+        id: user.id,
+        title: `${user.first_name} ${user.last_name}`,
+        type: 'user',
+        subtitle: user.email,
+        role: user.role
+      });
+    });
+
+    // Search departments
+    const departments = await db.Department.findAll({
+      where: {
+        [Op.or]: [
+          { name: { [Op.like]: `%${q}%` } },
+          { code: { [Op.like]: `%${q}%` } }
+        ]
+      },
+      limit: 3,
+      order: [['name', 'ASC']]
+    });
+
+    departments.forEach(dept => {
+      results.push({
+        id: dept.id,
+        title: dept.name,
+        type: 'department',
+        subtitle: dept.code
+      });
+    });
+
+    // Search classes
+    const classes = await db.Class.findAll({
+      where: {
+        [Op.or]: [
+          { name: { [Op.like]: `%${q}%` } },
+          { code: { [Op.like]: `%${q}%` } }
+        ]
+      },
+      limit: 3,
+      order: [['name', 'ASC']]
+    });
+
+    classes.forEach(cls => {
+      results.push({
+        id: cls.id,
+        title: cls.name,
+        type: 'class',
+        subtitle: cls.code
+      });
+    });
+
+    // Search RFID cards
+    const rfidCards = await db.RFIDCard.findAll({
+      where: {
+        card_number: { [Op.like]: `%${q}%` }
+      },
+      include: [{
+        model: db.User,
+        as: 'user',
+        attributes: ['first_name', 'last_name']
+      }],
+      limit: 3,
+      order: [['card_number', 'ASC']]
+    });
+
+    rfidCards.forEach(card => {
+      results.push({
+        id: card.id,
+        title: `Card ${card.card_number}`,
+        type: 'rfid-card',
+        subtitle: card.user ? `${card.user.first_name} ${card.user.last_name}` : 'Unassigned'
+      });
+    });
+
+    res.json(results);
+  } catch (err) {
+    console.error('Global search error:', err);
+    res.status(500).json({ error: 'Search failed' });
+  }
+};
 
 exports.searchStudents = async (req, res) => {
   try {
@@ -208,7 +314,7 @@ exports.dashboard = async (req, res) => {
       departmentFilter = `AND u.department = '${selectedDepartment}'`;
     }
 
-    // Get essential statistics
+    // Get current period statistics
     const [statsResult] = await db.sequelize.query(`
       SELECT 
         SUM(CASE WHEN al.action_type LIKE '%ENTRY_%' OR al.action_type LIKE '%ACCESS_GRANTED%' THEN 1 ELSE 0 END) as totalEntries,
@@ -220,11 +326,70 @@ exports.dashboard = async (req, res) => {
       WHERE 1=1 ${dateFilter} ${departmentFilter}
     `);
 
-    const stats = statsResult[0] || {
+    // Get previous period statistics for trend calculation
+    let previousDateFilter = '';
+    switch (selectedDateRange) {
+      case 'today':
+        previousDateFilter = `AND DATE(al.timestamp) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`;
+        break;
+      case 'week':
+        previousDateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND al.timestamp < DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+        break;
+      case 'month':
+        previousDateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND al.timestamp < DATE_SUB(NOW(), INTERVAL 30 DAY)`;
+        break;
+      default:
+        previousDateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND al.timestamp < DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+    }
+
+    const [previousStatsResult] = await db.sequelize.query(`
+      SELECT 
+        SUM(CASE WHEN al.action_type LIKE '%ENTRY_%' OR al.action_type LIKE '%ACCESS_GRANTED%' THEN 1 ELSE 0 END) as totalEntries,
+        SUM(CASE WHEN al.action_type LIKE '%EXIT_%' OR al.action_type LIKE '%LOGOUT%' THEN 1 ELSE 0 END) as totalExits,
+        SUM(CASE WHEN al.action_type LIKE 'ANOMALY_%' OR al.action_type LIKE 'SECURITY_%' THEN 1 ELSE 0 END) as totalAnomalies,
+        COUNT(DISTINCT u.id) as activeUsers
+      FROM Audit_Logs al
+      LEFT JOIN Users u ON al.user_id = u.id
+      WHERE 1=1 ${previousDateFilter} ${departmentFilter}
+    `);
+
+    const currentStats = statsResult[0] || {
       totalEntries: 0,
       totalExits: 0,
       totalAnomalies: 0,
       activeUsers: 0
+    };
+
+    const previousStats = previousStatsResult[0] || {
+      totalEntries: 0,
+      totalExits: 0,
+      totalAnomalies: 0,
+      activeUsers: 0
+    };
+
+    // Calculate trends
+    const calculateTrend = (current, previous) => {
+      const currentNum = parseInt(current) || 0;
+      const previousNum = parseInt(previous) || 0;
+      
+      if (previousNum === 0) {
+        if (currentNum === 0) return 0;
+        return currentNum > 0 ? 100 : 0; // New data, show as 100% increase
+      }
+      return parseFloat(((currentNum - previousNum) / previousNum * 100).toFixed(1));
+    };
+
+    const stats = {
+      totalEntries: currentStats.totalEntries,
+      totalExits: currentStats.totalExits,
+      totalAnomalies: currentStats.totalAnomalies,
+      activeUsers: currentStats.activeUsers,
+      trends: {
+        entriesTrend: calculateTrend(currentStats.totalEntries, previousStats.totalEntries),
+        exitsTrend: calculateTrend(currentStats.totalExits, previousStats.totalExits),
+        anomaliesTrend: calculateTrend(currentStats.totalAnomalies, previousStats.totalAnomalies),
+        usersTrend: calculateTrend(currentStats.activeUsers, previousStats.activeUsers)
+      }
     };
 
     // Get recent activities
@@ -262,120 +427,111 @@ exports.dashboard = async (req, res) => {
   }
 };
 
+exports.getDepartmentData = async (req, res) => {
+  if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  
+  try {
+    // Get department activity breakdown
+    const [departmentStats] = await db.sequelize.query(`
+      SELECT 
+        u.department,
+        d.name as department_name,
+        COUNT(DISTINCT u.id) as user_count,
+        SUM(CASE WHEN al.action_type LIKE '%ENTRY_%' OR al.action_type LIKE '%ACCESS_GRANTED%' THEN 1 ELSE 0 END) as entries,
+        SUM(CASE WHEN al.action_type LIKE '%EXIT_%' OR al.action_type LIKE '%LOGOUT%' THEN 1 ELSE 0 END) as exits,
+        SUM(CASE WHEN al.action_type LIKE 'ANOMALY_%' OR al.action_type LIKE 'SECURITY_%' THEN 1 ELSE 0 END) as anomalies
+      FROM Users u
+      LEFT JOIN Departments d ON u.department = d.code
+      LEFT JOIN Audit_Logs al ON al.user_id = u.id AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      WHERE u.department IS NOT NULL
+      GROUP BY u.department, d.name
+      ORDER BY user_count DESC
+    `);
+
+    const labels = departmentStats.map(dept => dept.department_name || dept.department);
+    const userCounts = departmentStats.map(dept => parseInt(dept.user_count) || 0);
+    const entryCounts = departmentStats.map(dept => parseInt(dept.entries) || 0);
+    const exitCounts = departmentStats.map(dept => parseInt(dept.exits) || 0);
+    const anomalyCounts = departmentStats.map(dept => parseInt(dept.anomalies) || 0);
+
+    res.json({
+      success: true,
+      data: {
+        labels,
+        datasets: {
+          users: userCounts,
+          entries: entryCounts,
+          exits: exitCounts,
+          anomalies: anomalyCounts
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Error getting department data:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch department data'
+    });
+  }
+};
+
 exports.getTimeSeriesData = async (req, res) => {
   if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
   
   try {
-    const { range } = req.query;
-    let interval, days, groupBy, dateSelect;
+    const { range = 'week' } = req.query;
+    let dateFilter = '';
+    let groupByFormat = '';
     
     switch(range) {
       case '24h':
-        interval = '24 HOUR';
-        days = 1;
-        groupBy = 'HOUR(timestamp)';
-        dateSelect = 'DATE_FORMAT(NOW() - INTERVAL (24-n) HOUR, "%Y-%m-%d %H:00:00") AS date';
+        dateFilter = 'timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)';
+        groupByFormat = 'DATE_FORMAT(timestamp, "%Y-%m-%d %H:00")';
         break;
       case 'week':
-        interval = '7 DAY';
-        days = 7;
-        groupBy = 'DATE(timestamp)';
-        dateSelect = 'CURDATE() - INTERVAL (7-n) DAY AS date';
+        dateFilter = 'timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)';
+        groupByFormat = 'DATE(timestamp)';
         break;
       case 'month':
-        interval = '30 DAY';
-        days = 30;
-        groupBy = 'DATE(timestamp)';
-        dateSelect = 'CURDATE() - INTERVAL (30-n) DAY AS date';
+        dateFilter = 'timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+        groupByFormat = 'DATE(timestamp)';
         break;
       case 'year':
-        interval = '365 DAY';
-        days = 365;
-        groupBy = 'DATE(timestamp)';
-        dateSelect = 'CURDATE() - INTERVAL (365-n) DAY AS date';
+        dateFilter = 'timestamp >= DATE_SUB(NOW(), INTERVAL 365 DAY)';
+        groupByFormat = 'DATE(timestamp)';
         break;
       default:
-        interval = '7 DAY';
-        days = 7;
-        groupBy = 'DATE(timestamp)';
-        dateSelect = 'CURDATE() - INTERVAL (7-n) DAY AS date';
+        dateFilter = 'timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)';
+        groupByFormat = 'DATE(timestamp)';
     }
 
-    const [data] = await db.sequelize.query(`
-      WITH RECURSIVE numbers AS (
-        SELECT 1 AS n
-        UNION ALL
-        SELECT n + 1
-        FROM numbers
-        WHERE n < ${days}
-      ),
-      dates AS (
-        SELECT ${dateSelect}
-        FROM numbers
-      ),
-      categories AS (
-        SELECT 'USER' as prefix, 'User Actions' as category
-        UNION ALL SELECT 'DATA', 'Data Operations'
-        UNION ALL SELECT 'SECURITY', 'Security Events'
-        UNION ALL SELECT 'ANOMALY', 'Anomalies'
-        UNION ALL SELECT 'ADMIN', 'Admin Actions'
-        UNION ALL SELECT 'REQUEST', 'API Requests'
-      ),
-      event_counts AS (
-        SELECT 
-          ${range === '24h' ? 'DATE_FORMAT(timestamp, "%Y-%m-%d %H:00:00")' : 'DATE(timestamp)'} as log_date,
-          CASE 
-            WHEN action_type LIKE 'USER_%' THEN 'USER'
-            WHEN action_type LIKE 'DATA_%' THEN 'DATA'
-            WHEN action_type LIKE 'SECURITY_%' THEN 'SECURITY'
-            WHEN action_type LIKE 'ANOMALY_%' THEN 'ANOMALY'
-            WHEN action_type LIKE 'ADMIN_%' THEN 'ADMIN'
-            WHEN action_type LIKE 'REQUEST' THEN 'REQUEST'
-            ELSE 'OTHER'
-          END as category_prefix,
-          COUNT(*) as count
-        FROM Audit_Logs
-        WHERE timestamp >= NOW() - INTERVAL ${interval}
-        GROUP BY 
-          ${range === '24h' ? 'DATE_FORMAT(timestamp, "%Y-%m-%d %H:00:00")' : 'DATE(timestamp)'},
-          CASE 
-            WHEN action_type LIKE 'USER_%' THEN 'USER'
-            WHEN action_type LIKE 'DATA_%' THEN 'DATA'
-            WHEN action_type LIKE 'SECURITY_%' THEN 'SECURITY'
-            WHEN action_type LIKE 'ANOMALY_%' THEN 'ANOMALY'
-            WHEN action_type LIKE 'ADMIN_%' THEN 'ADMIN'
-            WHEN action_type LIKE 'REQUEST' THEN 'REQUEST'
-            ELSE 'OTHER'
-          END
-      )
+    // Get time series data for entries, exits, and anomalies
+    const [timeSeriesData] = await db.sequelize.query(`
       SELECT 
-        c.category,
-        c.prefix,
-        d.date,
-        COALESCE(ec.count, 0) as count
-      FROM dates d
-      CROSS JOIN categories c
-      LEFT JOIN event_counts ec ON ec.log_date = d.date AND ec.category_prefix = c.prefix
-      ORDER BY c.category, d.date;
+        ${groupByFormat} as date,
+        SUM(CASE WHEN action_type LIKE '%ENTRY_%' OR action_type LIKE '%ACCESS_GRANTED%' THEN 1 ELSE 0 END) as entries,
+        SUM(CASE WHEN action_type LIKE '%EXIT_%' OR action_type LIKE '%LOGOUT%' THEN 1 ELSE 0 END) as exits,
+        SUM(CASE WHEN action_type LIKE 'ANOMALY_%' OR action_type LIKE 'SECURITY_%' THEN 1 ELSE 0 END) as anomalies
+      FROM Audit_Logs
+      WHERE ${dateFilter}
+      GROUP BY ${groupByFormat}
+      ORDER BY date ASC
     `);
 
-    const timeSeriesData = {};
-    data.forEach(stat => {
-      if (!timeSeriesData[stat.category]) {
-        timeSeriesData[stat.category] = {
-          category: stat.category,
-          prefix: stat.prefix,
-          dates: [],
-          counts: []
-        };
-      }
-      timeSeriesData[stat.category].dates.push(stat.date);
-      timeSeriesData[stat.category].counts.push(stat.count);
-    });
+    // Format data for Chart.js
+    const labels = timeSeriesData.map(item => item.date);
+    const entries = timeSeriesData.map(item => parseInt(item.entries) || 0);
+    const exits = timeSeriesData.map(item => parseInt(item.exits) || 0);
+    const anomalies = timeSeriesData.map(item => parseInt(item.anomalies) || 0);
 
     res.json({ 
       success: true, 
-      data: Object.values(timeSeriesData)
+      data: {
+        labels,
+        entries,
+        exits,
+        anomalies
+      }
     });
   } catch (err) {
     console.error('Error getting time series data:', err);
@@ -452,14 +608,25 @@ exports.usersCreate = async (req, res) => {
   try {
     const { first_name, last_name, email, role, school_id, department, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Handle profile picture upload
+    let profile_picture = null;
+    if (req.file) {
+      profile_picture = getProfilePictureUrl(req.file.filename);
+    }
+    
+    // Handle department field - convert empty string to null to avoid foreign key constraint error
+    const departmentValue = department && department.trim() !== '' ? department.trim() : null;
+    
     const newUser = await db.User.create({
       first_name,
       last_name,
       email,
       role,
       school_id,
-      department,
-      password_hash: hashedPassword
+      department: departmentValue,
+      password_hash: hashedPassword,
+      profile_picture
     });
     
     await logDataAudit(newUser.id, 'USER_CREATED', {
@@ -468,11 +635,17 @@ exports.usersCreate = async (req, res) => {
       email,
       role,
       school_id,
-      department
+      department: departmentValue,
+      profile_picture: profile_picture ? 'uploaded' : 'none'
     });
 
     res.redirect('/admin/users');
   } catch (err) {
+    // Clean up uploaded file if user creation fails
+    if (req.file) {
+      deleteOldProfilePicture(req.file.filename);
+    }
+    console.error('Error creating user:', err);
     res.status(500).send('Error creating user');
   }
 };
@@ -499,10 +672,32 @@ exports.usersEditForm = async (req, res) => {
 exports.usersEdit = async (req, res) => {
   try {
     const { first_name, last_name, email, role, school_id, department } = req.body;
-    await db.User.update(
-      { first_name, last_name, email, role, school_id, department },
-      { where: { id: req.params.id } }
-    );
+    
+    // Get current user to access old profile picture
+    const currentUser = await db.User.findByPk(req.params.id);
+    if (!currentUser) {
+      return res.status(404).send('User not found');
+    }
+    
+    // Handle profile picture upload
+    const updateData = { first_name, last_name, email, role, school_id };
+    
+    // Handle department field - convert empty string to null to avoid foreign key constraint error
+    if (department && department.trim() !== '') {
+      updateData.department = department.trim();
+    } else {
+      updateData.department = null;
+    }
+    
+    if (req.file) {
+      // Delete old profile picture if it exists
+      if (currentUser.profile_picture) {
+        deleteOldProfilePicture(currentUser.profile_picture);
+      }
+      updateData.profile_picture = getProfilePictureUrl(req.file.filename);
+    }
+    
+    await db.User.update(updateData, { where: { id: req.params.id } });
 
     await logDataAudit(req.params.id, 'USER_UPDATED', {
       first_name,
@@ -510,11 +705,17 @@ exports.usersEdit = async (req, res) => {
       email,
       role,
       school_id,
-      department
+      department: updateData.department,
+      profile_picture_changed: req.file ? 'yes' : 'no'
     });
     
     res.redirect('/admin/users');
   } catch (err) {
+    // Clean up uploaded file if update fails
+    if (req.file) {
+      deleteOldProfilePicture(req.file.filename);
+    }
+    console.error('Error updating user:', err);
     res.status(500).send('Error updating user');
   }
 };
@@ -531,17 +732,27 @@ exports.usersShow = async (req, res) => {
 exports.usersDelete = async (req, res) => {
   try {
     const userToDelete = await db.User.findByPk(req.params.id);
+    if (!userToDelete) {
+      return res.status(404).send('User not found');
+    }
+
+    // Delete profile picture if it exists
+    if (userToDelete.profile_picture) {
+      deleteOldProfilePicture(userToDelete.profile_picture);
+    }
 
     await logDataAudit(req.params.id, 'USER_DELETED', {
       first_name: userToDelete.first_name,
       last_name: userToDelete.last_name,
       email: userToDelete.email,
-      role: userToDelete.role
+      role: userToDelete.role,
+      had_profile_picture: userToDelete.profile_picture ? 'yes' : 'no'
     });
 
     await db.User.destroy({ where: { id: req.params.id } });
     res.redirect('/admin/users');
   } catch (err) {
+    console.error('Error deleting user:', err);
     res.status(500).send('Error deleting user');
   }
 };
@@ -1371,20 +1582,38 @@ exports.departmentsCreateForm = (req, res) => {
   });
 };
 
-exports.departmentsCreate = async (req, res) => {
-  try {
-    const { name, code, description, is_active } = req.body;
+  exports.departmentsCreate = async (req, res) => {
+    try {
+      const { name, code, description, is_active } = req.body;
+
+      // Validate required fields
+      if (!name || !code) {
+        return res.status(400).send('Department name and code are required');
+      }
+
+      // Check for empty strings after trimming
+      if (!name.trim() || !code.trim()) {
+        return res.status(400).send('Department name and code cannot be empty');
+      }
+    
+    // Ensure code is a string and convert to uppercase
+    const departmentCode = String(code).toUpperCase().trim();
+    
+    if (departmentCode.length < 2 || departmentCode.length > 10) {
+      return res.status(400).send('Department code must be between 2 and 10 characters');
+    }
+    
     const newDepartment = await db.Department.create({
-      name,
-      code: code.toUpperCase(),
-      description,
+      name: name.trim(),
+      code: departmentCode,
+      description: description ? description.trim() : null,
       is_active: is_active === 'true' || is_active === true
     });
 
     await logDataAudit(req.session.admin.id, 'DEPARTMENT_CREATED', {
-      name,
-      code: code.toUpperCase(),
-      description,
+      name: name.trim(),
+      code: departmentCode,
+      description: description ? description.trim() : null,
       is_active: is_active === 'true' || is_active === true
     });
 
@@ -1421,10 +1650,23 @@ exports.departmentsEditForm = async (req, res) => {
 exports.departmentsEdit = async (req, res) => {
   try {
     const { name, code, description, is_active } = req.body;
+    
+    // Validate required fields
+    if (!name || !code) {
+      return res.status(400).send('Department name and code are required');
+    }
+    
+    // Ensure code is a string and convert to uppercase
+    const departmentCode = String(code).toUpperCase().trim();
+    
+    if (departmentCode.length < 2 || departmentCode.length > 10) {
+      return res.status(400).send('Department code must be between 2 and 10 characters');
+    }
+    
     const [updatedRows] = await db.Department.update({
-      name,
-      code: code.toUpperCase(),
-      description,
+      name: name.trim(),
+      code: departmentCode,
+      description: description ? description.trim() : null,
       is_active: is_active === 'true' || is_active === true
     }, {
       where: { id: req.params.id }
@@ -1436,9 +1678,9 @@ exports.departmentsEdit = async (req, res) => {
 
     await logDataAudit(req.session.admin.id, 'DEPARTMENT_UPDATED', {
       id: req.params.id,
-      name,
-      code: code.toUpperCase(),
-      description,
+      name: name.trim(),
+      code: departmentCode,
+      description: description ? description.trim() : null,
       is_active: is_active === 'true' || is_active === true
     });
 

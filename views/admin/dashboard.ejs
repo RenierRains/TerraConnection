@@ -1,78 +1,341 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Admin Dashboard</title>
-  <link rel="stylesheet" href="/css/app.css">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
-  <style>
-    .dashboard-container {
-      padding: 20px;
+<style>
+  .dashboard-container {
+    padding: 20px;
+  }
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+  .dashboard-filters {
+    background: var(--bs-secondary-bg);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid var(--bs-border-color);
+  }
+  .quick-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .quick-action-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+  }
+  .quick-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  .stat-card {
+    background: var(--bs-body-bg);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #007bff;
+    border: 1px solid var(--bs-border-color);
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card.entries { border-left-color: #28a745; }
+  .stat-card.exits { border-left-color: #dc3545; }
+  .stat-card.anomalies { border-left-color: #ffc107; }
+  .stat-card.users { border-left-color: #6f42c1; }
+  
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 100%);
+    border-radius: 0 0 0 60px;
+  }
+  
+  .stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  
+  .stat-icon {
+    font-size: 1.5rem;
+    opacity: 0.7;
+  }
+  
+  .stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--bs-body-color);
+    margin-bottom: 5px;
+  }
+  .stat-label {
+    color: var(--bs-secondary-color);
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+  }
+  
+  .stat-trend {
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .trend-up { color: #28a745; }
+  .trend-down { color: #dc3545; }
+  .trend-neutral { color: #6c757d; }
+  
+  .charts-section {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .chart-container {
+    background: var(--bs-body-bg);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid var(--bs-border-color);
+    display: flex;
+    flex-direction: column;
+    height: 400px;
+    min-height: 400px;
+  }
+  
+  .chart-canvas-wrapper {
+    position: relative;
+    height: 320px;
+    width: 100%;
+    flex-grow: 1;
+  }
+  
+  .chart-canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .chart-canvas-container canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100%;
+    max-height: 100%;
+  }
+  
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .chart-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  
+  .chart-controls {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .chart-control-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .chart-control-btn.active {
+    background: var(--bs-primary);
+    color: white;
+    border-color: var(--bs-primary);
+  }
+  
+  .chart-control-btn:hover:not(.active) {
+    background: var(--bs-secondary-bg);
+  }
+  
+  .activities-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  
+  .recent-activities {
+    background: var(--bs-body-bg);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid var(--bs-border-color);
+  }
+  
+  .activity-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .activity-item:last-child {
+    border-bottom: none;
+  }
+  
+  .activity-content {
+    flex: 1;
+  }
+  
+  .activity-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: var(--bs-body-color);
+  }
+  
+  .activity-subtitle {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color);
+    margin-bottom: 4px;
+  }
+  
+  .activity-time {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+  }
+  
+  .activity-status {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .status-success {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+  }
+  
+  .status-warning {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+  }
+  
+  .status-danger {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .status-info {
+    background: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+  }
+  
+  .system-health {
+    background: var(--bs-body-bg);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid var(--bs-border-color);
+  }
+  
+  .health-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  
+  .health-item:last-child {
+    border-bottom: none;
+  }
+  
+  .health-label {
+    font-size: 0.9rem;
+    color: var(--bs-secondary-color);
+  }
+  
+  .health-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  
+  .health-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  
+  .indicator-good { background: #28a745; }
+  .indicator-warning { background: #ffc107; }
+  .indicator-critical { background: #dc3545; }
+  
+  @media (max-width: 768px) {
+    .charts-section {
+      grid-template-columns: 1fr;
     }
-    .dashboard-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30px;
+    
+    .activities-section {
+      grid-template-columns: 1fr;
     }
-    .dashboard-filters {
-      background: #f8f9fa;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 20px;
+    
+    .quick-actions {
+      justify-content: center;
     }
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-    .stat-card {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      border-left: 4px solid #007bff;
-    }
-    .stat-card.entries { border-left-color: #28a745; }
-    .stat-card.exits { border-left-color: #dc3545; }
-    .stat-card.anomalies { border-left-color: #ffc107; }
-    .stat-card.users { border-left-color: #6f42c1; }
-    .stat-number {
-      font-size: 2rem;
-      font-weight: bold;
-      color: #2c3e50;
-    }
-    .stat-label {
-      color: #6c757d;
-      font-size: 0.9rem;
-      margin-top: 5px;
-    }
-    .recent-activities {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .activity-item {
-      padding: 10px 0;
-      border-bottom: 1px solid #eee;
-    }
-    .activity-item:last-child {
-      border-bottom: none;
-    }
-    .activity-time {
-      font-size: 0.8rem;
-      color: #6c757d;
-    }
-  </style>
-</head>
-<body>
-  <div class="dashboard-container">
+  }
+</style>
+
+<div class="dashboard-container">
     <div class="dashboard-header">
-      <h1>Admin Dashboard</h1>
-      <div>
-        <span class="text-muted">Welcome back, <%= admin.first_name %></span>
+      <h1>Dashboard</h1>
+      <div class="d-flex flex-column align-items-end">
+        <span class="text-muted mb-2">Welcome back, <%= admin.first_name %></span>
+        <div class="quick-actions">
+          <a href="/admin/users/create" class="quick-action-btn btn btn-primary btn-sm">
+            <i class="fas fa-user-plus"></i> Add User
+          </a>
+          <a href="/admin/classes/create" class="quick-action-btn btn btn-success btn-sm">
+            <i class="fas fa-plus"></i> Add Class
+          </a>
+          <a href="/admin/rfid-cards/create" class="quick-action-btn btn btn-info btn-sm">
+            <i class="fas fa-credit-card"></i> Add RFID
+          </a>
+          <a href="/admin/dashboard/export" class="quick-action-btn btn btn-outline-primary btn-sm">
+            <i class="fas fa-download"></i> Export
+          </a>
+        </div>
       </div>
     </div>
 
@@ -98,60 +361,693 @@
             <option value="month" <%= selectedDateRange === 'month' ? 'selected' : '' %>>This Month</option>
           </select>
         </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="refreshDashboard">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
       </form>
     </div>
 
-    <!-- Key Statistics -->
+    <!-- Enhanced Statistics -->
     <div class="stats-grid">
       <div class="stat-card entries">
-        <div class="stat-number"><%= stats.totalEntries || 0 %></div>
-        <div class="stat-label">
-          <i class="bi bi-arrow-right-circle"></i> Total Entries
+        <div class="stat-header">
+          <div class="stat-icon text-success">
+            <i class="fas fa-sign-in-alt"></i>
+          </div>
+        </div>
+        <div class="stat-number" id="entriesCount"><%= stats.totalEntries || 0 %></div>
+        <div class="stat-label">Total Entries</div>
+        <div class="stat-trend <%= getTrendClass(stats.trends ? stats.trends.entriesTrend : 0) %>">
+          <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.entriesTrend : 0) %>"></i>
+          <span><%= formatTrend(stats.trends ? stats.trends.entriesTrend : 0) %>% from last period</span>
         </div>
       </div>
       <div class="stat-card exits">
-        <div class="stat-number"><%= stats.totalExits || 0 %></div>
-        <div class="stat-label">
-          <i class="bi bi-arrow-left-circle"></i> Total Exits
+        <div class="stat-header">
+          <div class="stat-icon text-danger">
+            <i class="fas fa-sign-out-alt"></i>
+          </div>
+        </div>
+        <div class="stat-number" id="exitsCount"><%= stats.totalExits || 0 %></div>
+        <div class="stat-label">Total Exits</div>
+        <div class="stat-trend <%= getTrendClass(stats.trends ? stats.trends.exitsTrend : 0) %>">
+          <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.exitsTrend : 0) %>"></i>
+          <span><%= formatTrend(stats.trends ? stats.trends.exitsTrend : 0) %>% from last period</span>
         </div>
       </div>
       <div class="stat-card anomalies">
-        <div class="stat-number"><%= stats.totalAnomalies || 0 %></div>
-        <div class="stat-label">
-          <i class="bi bi-exclamation-triangle"></i> Anomalies
+        <div class="stat-header">
+          <div class="stat-icon text-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+        </div>
+        <div class="stat-number" id="anomaliesCount"><%= stats.totalAnomalies || 0 %></div>
+        <div class="stat-label">Security Anomalies</div>
+        <div class="stat-trend <%= getTrendClass(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>">
+          <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>"></i>
+          <span><%= formatTrend(stats.trends ? stats.trends.anomaliesTrend : 0) %>% from last period</span>
         </div>
       </div>
       <div class="stat-card users">
-        <div class="stat-number"><%= stats.activeUsers || 0 %></div>
-        <div class="stat-label">
-          <i class="bi bi-people"></i> Active Users
+        <div class="stat-header">
+          <div class="stat-icon text-purple">
+            <i class="fas fa-users"></i>
+          </div>
+        </div>
+        <div class="stat-number" id="usersCount"><%= stats.activeUsers || 0 %></div>
+        <div class="stat-label">Active Users</div>
+        <div class="stat-trend <%= getTrendClass(stats.trends ? stats.trends.usersTrend : 0) %>">
+          <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.usersTrend : 0) %>"></i>
+          <span><%= formatTrend(stats.trends ? stats.trends.usersTrend : 0) %>% from last period</span>
         </div>
       </div>
     </div>
 
-    <!-- Recent Activities -->
-    <div class="recent-activities">
-      <h3>Recent Activities</h3>
-      <% if (recentActivities && recentActivities.length > 0) { %>
-        <% recentActivities.forEach(function(activity) { %>
-          <div class="activity-item">
-            <div class="d-flex justify-content-between">
-              <div>
-                <strong><%= activity.action_type %></strong>
-                <% if (activity.User) { %>
-                  - <%= activity.User.first_name %> <%= activity.User.last_name %>
-                <% } %>
+    <!-- Charts Section -->
+    <div class="charts-section">
+      <div class="chart-container">
+        <div class="chart-header">
+          <h5 class="chart-title">Activity Trends</h5>
+          <div class="chart-controls">
+            <button class="chart-control-btn active" data-range="24h">24H</button>
+            <button class="chart-control-btn" data-range="week">Week</button>
+            <button class="chart-control-btn" data-range="month">Month</button>
+            <button class="chart-control-btn" data-range="year">Year</button>
+          </div>
+        </div>
+        <div class="chart-canvas-wrapper">
+          <div class="chart-canvas-container">
+            <canvas id="activityChart"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-header">
+          <h5 class="chart-title">Department Breakdown</h5>
+        </div>
+        <div class="chart-canvas-wrapper">
+          <div class="chart-canvas-container">
+            <canvas id="departmentChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activities and System Health -->
+    <div class="activities-section">
+      <div class="recent-activities">
+        <h5>Recent Activities</h5>
+        <div id="activitiesList">
+          <% if (recentActivities && recentActivities.length > 0) { %>
+            <% recentActivities.forEach(function(activity) { %>
+              <div class="activity-item">
+                <div class="activity-content">
+                  <div class="activity-title"><%= activity.action_type %></div>
+                  <% if (activity.User) { %>
+                    <div class="activity-subtitle"><%= activity.User.first_name %> <%= activity.User.last_name %></div>
+                  <% } %>
+                  <div class="activity-time"><%= new Date(activity.timestamp).toLocaleString() %></div>
+                </div>
+                <div class="activity-status <%= getActivityStatusClass(activity.action_type) %>">
+                  <%= getActivityStatusText(activity.action_type) %>
+                </div>
               </div>
-              <div class="activity-time">
-                <%= new Date(activity.timestamp).toLocaleString() %>
-              </div>
+            <% }); %>
+          <% } else { %>
+            <div class="text-muted text-center py-4">No recent activities found.</div>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="system-health">
+        <h5>System Health</h5>
+        <div id="systemHealthList">
+          <div class="health-item">
+            <span class="health-label">Database</span>
+            <div class="health-status" id="health-database">
+              <span class="health-indicator indicator-good"></span>
+              <span>Checking...</span>
             </div>
           </div>
-        <% }); %>
-      <% } else { %>
-        <p class="text-muted">No recent activities found.</p>
-      <% } %>
+          <div class="health-item">
+            <span class="health-label">RFID Scanners</span>
+            <div class="health-status" id="health-rfid">
+              <span class="health-indicator indicator-good"></span>
+              <span>Checking...</span>
+            </div>
+          </div>
+          <div class="health-item">
+            <span class="health-label">Face Recognition</span>
+            <div class="health-status" id="health-face">
+              <span class="health-indicator indicator-warning"></span>
+              <span>Checking...</span>
+            </div>
+          </div>
+          <div class="health-item">
+            <span class="health-label">API Response</span>
+            <div class="health-status" id="health-api">
+              <span class="health-indicator indicator-good"></span>
+              <span>Checking...</span>
+            </div>
+          </div>
+          <div class="health-item">
+            <span class="health-label">Storage</span>
+            <div class="health-status" id="health-storage">
+              <span class="health-indicator indicator-good"></span>
+              <span>Checking...</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-</body>
-</html>
+
+<!-- Chart.js Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<script>
+// Dashboard JavaScript functionality
+class Dashboard {
+  constructor() {
+    this.activityChart = null;
+    this.departmentChart = null;
+    this.socket = null;
+    this.init();
+  }
+
+  init() {
+    this.initCharts();
+    this.initWebSocket();
+    this.bindEvents();
+    this.loadInitialData();
+  }
+
+  initCharts() {
+    console.log('Initializing charts...');
+    
+    // Activity Trends Chart
+    const activityCanvas = document.getElementById('activityChart');
+    if (!activityCanvas) {
+      console.error('Activity chart canvas not found');
+      return;
+    }
+    
+    const activityWrapper = activityCanvas.closest('.chart-canvas-wrapper');
+    console.log('Activity wrapper dimensions:', {
+      width: activityWrapper?.offsetWidth,
+      height: activityWrapper?.offsetHeight
+    });
+    
+    const activityCtx = activityCanvas.getContext('2d');
+    this.activityChart = new Chart(activityCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Entries',
+            data: [],
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          },
+          {
+            label: 'Exits',
+            data: [],
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          },
+          {
+            label: 'Anomalies',
+            data: [],
+            borderColor: '#ffc107',
+            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'index'
+        },
+        animation: {
+          duration: 0 // Disable animations to prevent infinite loops
+        },
+        scales: {
+          x: {
+            type: 'category',
+            grid: {
+              display: false
+            },
+            ticks: {
+              maxTicksLimit: 12,
+              maxRotation: 45
+            }
+          },
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: 'rgba(0,0,0,0.1)'
+            },
+            ticks: {
+              precision: 0,
+              stepSize: 1
+            },
+            min: 0,
+            suggestedMax: 10 // Start with a reasonable max
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 20
+            }
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false
+          }
+        }
+      }
+    });
+
+    // Department Breakdown Chart
+    const departmentCanvas = document.getElementById('departmentChart');
+    if (!departmentCanvas) {
+      console.error('Department chart canvas not found');
+      return;
+    }
+    const departmentCtx = departmentCanvas.getContext('2d');
+    this.departmentChart = new Chart(departmentCtx, {
+      type: 'doughnut',
+      data: {
+        labels: [],
+        datasets: [{
+          data: [],
+          backgroundColor: [
+            '#007bff',
+            '#28a745',
+            '#dc3545',
+            '#ffc107',
+            '#6f42c1',
+            '#20c997',
+            '#fd7e14',
+            '#17a2b8',
+            '#6610f2'
+          ],
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverBorderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 0 // Disable animations to prevent issues
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 15,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const value = context.parsed || 0;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                return `${label}: ${value} users (${percentage}%)`;
+              }
+            }
+          }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+
+  initWebSocket() {
+    // Use the global socket connection from layout
+    if (typeof window.socket !== 'undefined') {
+      this.socket = window.socket;
+      
+      // Add throttling to prevent excessive updates
+      let lastUpdate = 0;
+      const UPDATE_THROTTLE = 5000; // 5 seconds minimum between updates
+      
+      this.socket.on('dashboardUpdate', (data) => {
+        const now = Date.now();
+        if (now - lastUpdate < UPDATE_THROTTLE) {
+          console.log('Dashboard update throttled');
+          return;
+        }
+        lastUpdate = now;
+        
+        console.log('Dashboard update received:', data);
+        this.updateStatistics(data.stats);
+        this.updateActivities(data.activities);
+      });
+
+      this.socket.on('systemHealth', (data) => {
+        console.log('System health update received:', data);
+        this.updateSystemHealth(data);
+      });
+    } else {
+      console.warn('Socket.IO not available for dashboard updates');
+    }
+  }
+
+  bindEvents() {
+    // Chart control buttons with debouncing
+    let chartUpdateTimeout;
+    document.querySelectorAll('.chart-control-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        // Prevent rapid clicking
+        if (chartUpdateTimeout) {
+          clearTimeout(chartUpdateTimeout);
+        }
+        
+        // Disable all buttons temporarily
+        document.querySelectorAll('.chart-control-btn').forEach(b => {
+          b.classList.remove('active');
+          b.disabled = true;
+        });
+        
+        e.target.classList.add('active');
+        
+        chartUpdateTimeout = setTimeout(() => {
+          this.loadChartData(e.target.dataset.range).finally(() => {
+            // Re-enable buttons
+            document.querySelectorAll('.chart-control-btn').forEach(b => {
+              b.disabled = false;
+            });
+          });
+        }, 300); // 300ms debounce
+      });
+    });
+
+    // Refresh button
+    document.getElementById('refreshDashboard').addEventListener('click', () => {
+      this.refreshData();
+    });
+  }
+
+  async loadInitialData() {
+    await this.loadChartData('24h');
+    await this.loadDepartmentData();
+  }
+
+  async loadChartData(range = '24h') {
+    try {
+      const response = await fetch(`/admin/dashboard/data?range=${range}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        this.updateActivityChart(data.data, range);
+      }
+    } catch (error) {
+      console.error('Error loading chart data:', error);
+    }
+  }
+
+  async loadDepartmentData() {
+    try {
+      const response = await fetch('/admin/dashboard/departments');
+      const result = await response.json();
+      
+      if (result.success && result.data && result.data.labels && result.data.datasets) {
+        // Check if data has actually changed
+        const currentLabels = JSON.stringify(this.departmentChart.data.labels);
+        const newLabels = JSON.stringify(result.data.labels);
+        const currentData = JSON.stringify(this.departmentChart.data.datasets[0].data);
+        const newData = JSON.stringify(result.data.datasets.users);
+        
+        if (currentLabels === newLabels && currentData === newData) {
+          console.log('Department chart data unchanged, skipping update');
+          return;
+        }
+        
+        this.departmentChart.data.labels = result.data.labels;
+        this.departmentChart.data.datasets[0].data = result.data.datasets.users;
+        this.departmentChart.update('none'); // Update without animation
+      } else {
+        console.warn('No department data available or invalid format:', result);
+        // Only set fallback data if chart is empty
+        if (this.departmentChart.data.labels.length === 0) {
+          this.departmentChart.data.labels = ['No Data'];
+          this.departmentChart.data.datasets[0].data = [1];
+          this.departmentChart.update('none');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading department data:', error);
+      // Only set fallback data if chart is empty
+      if (this.departmentChart.data.labels.length === 0) {
+        this.departmentChart.data.labels = ['Error Loading Data'];
+        this.departmentChart.data.datasets[0].data = [1];
+        this.departmentChart.update('none');
+      }
+    }
+  }
+
+  updateActivityChart(data, range) {
+    if (!data || !data.labels || !this.activityChart) {
+      console.warn('No chart data available or chart not initialized');
+      return;
+    }
+    
+    // Prevent unnecessary updates if data hasn't changed
+    const currentLabels = JSON.stringify(this.activityChart.data.labels);
+    const newLabels = JSON.stringify(data.labels);
+    const currentEntries = JSON.stringify(this.activityChart.data.datasets[0].data);
+    const newEntries = JSON.stringify(data.entries || []);
+    
+    if (currentLabels === newLabels && currentEntries === newEntries) {
+      console.log('Chart data unchanged, skipping update');
+      return;
+    }
+    
+    // Update data
+    this.activityChart.data.labels = data.labels;
+    this.activityChart.data.datasets[0].data = data.entries || [];
+    this.activityChart.data.datasets[1].data = data.exits || [];
+    this.activityChart.data.datasets[2].data = data.anomalies || [];
+    
+    // Calculate appropriate Y-axis max based on data
+    const allValues = [
+      ...(data.entries || []),
+      ...(data.exits || []),
+      ...(data.anomalies || [])
+    ];
+    const maxValue = Math.max(...allValues, 0);
+    const suggestedMax = Math.max(10, Math.ceil(maxValue * 1.2)); // 20% padding
+    
+    // Update Y-axis scale only if significantly different
+    const currentMax = this.activityChart.options.scales.y.suggestedMax;
+    if (Math.abs(suggestedMax - currentMax) > currentMax * 0.3) {
+      this.activityChart.options.scales.y.suggestedMax = suggestedMax;
+    }
+    
+    // Update chart without animation
+    this.activityChart.update('none');
+  }
+
+  updateStatistics(stats) {
+    if (stats) {
+      document.getElementById('entriesCount').textContent = stats.totalEntries || 0;
+      document.getElementById('exitsCount').textContent = stats.totalExits || 0;
+      document.getElementById('anomaliesCount').textContent = stats.totalAnomalies || 0;
+      document.getElementById('usersCount').textContent = stats.activeUsers || 0;
+    }
+  }
+
+  updateActivities(activities) {
+    if (activities && activities.length > 0) {
+      const activitiesList = document.getElementById('activitiesList');
+      activitiesList.innerHTML = activities.map(activity => `
+        <div class="activity-item">
+          <div class="activity-content">
+            <div class="activity-title">${activity.action_type}</div>
+            ${activity.User ? `<div class="activity-subtitle">${activity.User.first_name} ${activity.User.last_name}</div>` : ''}
+            <div class="activity-time">${new Date(activity.timestamp).toLocaleString()}</div>
+          </div>
+          <div class="activity-status ${this.getActivityStatusClass(activity.action_type)}">
+            ${this.getActivityStatusText(activity.action_type)}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  updateSystemHealth(healthData) {
+    console.log('System health update:', healthData);
+    
+    if (!healthData) return;
+    
+    // Update each health indicator
+    const healthItems = {
+      'database': healthData.database,
+      'rfid': healthData.rfidScanners,
+      'face': healthData.faceRecognition,
+      'api': healthData.apiResponse,
+      'storage': healthData.storage
+    };
+    
+    Object.keys(healthItems).forEach(key => {
+      const item = healthItems[key];
+      if (item) {
+        const statusElement = document.getElementById(`health-${key}`);
+        if (statusElement) {
+          const indicator = statusElement.querySelector('.health-indicator');
+          const text = statusElement.querySelector('span:last-child');
+          
+          // Update indicator color
+          indicator.className = `health-indicator indicator-${item.status}`;
+          
+          // Update status text
+          text.textContent = item.message;
+        }
+      }
+    });
+  }
+
+  getActivityStatusClass(actionType) {
+    if (actionType.includes('SUCCESS') || actionType.includes('ENTRY') || actionType.includes('EXIT')) {
+      return 'status-success';
+    } else if (actionType.includes('ANOMALY') || actionType.includes('FAILED')) {
+      return 'status-danger';
+    } else if (actionType.includes('WARNING')) {
+      return 'status-warning';
+    }
+    return 'status-info';
+  }
+
+  getActivityStatusText(actionType) {
+    if (actionType.includes('SUCCESS')) return 'Success';
+    if (actionType.includes('FAILED')) return 'Failed';
+    if (actionType.includes('ANOMALY')) return 'Alert';
+    if (actionType.includes('WARNING')) return 'Warning';
+    return 'Info';
+  }
+
+  refreshData() {
+    const refreshBtn = document.getElementById('refreshDashboard');
+    const icon = refreshBtn.querySelector('i');
+    
+    // Prevent multiple refreshes
+    if (refreshBtn.disabled) return;
+    
+    refreshBtn.disabled = true;
+    icon.style.animation = 'spin 1s linear infinite';
+    
+    this.loadInitialData().then(() => {
+      setTimeout(() => {
+        icon.style.animation = '';
+        refreshBtn.disabled = false;
+      }, 2000); // 2 second cooldown
+    }).catch(() => {
+      setTimeout(() => {
+        icon.style.animation = '';
+        refreshBtn.disabled = false;
+      }, 2000);
+    });
+  }
+}
+
+// Initialize dashboard when DOM is loaded (prevent multiple instances)
+document.addEventListener('DOMContentLoaded', () => {
+  if (!window.dashboardInstance) {
+    // Add a small delay to ensure DOM elements are properly rendered
+    setTimeout(() => {
+      window.dashboardInstance = new Dashboard();
+    }, 100);
+  }
+});
+
+// CSS animation for refresh button
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(style);
+</script>
+
+<%
+// Helper functions for activity status
+function getActivityStatusClass(actionType) {
+  if (actionType.includes('SUCCESS') || actionType.includes('ENTRY') || actionType.includes('EXIT')) {
+    return 'status-success';
+  } else if (actionType.includes('ANOMALY') || actionType.includes('FAILED')) {
+    return 'status-danger';
+  } else if (actionType.includes('WARNING')) {
+    return 'status-warning';
+  }
+  return 'status-info';
+}
+
+function getActivityStatusText(actionType) {
+  if (actionType.includes('SUCCESS')) return 'Success';
+  if (actionType.includes('FAILED')) return 'Failed';
+  if (actionType.includes('ANOMALY')) return 'Alert';
+  if (actionType.includes('WARNING')) return 'Warning';
+  return 'Info';
+}
+
+// Helper functions for trend display
+function getTrendClass(value, inverse = false) {
+  const numValue = parseFloat(value);
+  if (isNaN(numValue) || numValue === 0) return 'trend-neutral';
+  
+  if (inverse) {
+    // For anomalies, down is good (green), up is bad (red)
+    return numValue > 0 ? 'trend-down' : 'trend-up';
+  } else {
+    // For normal metrics, up is good (green), down is bad (red)
+    return numValue > 0 ? 'trend-up' : 'trend-down';
+  }
+}
+
+function getTrendIcon(value, inverse = false) {
+  const numValue = parseFloat(value);
+  if (isNaN(numValue) || numValue === 0) return 'fa-minus';
+  
+  if (inverse) {
+    return numValue > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+  } else {
+    return numValue > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+  }
+}
+
+function formatTrend(value) {
+  const numValue = parseFloat(value);
+  if (isNaN(numValue) || numValue === 0) return '0';
+  if (!isFinite(numValue)) return '0'; // Handle Infinity cases
+  return numValue > 0 ? `+${numValue}` : `${numValue}`;
+}
+%>

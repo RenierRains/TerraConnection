@@ -1,12 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Manage Users</title>
-  <link rel="stylesheet" href="/css/app.css">
-</head>
-<body>
-  <div class="container mt-5">
+<div class="container mt-5">
     <h2>Users</h2>
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div>
@@ -31,6 +23,7 @@
       <thead>
         <tr>
           <th>ID</th>
+          <th>Profile</th>
           <th>Name</th>
           <th>Email</th>
           <th>Role</th>
@@ -42,6 +35,15 @@
         <% users.forEach(function(user){ %>
           <tr>
             <td><%= user.id %></td>
+            <td>
+              <% if (user.profile_picture) { %>
+                <img src="/uploads/profile_pics/<%= user.profile_picture %>" alt="Profile" class="profile-thumbnail">
+              <% } else { %>
+                <div class="profile-initials">
+                  <%= user.first_name.charAt(0).toUpperCase() %><%= user.last_name.charAt(0).toUpperCase() %>
+                </div>
+              <% } %>
+            </td>
             <td><%= user.first_name %> <%= user.last_name %></td>
             <td><%= user.email %></td>
             <td><%= user.role %></td>
@@ -144,5 +146,3 @@
       </script>
     <% } %>
   </div>
-</body>
-</html>

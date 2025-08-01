@@ -10,7 +10,13 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('entry','exit'),
       allowNull: false
     },
-    location: DataTypes.STRING(100)
+    location: DataTypes.STRING(100),
+    face_verification_status: {
+      type: DataTypes.ENUM('pending', 'verified', 'failed', 'skipped'),
+      allowNull: true,
+      defaultValue: 'pending',
+      comment: 'Status of face verification after RFID scan'
+    }
   }, {
     tableName: 'Entry_Exit_Logs',
     underscored: true

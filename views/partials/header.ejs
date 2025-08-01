@@ -1,19 +1,230 @@
 <header>
     <div class="logo">
-        <button id="sidebarToggle" class="sidebar-toggle">
+        <button id="sidebarToggle" class="sidebar-toggle" title="Toggle Sidebar">
             <i class="fas fa-bars"></i>
         </button>
         <img src="/logoF.png" alt="TerraConnection" class="logo-img">
     </div>
+    
     <div class="search-container">
         <div class="search-box">
-            <input type="text" id="globalSearch" placeholder="Search users, classes, RFID cards...">
+            <input type="text" id="globalSearch" placeholder="Search users, classes, departments..." autocomplete="off">
             <i class="fas fa-search search-icon"></i>
+            <div id="searchResults" class="search-results"></div>
         </div>
-        <div id="searchResults" class="search-results"></div>
     </div>
-    <div class="user-info">
-        <span>Welcome, <%= admin.first_name %> <%= admin.last_name %>!</span>
+    
+    <div class="header-actions d-flex align-items-center gap-3">
+        <!-- Theme Toggle -->
+        <button class="theme-toggle" title="Toggle theme">
+            <i class="fas fa-moon" id="themeIcon"></i>
+        </button>
+        
+        <!-- Notification Bell -->
+        <div class="dropdown">
+            <button class="btn btn-link text-decoration-none position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="color: var(--text-light);">
+                <i class="fas fa-bell"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notificationBadge" style="display: none;">
+                    0
+                </span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" style="width: 300px;">
+                <li><h6 class="dropdown-header">Notifications</h6></li>
+                <li><hr class="dropdown-divider"></li>
+                <li id="notificationList">
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-bell-slash mb-2"></i>
+                        <p class="mb-0">No new notifications</p>
+                    </div>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-center" href="/admin/notifications">View all notifications</a></li>
+            </ul>
+        </div>
+        
+        <!-- User Dropdown -->
+        <div class="dropdown user-dropdown">
+            <button class="btn btn-link text-decoration-none d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="color: var(--text-light);">
+                <div class="user-avatar">
+                    <%= admin.first_name.charAt(0).toUpperCase() %><%= admin.last_name.charAt(0).toUpperCase() %>
+                </div>
+                <span class="d-none d-md-inline"><%= admin.first_name %> <%= admin.last_name %></span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><h6 class="dropdown-header">User Menu</h6></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/admin/logout">
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                </a></li>
+            </ul>
+        </div>
     </div>
 </header>
+
+<script>
+$(document).ready(function() {
+    // Global search functionality
+    let searchTimeout;
+    const searchInput = $('#globalSearch');
+    const searchResults = $('#searchResults');
+    
+    searchInput.on('input', function() {
+        const query = $(this).val().trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            searchResults.hide();
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, 300);
+    });
+    
+    function performSearch(query) {
+        $.ajax({
+            url: '/admin/api/search',
+            method: 'GET',
+            data: { q: query },
+            success: function(response) {
+                displaySearchResults(response);
+            },
+            error: function() {
+                searchResults.html('<div class="search-result-item text-muted">Search temporarily unavailable</div>');
+                searchResults.show();
+            }
+        });
+    }
+    
+    function displaySearchResults(results) {
+        if (!results || results.length === 0) {
+            searchResults.html('<div class="search-result-item text-muted">No results found</div>');
+            searchResults.show();
+            return;
+        }
+        
+        let html = '';
+        results.forEach(item => {
+            const icon = getItemIcon(item.type);
+            const url = getItemUrl(item.type, item.id);
+            html += `
+                <a href="${url}" class="search-result-item">
+                    <div class="d-flex align-items-center">
+                        <i class="${icon} me-2"></i>
+                        <div>
+                            <div class="result-title">${item.title}</div>
+                            <div class="result-type">${item.type}</div>
+                        </div>
+                    </div>
+                </a>
+            `;
+        });
+        
+        searchResults.html(html);
+        searchResults.show();
+    }
+    
+    function getItemIcon(type) {
+        const icons = {
+            'user': 'fas fa-user',
+            'department': 'fas fa-building',
+            'class': 'fas fa-chalkboard',
+            'rfid-card': 'fas fa-id-card'
+        };
+        return icons[type] || 'fas fa-file';
+    }
+    
+    function getItemUrl(type, id) {
+        const urls = {
+            'user': `/admin/users/${id}`,
+            'department': `/admin/departments/${id}`,
+            'class': `/admin/classes/${id}`,
+            'rfid-card': `/admin/rfid-cards/${id}`
+        };
+        return urls[type] || '#';
+    }
+    
+    // Hide search results when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.search-container').length) {
+            searchResults.hide();
+        }
+    });
+    
+    // Theme icon update
+    function updateThemeIcon() {
+        const theme = $('html').attr('data-bs-theme');
+        const icon = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+        $('#themeIcon').attr('class', icon);
+    }
+    
+    // Initial theme icon
+    updateThemeIcon();
+    
+    // Listen for theme changes from layout.ejs
+    $(document).on('themeChanged', function() {
+        updateThemeIcon();
+    });
+    
+    // Mock notifications (replace with real API call)
+    function loadNotifications() {
+        // Simulate loading notifications
+        setTimeout(() => {
+            const mockNotifications = [
+                {
+                    id: 1,
+                    title: 'New user registered',
+                    message: 'John Doe has been added to the system',
+                    time: '2 minutes ago',
+                    type: 'info'
+                },
+                {
+                    id: 2,
+                    title: 'System alert',
+                    message: 'RFID scanner #1 is offline',
+                    time: '5 minutes ago',
+                    type: 'warning'
+                }
+            ];
+            
+            if (mockNotifications.length > 0) {
+                $('#notificationBadge').text(mockNotifications.length).show();
+                
+                let notificationHtml = '';
+                mockNotifications.forEach(notification => {
+                    const iconClass = {
+                        'info': 'fas fa-info-circle text-info',
+                        'warning': 'fas fa-exclamation-triangle text-warning',
+                        'error': 'fas fa-exclamation-circle text-danger',
+                        'success': 'fas fa-check-circle text-success'
+                    }[notification.type] || 'fas fa-info-circle text-info';
+                    
+                    notificationHtml += `
+                        <li>
+                            <a class="dropdown-item" href="#">
+                                <div class="d-flex align-items-start">
+                                    <i class="${iconClass} me-2 mt-1"></i>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold">${notification.title}</div>
+                                        <div class="small text-muted">${notification.message}</div>
+                                        <div class="small text-muted">${notification.time}</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </li>
+                    `;
+                });
+                
+                $('#notificationList').html(notificationHtml);
+            }
+        }, 1000);
+    }
+    
+    // Load notifications on page load
+    loadNotifications();
+});
+</script>
   
