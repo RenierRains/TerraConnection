@@ -707,6 +707,54 @@ canvas {
   height: auto;
 }
 
+/* MODAL FIXES - HIGHEST PRIORITY */
+.modal {
+  z-index: 10060 !important;
+  position: fixed !important;
+}
+
+.modal-backdrop {
+  z-index: 10050 !important;
+}
+
+.modal-dialog {
+  z-index: 10061 !important;
+  position: relative !important;
+}
+
+.modal-content {
+  z-index: 10062 !important;
+  position: relative !important;
+}
+
+/* Force modals to be visible and interactive */
+.modal.show {
+  display: block !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.modal-backdrop.show {
+  opacity: 0.5 !important;
+}
+
+/* Override Bootstrap modal positioning */
+html .modal {
+  z-index: 10060 !important;
+}
+
+html .modal-backdrop {
+  z-index: 10050 !important;
+}
+
+body .modal {
+  z-index: 10060 !important;
+}
+
+body .modal-backdrop {
+  z-index: 10050 !important;
+}
+
 /* Dashboard Layout */
 .dashboard-container {
   padding: 20px;

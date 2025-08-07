@@ -39,8 +39,17 @@ router.get('/users/create', adminWebController.usersCreateForm);
 router.post('/users', profileUpload.single('profile_picture'), adminWebController.usersCreate);
 router.get('/users/:id', adminWebController.usersShow);
 router.get('/users/:id/edit', adminWebController.usersEditForm);
+router.get('/users/:id/edit-content', adminWebController.usersEditContent);
 router.put('/users/:id', profileUpload.single('profile_picture'), adminWebController.usersEdit);
 router.delete('/users/:id', adminWebController.usersDelete);
+
+// Bulk actions
+router.post('/users/bulk-delete', adminWebController.usersBulkDelete);
+router.post('/users/bulk-export', adminWebController.usersBulkExport);
+router.post('/users/bulk-department-change', adminWebController.usersBulkDepartmentChange);
+
+// Quick edit
+router.post('/users/quick-edit', adminWebController.usersQuickEdit);
 
 router.get('/departments', adminWebController.departmentsIndex);
 router.get('/departments/create', adminWebController.departmentsCreateForm);

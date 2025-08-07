@@ -1,78 +1,364 @@
-<div class="container mt-5">
-    <h2>Users</h2>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <a href="/admin/users/create" class="btn btn-success" data-modal="true">Add New User</a>
-        <a href="/admin/users/import" class="btn btn-info" data-modal="true">Import Users</a>
-      </div>
-      <div class="d-flex align-items-center">
-        <form method="GET" class="d-flex me-3">
-          <select name="department" class="form-select form-select-sm me-2" onchange="this.form.submit()">
-            <option value="">All Departments</option>
-            <% departments.forEach(function(dept){ %>
-              <option value="<%= dept.code %>" <%= req.query.department === dept.code ? 'selected' : '' %>><%= dept.code %></option>
-            <% }) %>
-          </select>
-          <input type="hidden" name="page" value="<%= currentPage %>">
-        </form>
-        <span class="text-muted">Total Users: <%= totalUsers %></span>
+<div class="container-fluid mt-4">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">User Management</h2>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+          <li class="breadcrumb-item active">Users</li>
+        </ol>
+      </nav>
+    </div>
+         <div class="d-flex gap-2">
+       <a href="/admin/users/create" class="btn btn-success" data-modal="true">
+         <i class="fas fa-plus me-1"></i>Add User
+       </a>
+       <a href="/admin/users/import" class="btn btn-info" data-modal="true">
+         <i class="fas fa-upload me-1"></i>Import
+       </a>
+     </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0"><%= statistics.total %></h4>
+              <small>Total Users</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-users fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0"><%= statistics.roles.student || 0 %></h4>
+              <small>Students</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-graduation-cap fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0"><%= statistics.roles.professor || 0 %></h4>
+              <small>Professors</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-chalkboard-teacher fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0"><%= Object.keys(statistics.departments).length %></h4>
+              <small>Departments</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-building fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Profile</th>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Role</th>
-          <th>Department</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% users.forEach(function(user){ %>
-          <tr>
-            <td><%= user.id %></td>
-            <td>
-              <% if (user.profile_picture) { %>
-                <img src="/uploads/profile_pics/<%= user.profile_picture %>" alt="Profile" class="profile-thumbnail">
-              <% } else { %>
-                <div class="profile-initials">
-                  <%= user.first_name.charAt(0).toUpperCase() %><%= user.last_name.charAt(0).toUpperCase() %>
-                </div>
-              <% } %>
-            </td>
-            <td><%= user.first_name %> <%= user.last_name %></td>
-            <td><%= user.email %></td>
-            <td><%= user.role %></td>
-            <td><%= user.department || '-' %></td>
-            <td>
-              <a href="/admin/users/<%= user.id %>" class="btn btn-info btn-sm" data-modal="true">View</a>
-              <a href="/admin/users/<%= user.id %>/edit" class="btn btn-warning btn-sm" data-modal="true">Edit</a>
-              <form action="/admin/users/<%= user.id %>?_method=DELETE" method="POST" style="display:inline-block">
-                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
-              </form>
-            </td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
+  <!-- Advanced Filters -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">
+        <i class="fas fa-filter me-2"></i>Advanced Filters
+      </h5>
+    </div>
+    <div class="card-body">
+      <form method="GET" id="filterForm">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-control" placeholder="Name, email, or ID" 
+                   value="<%= filters.search || '' %>">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Department</label>
+            <select name="department" class="form-select">
+              <option value="">All Departments</option>
+              <% departments.forEach(function(dept){ %>
+                <option value="<%= dept.code %>" <%= filters.department === dept.code ? 'selected' : '' %>>
+                  <%= dept.name %> (<%= dept.code %>)
+                </option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Role</label>
+            <select name="role" class="form-select">
+              <option value="">All Roles</option>
+              <option value="student" <%= filters.role === 'student' ? 'selected' : '' %>>Student</option>
+              <option value="professor" <%= filters.role === 'professor' ? 'selected' : '' %>>Professor</option>
+              <option value="guardian" <%= filters.role === 'guardian' ? 'selected' : '' %>>Guardian</option>
+              <option value="admin" <%= filters.role === 'admin' ? 'selected' : '' %>>Admin</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+              <option value="">All Status</option>
+              <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+              <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Sort By</label>
+            <select name="sortBy" class="form-select">
+              <option value="id" <%= filters.sortBy === 'id' ? 'selected' : '' %>>ID</option>
+              <option value="first_name" <%= filters.sortBy === 'first_name' ? 'selected' : '' %>>First Name</option>
+              <option value="last_name" <%= filters.sortBy === 'last_name' ? 'selected' : '' %>>Last Name</option>
+              <option value="email" <%= filters.sortBy === 'email' ? 'selected' : '' %>>Email</option>
+              <option value="role" <%= filters.sortBy === 'role' ? 'selected' : '' %>>Role</option>
+              <option value="department" <%= filters.sortBy === 'department' ? 'selected' : '' %>>Department</option>
+            </select>
+          </div>
+          <div class="col-md-1">
+            <label class="form-label">Order</label>
+            <select name="sortOrder" class="form-select">
+              <option value="ASC" <%= filters.sortOrder === 'ASC' ? 'selected' : '' %>>↑</option>
+              <option value="DESC" <%= filters.sortOrder === 'DESC' ? 'selected' : '' %>>↓</option>
+            </select>
+          </div>
+        </div>
+        <div class="row mt-3">
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary me-2">
+              <i class="fas fa-search me-1"></i>Apply Filters
+            </button>
+            <a href="/admin/users" class="btn btn-outline-secondary">
+              <i class="fas fa-times me-1"></i>Clear
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
 
-    <% if (totalPages > 1) { %>
-      <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
+  <!-- Bulk Actions -->
+  <div class="card mb-4" id="bulkActionsCard" style="display: none;">
+    <div class="card-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+          <i class="fas fa-tasks me-2"></i>Bulk Actions
+          <span id="selectedCount" class="badge bg-primary ms-2">0</span>
+        </h6>
+        <button type="button" class="btn-close" onclick="clearBulkSelection()"></button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-danger" onclick="bulkDelete()">
+          <i class="fas fa-trash me-1"></i>Delete Selected
+        </button>
+        <button type="button" class="btn btn-success" onclick="bulkExport()">
+          <i class="fas fa-download me-1"></i>Export Selected
+        </button>
+        <div class="dropdown">
+          <button class="btn btn-warning dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="fas fa-building me-1"></i>Change Department
+          </button>
+          <ul class="dropdown-menu">
+            <% departments.forEach(function(dept){ %>
+              <li><a class="dropdown-item" href="#" onclick="bulkDepartmentChange('<%= dept.code %>')">
+                <%= dept.name %> (<%= dept.code %>)
+              </a></li>
+            <% }) %>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users Table -->
+  <div class="card">
+    <div class="card-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Users (<%= totalUsers %> total)</h5>
+        <div class="d-flex align-items-center gap-2">
+          <label class="form-label mb-0">Page Size:</label>
+          <select class="form-select form-select-sm" style="width: auto;" onchange="changePageSize(this.value)">
+            <% pagination.pageSizeOptions.forEach(function(size){ %>
+              <option value="<%= size %>" <%= pagination.limit === size ? 'selected' : '' %>><%= size %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th width="40">
+                <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+              </th>
+              <th width="60">ID</th>
+              <th width="80">Profile</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th width="100">Role</th>
+              <th width="120">Department</th>
+              <th width="100">Status</th>
+              <th width="120">Last Activity</th>
+              <th width="200">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% users.forEach(function(user){ %>
+              <tr class="user-row" data-user-id="<%= user.id %>">
+                <td>
+                  <input type="checkbox" class="form-check-input user-checkbox" value="<%= user.id %>" onchange="updateBulkActions()">
+                </td>
+                <td><%= user.id %></td>
+                <td>
+                  <div class="profile-picture-container">
+                    <% if (user.profile_picture) { %>
+                      <img src="/uploads/profile_pics/<%= user.profile_picture %>" 
+                           alt="Profile" class="profile-thumbnail" 
+                           data-bs-toggle="tooltip" 
+                           title="<%= user.first_name %> <%= user.last_name %>">
+                    <% } else { %>
+                      <div class="profile-initials" 
+                           data-bs-toggle="tooltip" 
+                           title="<%= user.first_name %> <%= user.last_name %>">
+                        <%= user.first_name.charAt(0).toUpperCase() %><%= user.last_name.charAt(0).toUpperCase() %>
+                      </div>
+                    <% } %>
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex flex-column">
+                    <strong><%= user.first_name %> <%= user.last_name %></strong>
+                    <% if (user.school_id) { %>
+                      <small class="text-muted">ID: <%= user.school_id %></small>
+                    <% } %>
+                  </div>
+                </td>
+                <td>
+                  <span class="text-break"><%= user.email %></span>
+                </td>
+                <td>
+                  <span class="badge bg-<%= user.role === 'admin' ? 'danger' : user.role === 'professor' ? 'warning' : user.role === 'guardian' ? 'info' : 'success' %>">
+                    <%= user.role.charAt(0).toUpperCase() + user.role.slice(1) %>
+                  </span>
+                </td>
+                <td>
+                  <% if (user.department) { %>
+                    <span class="badge bg-secondary"><%= user.department %></span>
+                  <% } else { %>
+                    <span class="text-muted">-</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (user.isActive) { %>
+                    <span class="badge bg-success">
+                      <i class="fas fa-circle me-1"></i>Active
+                    </span>
+                  <% } else { %>
+                    <span class="badge bg-secondary">
+                      <i class="fas fa-circle me-1"></i>Inactive
+                    </span>
+                  <% } %>
+                </td>
+                <td>
+                  <small class="text-muted">
+                    <% if (user.daysSinceActivity === 0) { %>
+                      Today
+                    <% } else if (user.daysSinceActivity === 1) { %>
+                      Yesterday
+                    <% } else if (user.daysSinceActivity < 7) { %>
+                      <%= user.daysSinceActivity %> days ago
+                    <% } else { %>
+                      <%= Math.floor(user.daysSinceActivity / 7) %> weeks ago
+                    <% } %>
+                  </small>
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm" role="group">
+                    <a href="/admin/users/<%= user.id %>" class="btn btn-outline-info" 
+                       data-bs-toggle="tooltip" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                                         <button type="button" class="btn btn-outline-warning quick-edit-btn" 
+                             data-user-id="<%= user.id %>" data-field="first_name" data-value="<%= user.first_name %>"
+                             data-bs-toggle="tooltip" title="Quick Edit Name">
+                       <i class="fas fa-edit"></i>
+                     </button>
+                     <button type="button" class="btn btn-outline-info quick-edit-btn" 
+                             data-user-id="<%= user.id %>" data-field="role" data-value="<%= user.role %>"
+                             data-bs-toggle="tooltip" title="Quick Edit Role">
+                       <i class="fas fa-user-tag"></i>
+                     </button>
+                     <button type="button" class="btn btn-outline-secondary quick-edit-btn" 
+                             data-user-id="<%= user.id %>" data-field="department" data-value="<%= user.department %>"
+                             data-bs-toggle="tooltip" title="Quick Edit Department">
+                       <i class="fas fa-building"></i>
+                     </button>
+                                       <a href="/admin/users/<%= user.id %>/edit" class="btn btn-outline-primary"
+                     data-modal="true"
+                     data-bs-toggle="tooltip" title="Full Edit">
+                    <i class="fas fa-cog"></i>
+                  </a>
+                     <button type="button" class="btn btn-outline-danger delete-user-btn" 
+                             data-user-id="<%= user.id %>" data-user-name="<%= user.first_name %> <%= user.last_name %>"
+                             data-bs-toggle="tooltip" title="Delete">
+                       <i class="fas fa-trash"></i>
+                     </button>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <% if (totalPages > 1) { %>
+    <div class="d-flex justify-content-between align-items-center mt-4">
+      <div class="text-muted">
+        Showing <%= ((currentPage - 1) * pagination.limit) + 1 %> to <%= Math.min(currentPage * pagination.limit, totalUsers) %> of <%= totalUsers %> users
+      </div>
+      <nav aria-label="Page navigation">
+        <ul class="pagination mb-0">
           <!-- First page -->
           <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/users?page=1" aria-label="First">
-              <span aria-hidden="true">&laquo;</span>
+            <a class="page-link" href="?page=1<%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>" aria-label="First">
+              <i class="fas fa-angle-double-left"></i>
             </a>
           </li>
           <!-- Previous page -->
           <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/users?page=<%= currentPage - 1 %>" aria-label="Previous">
-              <span aria-hidden="true">&lt;</span>
+                         <a class="page-link" href="?page=<%= currentPage - 1 %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>" aria-label="Previous">
+              <i class="fas fa-angle-left"></i>
             </a>
           </li>
           
@@ -86,7 +372,7 @@
 
             if (startPage > 1) { %>
               <li class="page-item">
-                <a class="page-link" href="/admin/users?page=1">1</a>
+                                 <a class="page-link" href="?page=1<%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>">1</a>
               </li>
               <% if (startPage > 2) { %>
                 <li class="page-item disabled">
@@ -97,7 +383,7 @@
 
             <% for(let i = startPage; i <= endPage; i++) { %>
               <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-                <a class="page-link" href="/admin/users?page=<%= i %>"><%= i %></a>
+                                 <a class="page-link" href="?page=<%= i %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>"><%= i %></a>
               </li>
             <% } %>
 
@@ -108,41 +394,618 @@
                 </li>
               <% } %>
               <li class="page-item">
-                <a class="page-link" href="/admin/users?page=<%= totalPages %>"><%= totalPages %></a>
+                                 <a class="page-link" href="?page=<%= totalPages %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>"><%= totalPages %></a>
               </li>
             <% } %>
           
           <!-- Next page -->
           <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/users?page=<%= currentPage + 1 %>" aria-label="Next">
-              <span aria-hidden="true">&gt;</span>
+                         <a class="page-link" href="?page=<%= currentPage + 1 %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>" aria-label="Next">
+              <i class="fas fa-angle-right"></i>
             </a>
           </li>
           <!-- Last page -->
           <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/users?page=<%= totalPages %>" aria-label="Last">
-              <span aria-hidden="true">&raquo;</span>
+                         <a class="page-link" href="?page=<%= totalPages %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>" aria-label="Last">
+              <i class="fas fa-angle-double-right"></i>
             </a>
           </li>
         </ul>
-        <!-- Page number input -->
-        <div class="d-flex justify-content-center mt-2">
-          <form class="d-flex align-items-center" onsubmit="event.preventDefault(); goToPage(this);" data-total-pages="<%= totalPages %>">
-            <label class="me-2 mb-0">Go to page:</label>
-            <input type="number" class="form-control form-control-sm" style="width: 70px;" min="1" max="<%= totalPages %>" value="<%= currentPage %>">
-            <button type="submit" class="btn btn-primary btn-sm ms-2">Go</button>
-          </form>
-        </div>
       </nav>
-      
-      <script>
-        function goToPage(form) {
-          const page = form.querySelector('input[type="number"]').value;
-          const maxPages = parseInt(form.dataset.totalPages);
-          if (page >= 1 && page <= maxPages) {
-            window.location.href = '/admin/users?page=' + page;
-          }
-        }
-      </script>
-    <% } %>
+    </div>
+  <% } %>
+</div>
+
+<!-- Using global modal system - no custom modals needed -->
+
+<!-- Bulk Department Change Modal -->
+<div class="modal fade" id="bulkDepartmentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Change Department</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to change the department for <span id="bulkDeptCount">0</span> selected users?</p>
+        <div class="mb-3">
+          <label class="form-label">New Department</label>
+          <select class="form-select" id="newDepartmentSelect">
+            <option value="">Select Department</option>
+            <% departments.forEach(function(dept){ %>
+              <option value="<%= dept.code %>"><%= dept.name %> (<%= dept.code %>)</option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-warning" onclick="confirmBulkDepartmentChange()">Change Department</button>
+      </div>
+    </div>
   </div>
+</div>
+
+<script>
+// Helper function to build pagination URLs with current filters
+function buildPaginationUrl(page) {
+  const url = new URL(window.location);
+  url.searchParams.set('page', page);
+  return url.toString();
+}
+
+// Change page size
+function changePageSize(size) {
+  const url = new URL(window.location);
+  url.searchParams.set('limit', size);
+  url.searchParams.set('page', '1');
+  window.location.href = url.toString();
+}
+
+// Bulk actions
+let selectedUsers = [];
+
+function toggleSelectAll() {
+  const selectAll = document.getElementById('selectAll');
+  const checkboxes = document.querySelectorAll('.user-checkbox');
+  
+  checkboxes.forEach(checkbox => {
+    checkbox.checked = selectAll.checked;
+  });
+  
+  updateBulkActions();
+}
+
+function updateBulkActions() {
+  const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+  selectedUsers = Array.from(checkboxes).map(cb => cb.value);
+  
+  const bulkCard = document.getElementById('bulkActionsCard');
+  const selectedCount = document.getElementById('selectedCount');
+  
+  if (selectedUsers.length > 0) {
+    bulkCard.style.display = 'block';
+    selectedCount.textContent = selectedUsers.length;
+  } else {
+    bulkCard.style.display = 'none';
+  }
+}
+
+function clearBulkSelection() {
+  document.getElementById('selectAll').checked = false;
+  document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = false);
+  updateBulkActions();
+}
+
+// Bulk delete
+function bulkDelete() {
+  if (selectedUsers.length === 0) return;
+  
+  if (confirm(`Are you sure you want to delete ${selectedUsers.length} users? This action cannot be undone.`)) {
+    fetch('/admin/users/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds: selectedUsers })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast('success', data.message);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('error', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', 'Failed to delete users');
+    });
+  }
+}
+
+// Bulk export
+function bulkExport() {
+  if (selectedUsers.length === 0) return;
+  
+  fetch('/admin/users/bulk-export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userIds: selectedUsers, format: 'csv' })
+  })
+  .then(response => response.blob())
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `users_export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showToast('error', 'Failed to export users');
+  });
+}
+
+// Bulk department change
+function bulkDepartmentChange(deptCode) {
+  if (selectedUsers.length === 0) return;
+  
+  document.getElementById('bulkDeptCount').textContent = selectedUsers.length;
+  document.getElementById('newDepartmentSelect').value = deptCode;
+  
+  const modal = new bootstrap.Modal(document.getElementById('bulkDepartmentModal'));
+  modal.show();
+}
+
+function confirmBulkDepartmentChange() {
+  const newDept = document.getElementById('newDepartmentSelect').value;
+  if (!newDept) {
+    showToast('error', 'Please select a department');
+    return;
+  }
+  
+  fetch('/admin/users/bulk-department-change', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userIds: selectedUsers, newDepartment: newDept })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast('success', data.message);
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      showToast('error', data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showToast('error', 'Failed to update departments');
+  });
+}
+
+// Quick edit
+function quickEdit(userId, field, currentValue) {
+  document.getElementById('quickEditUserId').value = userId;
+  document.getElementById('quickEditField').value = field;
+  
+  const labels = {
+    'first_name': 'First Name',
+    'last_name': 'Last Name',
+    'email': 'Email',
+    'role': 'Role',
+    'school_id': 'School ID',
+    'department': 'Department'
+  };
+  
+  document.getElementById('quickEditLabel').textContent = labels[field] || field;
+  
+  const container = document.getElementById('quickEditInputContainer');
+  container.innerHTML = '';
+  
+  if (field === 'role') {
+    const select = document.createElement('select');
+    select.className = 'form-control';
+    select.id = 'quickEditValue';
+    
+    const roles = ['student', 'professor', 'guardian', 'admin'];
+    roles.forEach(role => {
+      const option = document.createElement('option');
+      option.value = role;
+      option.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+      if (role === currentValue) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+    
+    container.appendChild(select);
+  } else if (field === 'department') {
+    const select = document.createElement('select');
+    select.className = 'form-control';
+    select.id = 'quickEditValue';
+    
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Select Department';
+    select.appendChild(option);
+    
+    // Get departments from the page data
+    const departments = JSON.parse('<%- JSON.stringify(departments) %>');
+    departments.forEach(dept => {
+      const option = document.createElement('option');
+      option.value = dept.code;
+      option.textContent = `${dept.name} (${dept.code})`;
+      if (dept.code === currentValue) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+    
+    container.appendChild(select);
+  } else if (field === 'email') {
+    const input = document.createElement('input');
+    input.type = 'email';
+    input.className = 'form-control';
+    input.id = 'quickEditValue';
+    input.value = currentValue || '';
+    container.appendChild(input);
+  } else {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control';
+    input.id = 'quickEditValue';
+    input.value = currentValue || '';
+    container.appendChild(input);
+  }
+  
+  const modalElement = document.getElementById('quickEditModal');
+  const modal = new bootstrap.Modal(modalElement);
+  modal.show();
+  
+  // Force fix backdrop after showing
+  setTimeout(forceFixModalBackdrop, 100);
+}
+
+// Full edit modal - SIMPLIFIED VERSION
+function loadFullEditModal(userId) {
+  console.log('Loading full edit modal for user:', userId);
+  
+  const contentDiv = document.getElementById('fullEditContent');
+  contentDiv.innerHTML = '<div class="text-center p-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+  
+  // Force backdrop z-index to be lower
+  setTimeout(() => {
+    const backdrop = document.querySelector('.modal-backdrop');
+    if (backdrop) {
+      backdrop.style.zIndex = '1040';
+    }
+  }, 50);
+  
+  fetch(`/admin/users/${userId}/edit-content`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.text();
+    })
+    .then(html => {
+      contentDiv.innerHTML = html;
+      
+      // Initialize image preview functionality
+      const profileInput = contentDiv.querySelector('#profile_picture');
+      if (profileInput) {
+        profileInput.addEventListener('change', function(e) {
+          const file = e.target.files[0];
+          const preview = contentDiv.querySelector('#imagePreview');
+          const previewImg = contentDiv.querySelector('#previewImg');
+          
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              previewImg.src = e.target.result;
+              preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+          } else {
+            preview.style.display = 'none';
+          }
+        });
+      }
+      
+      // Handle form submission
+      const form = contentDiv.querySelector('form');
+      if (form) {
+        form.addEventListener('submit', function(e) {
+          e.preventDefault();
+          
+          const formData = new FormData(form);
+          formData.append('_method', 'PUT');
+          
+          fetch(form.action, {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => {
+            if (response.ok) {
+              showToast('success', 'User updated successfully');
+              bootstrap.Modal.getInstance(document.getElementById('fullEditModal')).hide();
+              setTimeout(() => window.location.reload(), 1500);
+            } else {
+              showToast('error', 'Failed to update user');
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            showToast('error', 'Failed to update user');
+          });
+        });
+      }
+    })
+    .catch(error => {
+      console.error('Error loading edit form:', error);
+      contentDiv.innerHTML = '<div class="alert alert-danger">Failed to load edit form. Please try again.</div>';
+    });
+}
+
+function saveQuickEdit() {
+  const userId = document.getElementById('quickEditUserId').value;
+  const field = document.getElementById('quickEditField').value;
+  const value = document.getElementById('quickEditValue').value;
+  
+  fetch('/admin/users/quick-edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, field, value })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast('success', data.message);
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      showToast('error', data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showToast('error', 'Failed to update user');
+  });
+}
+
+// Delete single user
+function deleteUser(userId, userName) {
+  if (confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) {
+    fetch(`/admin/users/${userId}?_method=DELETE`, {
+      method: 'POST'
+    })
+    .then(response => {
+      if (response.ok) {
+        showToast('success', 'User deleted successfully');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('error', 'Failed to delete user');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', 'Failed to delete user');
+    });
+  }
+}
+
+// Emergency modal backdrop fix
+function forceFixModalBackdrop() {
+  // Find all modal backdrops and force them below modals
+  const backdrops = document.querySelectorAll('.modal-backdrop');
+  backdrops.forEach(backdrop => {
+    backdrop.style.zIndex = '1040';
+  });
+  
+  // Find all modals and force them above backdrops
+  const modals = document.querySelectorAll('.modal');
+  modals.forEach(modal => {
+    modal.style.zIndex = '99999';
+  });
+  
+  console.log('Fixed modal backdrop z-index issues');
+}
+
+// Monitor for modal events
+document.addEventListener('shown.bs.modal', function() {
+  console.log('Modal shown event detected');
+  setTimeout(forceFixModalBackdrop, 100);
+});
+
+// Initialize tooltips and event listeners
+document.addEventListener('DOMContentLoaded', function() {
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+
+  // Quick edit event listeners
+  document.querySelectorAll('.quick-edit-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const userId = this.dataset.userId;
+      const field = this.dataset.field;
+      const value = this.dataset.value;
+      quickEdit(userId, field, value);
+    });
+  });
+
+  // Full edit event listeners - SIMPLIFIED
+  document.querySelectorAll('.full-edit-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const userId = this.dataset.userId;
+      console.log('Full edit button clicked for user:', userId);
+      
+      // Show modal first
+      const modalElement = document.getElementById('fullEditModal');
+      const modal = new bootstrap.Modal(modalElement);
+      modal.show();
+      
+      // Then load content
+      loadFullEditModal(userId);
+    });
+  });
+
+  // Delete user event listeners
+  document.querySelectorAll('.delete-user-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const userId = this.dataset.userId;
+      const userName = this.dataset.userName;
+      deleteUser(userId, userName);
+    });
+  });
+
+  // Handle modal form submissions
+  $(document).on('submit', '#appModal form', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+    
+    fetch(form.action, {
+      method: form.method,
+      body: formData
+    })
+    .then(response => {
+      if (response.redirected) {
+        // Redirect to the new location
+        window.location.href = response.url;
+        return;
+      }
+      return response.text();
+    })
+    .then(data => {
+      if (data) {
+        // Check if response contains success message
+        if (data.includes('success') || data.includes('Success')) {
+          showToast('success', 'Operation completed successfully');
+          // Close modal and refresh page
+          bootstrap.Modal.getInstance(document.getElementById('appModal')).hide();
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          // Update modal content with response
+          document.getElementById('appModal').querySelector('.modal-body').innerHTML = data;
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', 'An error occurred. Please try again.');
+    })
+    .finally(() => {
+      // Restore button state
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+    });
+  });
+});
+</script>
+
+<style>
+.profile-picture-container {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-thumbnail {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #dee2e6;
+  transition: all 0.3s ease;
+}
+
+.profile-thumbnail:hover {
+  transform: scale(1.1);
+  border-color: #007bff;
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.profile-initials {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  border: 2px solid #dee2e6;
+  transition: all 0.3s ease;
+}
+
+.profile-initials:hover {
+  transform: scale(1.1);
+  border-color: #007bff;
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.user-row:hover {
+  background-color: rgba(0,123,255,0.05);
+}
+
+.btn-group-sm .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.table th {
+  border-top: none;
+  font-weight: 600;
+  color: #495057;
+}
+
+.card-header {
+  background-color: var(--primary-color) !important;
+  color: var(--text-light) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125) !important;
+}
+
+.badge {
+  font-size: 0.75em;
+}
+
+.text-break {
+  word-break: break-word;
+}
+
+/* Using global modal system - no custom modal CSS needed */
+
+/* Fix page layout issues */
+.container-fluid {
+  max-width: 100%;
+  padding-right: 15px;
+  padding-left: 15px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* Ensure proper card styling */
+.card {
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Force CSS variables to load properly */
+:root {
+  --primary-color: #8a2be2;
+  --text-light: #ffffff;
+}
+</style>

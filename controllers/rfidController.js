@@ -34,11 +34,9 @@ exports.processScan = async (req, res) => {
       return res.status(400).json({ error: 'No profile picture found. Face verification required.' });
     }
 
+    // Find the most recent scan for this card to determine if next should be entry or exit
     const lastScan = await db.Entry_Exit_Log.findOne({
-      where: { 
-        card_uid,
-        face_verification_status: 'verified' // Only count verified entries
-      },
+      where: { card_uid },
       order: [['timestamp', 'DESC']]
     });
 

@@ -571,6 +571,8 @@
       let currentLogId = null;
       let currentUser = null;
       let referenceDescriptor = null;
+      let faceVerificationStartTime = null;
+      let lowSimilarityCount = 0;
       
       // UI Elements
       const $rfidInput = $('#rfidInput');
@@ -587,18 +589,54 @@
       
       // Face matching threshold (lower = more strict)
       const FACE_MATCH_THRESHOLD = 0.6;
+      
+      // Face verification timeout and retry settings
+      const FACE_VERIFICATION_TIMEOUT = 30000; // 30 seconds
+      const MAX_LOW_SIMILARITY_ATTEMPTS = 20; // Max attempts with low similarity before failing
 
       // Initialize Bootstrap modals
       function initializeModals() {
-        studentModal = new bootstrap.Modal($('#studentModal')[0], {
-          backdrop: true,
-          keyboard: true
-        });
+        console.log('DEBUG: Initializing modals...');
         
-        faceVerificationModal = new bootstrap.Modal($('#faceVerificationModal')[0], {
-          backdrop: 'static',
-          keyboard: false
-        });
+        const studentModalElement = $('#studentModal')[0];
+        const faceVerificationModalElement = $('#faceVerificationModal')[0];
+        
+        console.log('DEBUG: Student modal element found:', !!studentModalElement);
+        console.log('DEBUG: Face verification modal element found:', !!faceVerificationModalElement);
+        
+        if (!studentModalElement) {
+          console.error('❌ Student modal element not found in DOM!');
+          return;
+        }
+        
+        if (!faceVerificationModalElement) {
+          console.error('❌ Face verification modal element not found in DOM!');
+          return;
+        }
+        
+        try {
+          studentModal = new bootstrap.Modal(studentModalElement, {
+            backdrop: true,
+            keyboard: true
+          });
+          console.log('✅ Student modal initialized successfully');
+        } catch (error) {
+          console.error('❌ Error initializing student modal:', error);
+        }
+        
+        try {
+          faceVerificationModal = new bootstrap.Modal(faceVerificationModalElement, {
+            backdrop: 'static',
+            keyboard: false
+          });
+          console.log('✅ Face verification modal initialized successfully');
+        } catch (error) {
+          console.error('❌ Error initializing face verification modal:', error);
+        }
+        
+        // Test if Bootstrap is available
+        console.log('DEBUG: Bootstrap available:', typeof bootstrap !== 'undefined');
+        console.log('DEBUG: Bootstrap.Modal available:', !!(bootstrap && bootstrap.Modal));
       }
 
       // Show Bootstrap alert
@@ -768,11 +806,25 @@
       async function startFaceVerification(logId, user) {
         try {
           console.log('=== STARTING FACE VERIFICATION ===');
+          console.log('DEBUG: startFaceVerification called with logId:', logId);
           console.log('User:', user.first_name, user.last_name);
           console.log('Profile picture URL:', user.profile_picture);
           
           currentLogId = logId;
           currentUser = user;
+          faceVerificationStartTime = Date.now();
+          lowSimilarityCount = 0;
+          
+          // Check if modals are initialized
+          console.log('DEBUG: Checking modal initialization...');
+          console.log('DEBUG: studentModal exists:', !!studentModal);
+          console.log('DEBUG: faceVerificationModal exists:', !!faceVerificationModal);
+          
+          if (!faceVerificationModal) {
+            console.error('❌ Face verification modal not initialized!');
+            showAlert('Face verification modal not available. Please refresh the page.', 'danger');
+            return;
+          }
           
           // Check if face-api is loaded
           if (typeof faceapi === 'undefined') {
@@ -785,12 +837,22 @@
           
           // Hide student modal first
           if (studentModal) {
+            console.log('DEBUG: Hiding student modal...');
             studentModal.hide();
           }
           
           // Show the face verification modal
-          console.log('Showing face verification modal...');
-          faceVerificationModal.show();
+          console.log('DEBUG: About to show face verification modal...');
+          console.log('DEBUG: faceVerificationModal object:', faceVerificationModal);
+          
+          try {
+            faceVerificationModal.show();
+            console.log('✅ Face verification modal.show() called successfully');
+          } catch (modalError) {
+            console.error('❌ Error showing face verification modal:', modalError);
+            showAlert('Error showing face verification modal: ' + modalError.message, 'danger');
+            return;
+          }
           
           // Set the reference image immediately when modal opens
           const referenceImg = document.getElementById('referenceImage');
@@ -915,6 +977,15 @@
       async function startFaceComparison() {
         if (!video || video.readyState !== 4 || !referenceDescriptor) return;
 
+        // Check for timeout
+        const elapsedTime = Date.now() - faceVerificationStartTime;
+        if (elapsedTime > FACE_VERIFICATION_TIMEOUT) {
+          console.log('Face verification timeout reached');
+          updateFaceStatus('Face verification timed out. Please try again.', 'failed');
+          completeFaceVerification('failed');
+          return;
+        }
+
         try {
           const detections = await faceapi.detectSingleFace(video)
             .withFaceLandmarks()
@@ -931,10 +1002,22 @@
               completeFaceVerification('verified');
               return;
             } else {
-              updateFaceStatus(`Analyzing face... (${similarity.toFixed(1)}% match)`, 'analyzing', similarity);
+              // Track low similarity attempts
+              lowSimilarityCount++;
+              
+              if (lowSimilarityCount >= MAX_LOW_SIMILARITY_ATTEMPTS) {
+                console.log('Too many low similarity attempts, failing verification');
+                updateFaceStatus(`Face verification failed. Similarity too low (${similarity.toFixed(1)}%).`, 'failed');
+                completeFaceVerification('failed');
+                return;
+              }
+              
+              const remainingTime = Math.ceil((FACE_VERIFICATION_TIMEOUT - elapsedTime) / 1000);
+              updateFaceStatus(`Analyzing face... (${similarity.toFixed(1)}% match, ${remainingTime}s remaining)`, 'analyzing', similarity);
             }
           } else {
-            updateFaceStatus('Position your face in the camera frame', 'analyzing');
+            const remainingTime = Math.ceil((FACE_VERIFICATION_TIMEOUT - elapsedTime) / 1000);
+            updateFaceStatus(`Position your face in the camera frame (${remainingTime}s remaining)`, 'analyzing');
           }
 
           // Continue comparing
@@ -942,8 +1025,8 @@
           
         } catch (error) {
           console.error('Face comparison error:', error);
-          updateFaceStatus('Face comparison failed', 'failed');
-          setTimeout(() => skipFaceVerification(), 2000);
+          updateFaceStatus('Face comparison failed due to technical error', 'failed');
+          completeFaceVerification('failed');
         }
       }
 
@@ -1003,18 +1086,41 @@
               updateStatus('Scanner Ready');
               referenceDescriptor = null;
               currentUser = null;
+              faceVerificationStartTime = null;
+              lowSimilarityCount = 0;
             }, 3000);
           },
           error: function(err) {
             console.error('Error recording face verification:', err);
             updateFaceStatus('Error recording verification result', 'failed');
-            showAlert('Error recording verification result', 'danger');
+            showAlert('Network error. Verification status may not be recorded.', 'danger');
+            
+            // Try to update the status to 'failed' as a fallback
+            // This ensures the record doesn't stay 'pending' forever
+            $.ajax({
+              url: '/api/rfid/face-verify',
+              method: 'POST',
+              contentType: 'application/json',
+              data: JSON.stringify({ 
+                log_id: currentLogId, 
+                verification_status: 'failed' 
+              }),
+              success: function(response) {
+                console.log('Fallback status update successful:', response);
+              },
+              error: function(fallbackErr) {
+                console.error('Fallback status update also failed:', fallbackErr);
+                showAlert('Critical: Unable to update verification status. Please contact admin.', 'danger');
+              }
+            });
             
             setTimeout(() => {
               faceVerificationModal.hide();
               updateStatus('Scanner Ready');
               referenceDescriptor = null;
               currentUser = null;
+              faceVerificationStartTime = null;
+              lowSimilarityCount = 0;
             }, 3000);
           }
         });
@@ -1032,6 +1138,19 @@
 
       // Initialize when page loads
       initializeModals();
+      
+      // Add a test function to manually trigger face verification modal
+      window.testFaceModal = function() {
+        console.log('DEBUG: Testing face verification modal manually...');
+        if (faceVerificationModal) {
+          faceVerificationModal.show();
+          console.log('✅ Manual test: Face verification modal.show() called');
+        } else {
+          console.error('❌ Manual test: faceVerificationModal not available');
+        }
+      };
+      
+      console.log('DEBUG: Test function added. You can call testFaceModal() in console to test the modal.');
       
       $rfidInput.focus();
       $(document).click(function() {
@@ -1059,10 +1178,14 @@
             contentType: 'application/json',
             data: JSON.stringify({ card_uid: uid }),
             success: function(response) {
+              console.log('DEBUG: RFID scan response received:', response);
+              
               if (response && response.user) {
                 const user = response.user;
                 
-                // Debug: log the full user object
+                // Debug: log the full user object and event
+                console.log('DEBUG: Event type from backend:', response.event);
+                console.log('DEBUG: Event type lowercase:', response.event.toLowerCase());
                 console.log('Full user object from RFID scan:', user);
                 console.log('Profile picture URL:', user.profile_picture);
                 
@@ -1105,12 +1228,15 @@
                 } else {
                   // Entry event - require face verification
                   console.log('Entry event detected - face verification required');
+                  console.log('DEBUG: About to set 4-second timeout before starting face verification');
                   // Wait to show student info, then start face verification
                   setTimeout(() => {
+                    console.log('DEBUG: 4-second timeout completed, hiding student modal');
                     studentModal.hide();
                     
                     // Start face verification after modal is hidden
                     $('#studentModal').on('hidden.bs.modal', function() {
+                      console.log('DEBUG: Student modal hidden event fired');
                       console.log('Student modal hidden, starting face verification with user:', user);
                       if (user.profile_picture && user.profile_picture !== '/images/default-avatar.png') {
                         updateStatus('Preparing face verification...', 'processing');

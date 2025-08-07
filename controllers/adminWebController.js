@@ -547,22 +547,79 @@ exports.getTimeSeriesData = async (req, res) => {
 exports.usersIndex = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = 10; 
+    const limit = parseInt(req.query.limit) || 10; // Add page size option
     const offset = (page - 1) * limit;
+    
+    // Advanced filtering options
     const departmentFilter = req.query.department;
+    const roleFilter = req.query.role;
+    const searchTerm = req.query.search;
+    const statusFilter = req.query.status; // active/inactive based on last activity
+    const sortBy = req.query.sortBy || 'id';
+    const sortOrder = req.query.sortOrder || 'ASC';
 
-    // Build where clause for department filtering
+    // Build where clause for advanced filtering
     const whereClause = {};
+    const { Op } = require('sequelize');
+
     if (departmentFilter) {
       whereClause.department = departmentFilter;
     }
 
+    if (roleFilter) {
+      whereClause.role = roleFilter;
+    }
+
+    if (searchTerm) {
+      whereClause[Op.or] = [
+        { first_name: { [Op.like]: `%${searchTerm}%` } },
+        { last_name: { [Op.like]: `%${searchTerm}%` } },
+        { email: { [Op.like]: `%${searchTerm}%` } },
+        { school_id: { [Op.like]: `%${searchTerm}%` } }
+      ];
+    }
+
+    // Get users with advanced filtering
     const { count, rows: users } = await db.User.findAndCountAll({
       where: whereClause,
-      order: [['id', 'ASC']],
+      order: [[sortBy, sortOrder]],
       limit: limit,
-      offset: offset
+      offset: offset,
+      include: [{
+        model: db.Audit_Log,
+        attributes: ['timestamp'],
+        order: [['timestamp', 'DESC']],
+        limit: 1,
+        required: false
+      }]
     });
+
+    // Process users to add activity status
+    const processedUsers = users.map(user => {
+      const lastActivity = user.Audit_Logs && user.Audit_Logs.length > 0 
+        ? user.Audit_Logs[0].timestamp 
+        : user.createdAt;
+      
+      const daysSinceActivity = Math.floor((new Date() - new Date(lastActivity)) / (1000 * 60 * 60 * 24));
+      const isActive = daysSinceActivity <= 30; // Consider active if activity within 30 days
+      
+      return {
+        ...user.toJSON(),
+        lastActivity,
+        isActive,
+        daysSinceActivity
+      };
+    });
+
+    // Apply status filter after processing
+    let filteredUsers = processedUsers;
+    if (statusFilter) {
+      filteredUsers = processedUsers.filter(user => {
+        if (statusFilter === 'active') return user.isActive;
+        if (statusFilter === 'inactive') return !user.isActive;
+        return true;
+      });
+    }
 
     const totalPages = Math.ceil(count / limit);
 
@@ -572,17 +629,64 @@ exports.usersIndex = async (req, res) => {
       order: [['code', 'ASC']]
     });
 
+    // Get user statistics
+    const userStats = await db.User.findAll({
+      attributes: [
+        'role',
+        [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'count']
+      ],
+      group: ['role']
+    });
+
+    const roleStats = {};
+    userStats.forEach(stat => {
+      roleStats[stat.role] = parseInt(stat.dataValues.count);
+    });
+
+    // Get department statistics
+    const deptStats = await db.User.findAll({
+      attributes: [
+        'department',
+        [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'count']
+      ],
+      where: { department: { [Op.ne]: null } },
+      group: ['department']
+    });
+
+    const departmentStats = {};
+    deptStats.forEach(stat => {
+      departmentStats[stat.department] = parseInt(stat.dataValues.count);
+    });
+
     res.render('admin/users/index', { 
-      users, 
+      users: filteredUsers, 
       title: 'Manage Users', 
       admin: req.session.admin,
       currentPage: page,
       totalPages: totalPages,
       totalUsers: count,
       departments: departments,
-      req: req
+      req: req,
+      filters: {
+        department: departmentFilter || '',
+        role: roleFilter || '',
+        search: searchTerm || '',
+        status: statusFilter || '',
+        sortBy,
+        sortOrder
+      },
+      pagination: {
+        limit,
+        pageSizeOptions: [5, 10, 25, 50, 100]
+      },
+      statistics: {
+        roles: roleStats,
+        departments: departmentStats,
+        total: count
+      }
     });
   } catch (err) {
+    console.error('Error retrieving users:', err);
     res.status(500).send('Error retrieving users');
   }
 };
@@ -669,9 +773,26 @@ exports.usersEditForm = async (req, res) => {
   }
 };
 
+exports.usersEditContent = async (req, res) => {
+  try {
+    const user = await db.User.findByPk(req.params.id);
+    const departments = await db.Department.findAll({
+      where: { is_active: true },
+      order: [['code', 'ASC']]
+    });
+    res.render('admin/users/edit-content', { 
+      user, 
+      departments: departments
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error retrieving user');
+  }
+};
+
 exports.usersEdit = async (req, res) => {
   try {
-    const { first_name, last_name, email, role, school_id, department } = req.body;
+    const { first_name, last_name, email, role, school_id, department, remove_profile_picture } = req.body;
     
     // Get current user to access old profile picture
     const currentUser = await db.User.findByPk(req.params.id);
@@ -689,7 +810,14 @@ exports.usersEdit = async (req, res) => {
       updateData.department = null;
     }
     
-    if (req.file) {
+    // Handle profile picture removal
+    if (remove_profile_picture === '1') {
+      // Delete old profile picture if it exists
+      if (currentUser.profile_picture) {
+        deleteOldProfilePicture(currentUser.profile_picture);
+      }
+      updateData.profile_picture = null;
+    } else if (req.file) {
       // Delete old profile picture if it exists
       if (currentUser.profile_picture) {
         deleteOldProfilePicture(currentUser.profile_picture);
@@ -706,7 +834,7 @@ exports.usersEdit = async (req, res) => {
       role,
       school_id,
       department: updateData.department,
-      profile_picture_changed: req.file ? 'yes' : 'no'
+      profile_picture_changed: req.file ? 'uploaded' : remove_profile_picture === '1' ? 'removed' : 'no_change'
     });
     
     res.redirect('/admin/users');
@@ -754,6 +882,224 @@ exports.usersDelete = async (req, res) => {
   } catch (err) {
     console.error('Error deleting user:', err);
     res.status(500).send('Error deleting user');
+  }
+};
+
+// ========= Bulk Actions =========
+
+exports.usersBulkDelete = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+    
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'No users selected for deletion' });
+    }
+
+    // Get users to be deleted for audit logging
+    const usersToDelete = await db.User.findAll({
+      where: { id: userIds },
+      attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'profile_picture']
+    });
+
+    // Delete profile pictures
+    for (const user of usersToDelete) {
+      if (user.profile_picture) {
+        deleteOldProfilePicture(user.profile_picture);
+      }
+    }
+
+    // Log bulk deletion
+    await logDataAudit(req.session.admin.id, 'BULK_USER_DELETION', {
+      deletedCount: usersToDelete.length,
+      deletedUsers: usersToDelete.map(u => ({
+        id: u.id,
+        name: `${u.first_name} ${u.last_name}`,
+        email: u.email,
+        role: u.role
+      }))
+    });
+
+    // Delete users
+    await db.User.destroy({ where: { id: userIds } });
+
+    res.json({ 
+      success: true, 
+      message: `Successfully deleted ${usersToDelete.length} users`,
+      deletedCount: usersToDelete.length
+    });
+  } catch (err) {
+    console.error('Error in bulk delete:', err);
+    res.status(500).json({ error: 'Failed to delete users' });
+  }
+};
+
+exports.usersBulkExport = async (req, res) => {
+  try {
+    const { userIds, format = 'csv' } = req.body;
+    
+    let whereClause = {};
+    if (userIds && Array.isArray(userIds) && userIds.length > 0) {
+      whereClause.id = { [require('sequelize').Op.in]: userIds };
+    }
+
+    const users = await db.User.findAll({
+      where: whereClause,
+      include: [{
+        model: db.Department,
+        as: 'departmentInfo',
+        attributes: ['name'],
+        required: false
+      }],
+      order: [['id', 'ASC']]
+    });
+
+    const userData = users.map(user => ({
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      role: user.role,
+      school_id: user.school_id || '',
+      department: user.departmentInfo ? user.departmentInfo.name : (user.department || ''),
+      department_code: user.department || '',
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
+      has_profile_picture: user.profile_picture ? 'Yes' : 'No'
+    }));
+
+    if (format === 'csv') {
+      const { Parser } = require('json2csv');
+      const fields = ['id', 'first_name', 'last_name', 'email', 'role', 'school_id', 'department', 'department_code', 'created_at', 'updated_at', 'has_profile_picture'];
+      const parser = new Parser({ fields });
+      const csv = parser.parse(userData);
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=users_export_${new Date().toISOString().split('T')[0]}.csv`);
+      return res.send(csv);
+    }
+
+    // JSON format
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=users_export_${new Date().toISOString().split('T')[0]}.json`);
+    return res.json(userData);
+
+  } catch (err) {
+    console.error('Error in bulk export:', err);
+    res.status(500).json({ error: 'Failed to export users' });
+  }
+};
+
+exports.usersBulkDepartmentChange = async (req, res) => {
+  try {
+    const { userIds, newDepartment } = req.body;
+    
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'No users selected' });
+    }
+
+    if (!newDepartment) {
+      return res.status(400).json({ error: 'New department is required' });
+    }
+
+    // Verify department exists
+    const department = await db.Department.findOne({ where: { code: newDepartment } });
+    if (!department) {
+      return res.status(400).json({ error: 'Invalid department' });
+    }
+
+    // Get users before update for audit logging
+    const usersBeforeUpdate = await db.User.findAll({
+      where: { id: userIds },
+      attributes: ['id', 'first_name', 'last_name', 'email', 'department']
+    });
+
+    // Update users
+    await db.User.update(
+      { department: newDepartment },
+      { where: { id: userIds } }
+    );
+
+    // Log bulk department change
+    await logDataAudit(req.session.admin.id, 'BULK_USER_DEPARTMENT_CHANGE', {
+      updatedCount: usersBeforeUpdate.length,
+      newDepartment: newDepartment,
+      updatedUsers: usersBeforeUpdate.map(u => ({
+        id: u.id,
+        name: `${u.first_name} ${u.last_name}`,
+        email: u.email,
+        oldDepartment: u.department,
+        newDepartment: newDepartment
+      }))
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Successfully updated department for ${usersBeforeUpdate.length} users`,
+      updatedCount: usersBeforeUpdate.length,
+      newDepartment: newDepartment
+    });
+  } catch (err) {
+    console.error('Error in bulk department change:', err);
+    res.status(500).json({ error: 'Failed to update user departments' });
+  }
+};
+
+// ========= Quick Edit =========
+
+exports.usersQuickEdit = async (req, res) => {
+  try {
+    const { userId, field, value } = req.body;
+    
+    if (!userId || !field || value === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Validate field
+    const allowedFields = ['first_name', 'last_name', 'email', 'role', 'school_id', 'department'];
+    if (!allowedFields.includes(field)) {
+      return res.status(400).json({ error: 'Invalid field' });
+    }
+
+    // Get user before update for audit logging
+    const userBefore = await db.User.findByPk(userId);
+    if (!userBefore) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Validate department if changing department
+    if (field === 'department' && value) {
+      const department = await db.Department.findOne({ where: { code: value } });
+      if (!department) {
+        return res.status(400).json({ error: 'Invalid department' });
+      }
+    }
+
+    // Update user
+    await db.User.update(
+      { [field]: value },
+      { where: { id: userId } }
+    );
+
+    // Log quick edit
+    await logDataAudit(req.session.admin.id, 'USER_QUICK_EDIT', {
+      userId: userId,
+      field: field,
+      oldValue: userBefore[field],
+      newValue: value,
+      userEmail: userBefore.email
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'User updated successfully',
+      user: {
+        id: userId,
+        [field]: value
+      }
+    });
+  } catch (err) {
+    console.error('Error in quick edit:', err);
+    res.status(500).json({ error: 'Failed to update user' });
   }
 };
 
@@ -1288,7 +1634,7 @@ exports.guardianLinkUpdate = async (req, res) => {
       ]
     });
 
-    await logDataEvent(
+    await logDataAudit(
       req.session.admin.id,
       'ADMIN_GUARDIAN_LINK_UPDATED',
       {
