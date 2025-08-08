@@ -21,7 +21,7 @@ exports.updateProfilePicture = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    const filePath = '/uploads/profile_pics/' + req.file.filename;
+    const filePath = 'uploads/profile_pics/' + req.file.filename;
     const userId = req.user.userId;
 
     // Fetch the original user record to get the current profile picture

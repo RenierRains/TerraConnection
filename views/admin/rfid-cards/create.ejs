@@ -92,6 +92,62 @@
         $('#student_search').val(studentText);
         $('#student_suggestions').empty();
       });
+
+      // Override the default modal form submission for this specific form
+      $('form[action="/admin/rfid-cards"]').on('submit', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const submitBtn = form.find('button[type="submit"]');
+        const originalText = submitBtn.text();
+        
+        submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...');
+        
+        // Use serialize() instead of FormData for better compatibility
+        const formData = form.serialize();
+        
+        console.log('Form data being sent:', formData);
+        
+        $.ajax({
+          url: form.attr('action'),
+          method: form.attr('method') || 'POST',
+          data: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          success: function(response) {
+            // Use Bootstrap 5 modal instance instead of jQuery modal
+            const modalElement = document.getElementById('appModal');
+            if (modalElement) {
+              const modalInstance = bootstrap.Modal.getInstance(modalElement);
+              if (modalInstance) {
+                modalInstance.hide();
+              }
+            }
+            
+            if (window.showToast) {
+              window.showToast('Success!', 'RFID card created successfully.', 'success');
+            }
+            setTimeout(() => window.location.reload(), 1000);
+          },
+          error: function(xhr) {
+            submitBtn.prop('disabled', false).text(originalText);
+            
+            const errorMsg = xhr.responseText || 'An error occurred. Please try again.';
+            if (window.showToast) {
+              window.showToast('Error', errorMsg, 'error');
+            }
+            
+            const alertHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert">' +
+              errorMsg +
+              '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+              '</div>';
+
+            form.find('.alert').remove();
+            form.prepend(alertHtml);
+          }
+        });
+      });
     });
   </script>
 </body>

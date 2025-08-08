@@ -74,7 +74,7 @@ exports.processScan = async (req, res) => {
     let profilePictureUrl = user.profile_picture;
     if (profilePictureUrl && !profilePictureUrl.startsWith('/') && !profilePictureUrl.startsWith('http')) {
       // If it's just a filename, add the proper path
-      profilePictureUrl = `/uploads/profile_pics/${profilePictureUrl}`;
+      profilePictureUrl = `uploads/profile_pics/${profilePictureUrl}`;
     }
 
     res.json({

@@ -50,7 +50,7 @@
         <label for="profile_picture">Profile Picture</label>
         <% if (user.profile_picture) { %>
                      <div class="mb-2">
-             <img src="/uploads/profile_pics/<%= user.profile_picture %>" alt="Current Profile Picture" class="profile-current">
+             <img src="/<%= user.profile_picture.startsWith('/') ? user.profile_picture.substring(1) : user.profile_picture %>" alt="Current Profile Picture" class="profile-current">
              <p class="text-muted small">Current profile picture</p>
            </div>
         <% } %>

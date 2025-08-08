@@ -43,7 +43,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   }, {
     tableName: 'Classes',
-    underscored: true
+    underscored: true,
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   });
 
   Class.associate = function(models) {

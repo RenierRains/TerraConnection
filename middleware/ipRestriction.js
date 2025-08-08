@@ -1,4 +1,4 @@
-const allowedIPs = ['127.0.0.1', '175.176.0.31']; //request static ip from network ####
+const allowedIPs = ['127.0.0.1', '::1', '175.176.0.31']; //request static ip from network ####
 
 function ipRestriction(req, res, next) {
   console.log('All Request Headers:', req.headers);

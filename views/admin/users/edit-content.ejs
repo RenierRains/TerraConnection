@@ -58,7 +58,7 @@
     <label for="profile_picture" class="form-label">Profile Picture</label>
     <% if (user.profile_picture) { %>
       <div class="mb-2">
-        <img src="/uploads/profile_pics/<%= user.profile_picture %>" alt="Current Profile Picture" class="profile-current" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%;">
+        <img src="/<%= user.profile_picture.startsWith('/') ? user.profile_picture.substring(1) : user.profile_picture %>" alt="Current Profile Picture" class="profile-current" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%;">
         <p class="text-muted small">Current profile picture</p>
         <div class="form-check">
           <input class="form-check-input" type="checkbox" id="remove_profile_picture" name="remove_profile_picture" value="1">

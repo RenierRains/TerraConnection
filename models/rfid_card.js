@@ -18,6 +18,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     tableName: 'RFID_Cards',
     underscored: true,
+    timestamps: false,
     indexes: [
       {
         unique: true,

@@ -10,24 +10,24 @@ module.exports = {
         code: 'CMA',
         description: 'College offering business, management, and accounting programs',
         is_active: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date(),
+        updated_at: new Date()
       },
       {
         name: 'Master of Business Administration',
         code: 'MBA',
         description: 'Graduate program in business administration',
         is_active: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date(),
+        updated_at: new Date()
       },
       {
         name: 'Senior High School',
         code: 'SHS',
         description: 'Senior high school department',
         is_active: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date(),
+        updated_at: new Date()
       }
     ], { ignoreDuplicates: true });
   },

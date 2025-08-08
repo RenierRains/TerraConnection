@@ -169,6 +169,15 @@ app.use(methodOverride(function (req, res) {
 app.set('view engine', 'ejs');
 
 app.set('views', path.join(__dirname, 'views'));
+
+// Serve ML models with long-term caching for performance (must come BEFORE generic static)
+app.use('/models', express.static(path.join(__dirname, 'public', 'models'), {
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+}));
+
+// Generic static after models so headers above apply
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(auditMiddleware);
@@ -247,7 +256,7 @@ app.get('/test-profile-pics', async (req, res) => {
         users.forEach(user => {
             let profileUrl = user.profile_picture;
             if (profileUrl && !profileUrl.startsWith('/') && !profileUrl.startsWith('http')) {
-                profileUrl = `/uploads/profile_pics/${profileUrl}`;
+                profileUrl = `uploads/profile_pics/${profileUrl}`;
             }
             
             html += `

@@ -67,7 +67,7 @@ const deleteOldProfilePicture = (filename) => {
 
 // Helper function to get profile picture URL
 const getProfilePictureUrl = (filename) => {
-  return filename ? `/uploads/profile_pics/${filename}` : null;
+  return filename ? `uploads/profile_pics/${filename}` : null;
 };
 
 module.exports = {

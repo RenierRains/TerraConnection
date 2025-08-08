@@ -16,7 +16,7 @@
       <div class="details-group">
         <div class="details-label">Profile Picture</div>
                  <div class="details-value">
-           <img src="/uploads/profile_pics/<%= user.profile_picture %>" alt="Profile Picture" class="profile-large">
+           <img src="/<%= user.profile_picture.startsWith('/') ? user.profile_picture.substring(1) : user.profile_picture %>" alt="Profile Picture" class="profile-large">
          </div>
       </div>
     <% } %>

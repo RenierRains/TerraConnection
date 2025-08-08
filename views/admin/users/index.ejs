@@ -240,7 +240,7 @@
                 <td>
                   <div class="profile-picture-container">
                     <% if (user.profile_picture) { %>
-                      <img src="/uploads/profile_pics/<%= user.profile_picture %>" 
+                      <img src="/<%= user.profile_picture.startsWith('/') ? user.profile_picture.substring(1) : user.profile_picture %>" 
                            alt="Profile" class="profile-thumbnail" 
                            data-bs-toggle="tooltip" 
                            title="<%= user.first_name %> <%= user.last_name %>">

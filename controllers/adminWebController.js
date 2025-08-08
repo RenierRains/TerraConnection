@@ -1312,23 +1312,49 @@ exports.rfidCardsCreateForm = async (req, res) => {
 
 exports.rfidCardsCreate = async (req, res) => {
   try {
+    console.log('Full req.body:', req.body);
+    console.log('Content-Type:', req.headers['content-type']);
+    
     const { card_uid, user_id, is_active } = req.body;
+    
+    console.log('Creating RFID card with data:', { card_uid, user_id, is_active });
+    
+    // Validate required fields
+    if (!card_uid) {
+      return res.status(400).send('Card UID is required');
+    }
+    
+    // Check if user exists (if user_id is provided)
+    if (user_id) {
+      const user = await db.User.findByPk(user_id);
+      if (!user) {
+        return res.status(400).send('Selected user does not exist');
+      }
+    }
+    
+    // Check if card_uid already exists
+    const existingCard = await db.RFID_Card.findOne({ where: { card_uid } });
+    if (existingCard) {
+      return res.status(400).send('This RFID card UID already exists');
+    }
+    
     await db.RFID_Card.create({
       card_uid,
-      user_id,
+      user_id: user_id || null,
       is_active: is_active === 'true',
       issued_at: new Date()
     });
 
     await logDataAudit(req.session.admin.id, 'ADMIN_RFID_CREATED', {
       card_uid,
-      user_id,
+      user_id: user_id || null,
       is_active: is_active === 'true'
     });
 
     res.redirect('/admin/rfid-cards');
   } catch (err) {
-    res.status(500).send('Error creating RFID card');
+    console.error('Error creating RFID card:', err);
+    res.status(500).send(`Error creating RFID card: ${err.message}`);
   }
 };
 

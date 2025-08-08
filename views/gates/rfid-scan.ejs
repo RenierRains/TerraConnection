@@ -568,11 +568,27 @@
     $(document).ready(function() {
       let scanning = false;
       let faceDetectionInitialized = false;
+      let usingTinyDetector = true; // prefer tiny by default
       let currentLogId = null;
       let currentUser = null;
       let referenceDescriptor = null;
       let faceVerificationStartTime = null;
       let lowSimilarityCount = 0;
+      let noDetectionCount = 0;
+      let comparisonActive = false;
+      let lastFrameTime = 0;
+      const descriptorCache = new Map(); // key: profile_picture URL -> Float32Array
+      // Telemetry
+      let telemetry = {
+        modelLoadStart: 0,
+        modelLoadEnd: 0,
+        firstDetectionAt: 0,
+        verificationCompletedAt: 0
+      };
+
+      // Feature flag: allow override via localStorage
+      const storedTinyPref = localStorage.getItem('face_use_tiny');
+      if (storedTinyPref === 'false') usingTinyDetector = false;
       
       // UI Elements
       const $rfidInput = $('#rfidInput');
@@ -589,6 +605,10 @@
       
       // Face matching threshold (lower = more strict)
       const FACE_MATCH_THRESHOLD = 0.6;
+      const TINY_INPUT_SIZE = 320; // 224 for very low-end
+      const TINY_SCORE_THRESHOLD = 0.55; // tune 0.5-0.6
+      const MAX_NO_DETECTION_ATTEMPTS = 20;
+      const TARGET_FPS = 10; // throttle rAF loop
       
       // Face verification timeout and retry settings
       const FACE_VERIFICATION_TIMEOUT = 30000; // 30 seconds
@@ -673,7 +693,7 @@
         }
       }
 
-      // Initialize face-api.js models
+      // Initialize face-api.js models (prefer tiny, fallback to SSD)
       async function initializeFaceDetection() {
         if (faceDetectionInitialized) {
           console.log('Face detection already initialized, skipping...');
@@ -687,23 +707,73 @@
           if (typeof faceapi === 'undefined') {
             throw new Error('Face-API.js library not loaded');
           }
-          
-          // Load models from local files (much faster and more reliable)
-          console.log('Loading face detection models from local files...');
-          console.log('Loading SSD MobileNet v1...');
-          await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
-          console.log('✅ SSD MobileNet v1 loaded');
-          
-          console.log('Loading Face Landmark 68 Net...');
-          await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-          console.log('✅ Face Landmark 68 Net loaded');
-          
-          console.log('Loading Face Recognition Net...');
-          await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-          console.log('✅ Face Recognition Net loaded');
-          
+          // Set TF backend to WebGL for performance (fallback to cpu)
+          try {
+            if (faceapi.tf && typeof faceapi.tf.setBackend === 'function') {
+              telemetry.modelLoadStart = performance.now();
+              await faceapi.tf.setBackend('webgl');
+              await faceapi.tf.ready();
+              console.log('✅ TFJS backend set to WebGL');
+            }
+          } catch (e) {
+            console.warn('WebGL backend not available, falling back to CPU:', e.message);
+            try {
+              await faceapi.tf.setBackend('cpu');
+              await faceapi.tf.ready();
+            } catch (e2) {
+              console.warn('CPU backend setup warning:', e2.message);
+            }
+          }
+
+          // Load models from local files (fast)
+          console.log('Loading face detection models from /models ...');
+
+          let tinyLoaded = false;
+          if (usingTinyDetector) {
+            try {
+              console.log('Attempt tinyFaceDetector + tiny landmarks...');
+              await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+              // Try tiny landmarks first; will fallback if missing
+              if (faceapi.nets.faceLandmark68TinyNet) {
+                await faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models');
+              } else {
+                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+              }
+              await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+              tinyLoaded = true;
+              usingTinyDetector = true;
+              console.log('✅ Tiny models loaded');
+            } catch (e) {
+              console.warn('Tiny models not available, will fallback to SSD:', e.message);
+              usingTinyDetector = false;
+            }
+          }
+
+          if (!tinyLoaded) {
+            console.log('Loading SSD MobileNet v1 + full landmarks...');
+            await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+            console.log('✅ SSD + landmarks + recognition loaded');
+          }
+
+          // Warm-up pass to reduce first-frame latency
+          try {
+            const tmp = document.createElement('canvas');
+            tmp.width = 64; tmp.height = 64;
+            const opts = usingTinyDetector
+              ? new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.5 })
+              : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+            await faceapi.detectSingleFace(tmp, opts);
+            console.log('✅ Warm-up pass complete');
+          } catch (e) {
+            console.warn('Warm-up pass failed (non-fatal):', e.message);
+          }
+
           faceDetectionInitialized = true;
           console.log('✅ All Face-API models loaded successfully');
+          telemetry.modelLoadEnd = performance.now();
+          console.log(`⏱️ Model load time: ${(telemetry.modelLoadEnd - telemetry.modelLoadStart).toFixed(0)} ms`);
           updateFaceStatus('Models loaded. Analyzing profile picture...', 'loading');
           
         } catch (error) {
@@ -754,15 +824,28 @@
               console.log('Image dimensions:', img.naturalWidth, 'x', img.naturalHeight);
               console.log('Image src:', img.src);
               try {
+                // Check descriptor cache first
+                if (descriptorCache.has(imageUrl)) {
+                  referenceDescriptor = descriptorCache.get(imageUrl);
+                  console.log('✅ Loaded reference descriptor from cache');
+                  updateFaceStatus('Profile picture analyzed. Please look at the camera...', 'analyzing');
+                  resolve(true);
+                  return;
+                }
                 // Wait a bit for the image to fully render
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
-                const detections = await faceapi.detectSingleFace(img)
-                  .withFaceLandmarks()
+                const opts = usingTinyDetector
+                  ? new faceapi.TinyFaceDetectorOptions({ inputSize: TINY_INPUT_SIZE, scoreThreshold: TINY_SCORE_THRESHOLD })
+                  : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+
+                const detections = await faceapi.detectSingleFace(img, opts)
+                  .withFaceLandmarks(usingTinyDetector)
                   .withFaceDescriptor();
                 
                 if (detections) {
                   referenceDescriptor = detections.descriptor;
+                  descriptorCache.set(imageUrl, referenceDescriptor);
                   console.log('Face detected in profile picture, descriptor created');
                   updateFaceStatus('Profile picture analyzed. Please look at the camera...', 'analyzing');
                   resolve(true);
@@ -800,6 +883,45 @@
           updateFaceStatus('Error setting up face verification', 'failed');
           return false;
         }
+      }
+
+      // Start camera helper (start early so user sees video immediately)
+      async function startCamera() {
+        video = document.getElementById('faceVideo');
+        canvas = document.getElementById('faceCanvas');
+        ctx = canvas.getContext('2d');
+
+        console.log('Requesting camera access...');
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Camera access not supported by this browser');
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 },
+            facingMode: 'user'
+          },
+          audio: false
+        });
+
+        console.log('Camera stream obtained');
+        video.srcObject = stream;
+
+        await new Promise((resolve, reject) => {
+          video.onloadedmetadata = () => {
+            console.log('Video metadata loaded');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            resolve();
+          };
+          video.onerror = (e) => {
+            console.error('Video error:', e);
+            reject(new Error('Video failed to load'));
+          };
+          setTimeout(() => reject(new Error('Video load timeout')), 10000);
+        });
       }
 
       // Start face verification process
@@ -868,7 +990,13 @@
             return;
           }
           
-          // Initialize face detection models first
+          // Start camera ASAP so user sees the live feed immediately
+          let cameraReady = false;
+          const cameraPromise = startCamera()
+            .then(() => { cameraReady = true; })
+            .catch((err) => { console.error('Camera access error:', err); updateFaceStatus(err.message || 'Camera access failed', 'failed'); });
+
+          // Initialize face detection models in parallel with camera
           console.log('Checking if face detection models are initialized...');
           if (!faceDetectionInitialized) {
             console.log('Models not initialized, loading now...');
@@ -909,65 +1037,14 @@
           setTimeout(() => skipFaceVerification(), 3000);
         }
 
-        // Setup camera
-        video = document.getElementById('faceVideo');
-        canvas = document.getElementById('faceCanvas');
-        ctx = canvas.getContext('2d');
-
+        // Ensure camera is ready before comparison, then start
         try {
-          console.log('Requesting camera access...');
-          
-          // Check if getUserMedia is available
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error('Camera access not supported by this browser');
-          }
-          
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-              width: { ideal: 640, max: 1280 },
-              height: { ideal: 480, max: 720 },
-              facingMode: 'user'
-            },
-            audio: false
-          });
-          
-          console.log('Camera stream obtained');
-          video.srcObject = stream;
-          
-          // Wait for video to be ready
-          await new Promise((resolve, reject) => {
-            video.onloadedmetadata = () => {
-              console.log('Video metadata loaded');
-              canvas.width = video.videoWidth;
-              canvas.height = video.videoHeight;
-              resolve();
-            };
-            video.onerror = (e) => {
-              console.error('Video error:', e);
-              reject(new Error('Video failed to load'));
-            };
-            
-            // Timeout after 10 seconds
-            setTimeout(() => reject(new Error('Video load timeout')), 10000);
-          });
-          
+          await startCamera(); // if it was already started, this will be quick
           console.log('Starting face comparison...');
           await startFaceComparison();
-          
         } catch (error) {
           console.error('Camera access error:', error);
-          let errorMessage = 'Camera access failed';
-          
-          if (error.name === 'NotAllowedError') {
-            errorMessage = 'Camera permission denied. Please allow camera access and refresh.';
-          } else if (error.name === 'NotFoundError') {
-            errorMessage = 'No camera found. Please connect a camera and refresh.';
-          } else if (error.name === 'NotSupportedError') {
-            errorMessage = 'Camera not supported by this browser.';
-          } else if (error.message) {
-            errorMessage = error.message;
-          }
-          
+          const errorMessage = error.message || 'Camera access failed';
           updateFaceStatus(errorMessage, 'failed');
           setTimeout(() => skipFaceVerification(), 5000);
         }
@@ -977,57 +1054,95 @@
       async function startFaceComparison() {
         if (!video || video.readyState !== 4 || !referenceDescriptor) return;
 
-        // Check for timeout
-        const elapsedTime = Date.now() - faceVerificationStartTime;
-        if (elapsedTime > FACE_VERIFICATION_TIMEOUT) {
-          console.log('Face verification timeout reached');
-          updateFaceStatus('Face verification timed out. Please try again.', 'failed');
-          completeFaceVerification('failed');
-          return;
-        }
+        if (comparisonActive) return; // prevent multiple loops
+        comparisonActive = true;
 
-        try {
-          const detections = await faceapi.detectSingleFace(video)
-            .withFaceLandmarks()
-            .withFaceDescriptor();
+        const loop = async (timestamp) => {
+          if (!comparisonActive) return;
 
-          if (detections) {
-            const distance = faceapi.euclideanDistance(referenceDescriptor, detections.descriptor);
-            const similarity = Math.max(0, (1 - distance) * 100);
-            
-            console.log(`Face comparison - Distance: ${distance.toFixed(3)}, Similarity: ${similarity.toFixed(1)}%`);
-            
-            if (distance < FACE_MATCH_THRESHOLD) {
-              updateFaceStatus(`Face verified successfully!`, 'verified', similarity);
-              completeFaceVerification('verified');
-              return;
-            } else {
-              // Track low similarity attempts
-              lowSimilarityCount++;
-              
-              if (lowSimilarityCount >= MAX_LOW_SIMILARITY_ATTEMPTS) {
-                console.log('Too many low similarity attempts, failing verification');
-                updateFaceStatus(`Face verification failed. Similarity too low (${similarity.toFixed(1)}%).`, 'failed');
-                completeFaceVerification('failed');
-                return;
-              }
-              
-              const remainingTime = Math.ceil((FACE_VERIFICATION_TIMEOUT - elapsedTime) / 1000);
-              updateFaceStatus(`Analyzing face... (${similarity.toFixed(1)}% match, ${remainingTime}s remaining)`, 'analyzing', similarity);
-            }
-          } else {
-            const remainingTime = Math.ceil((FACE_VERIFICATION_TIMEOUT - elapsedTime) / 1000);
-            updateFaceStatus(`Position your face in the camera frame (${remainingTime}s remaining)`, 'analyzing');
+          // Throttle to TARGET_FPS
+          const minInterval = 1000 / TARGET_FPS;
+          if (timestamp && timestamp - lastFrameTime < minInterval) {
+            return requestAnimationFrame(loop);
+          }
+          lastFrameTime = timestamp || performance.now();
+
+          // Check for timeout
+          const elapsedTime = Date.now() - faceVerificationStartTime;
+          if (elapsedTime > FACE_VERIFICATION_TIMEOUT) {
+            console.log('Face verification timeout reached');
+            updateFaceStatus('Face verification timed out. Please try again.', 'failed');
+            comparisonActive = false;
+            completeFaceVerification('failed');
+            return;
           }
 
-          // Continue comparing
-          setTimeout(startFaceComparison, 500);
-          
-        } catch (error) {
-          console.error('Face comparison error:', error);
-          updateFaceStatus('Face comparison failed due to technical error', 'failed');
-          completeFaceVerification('failed');
-        }
+          try {
+            const opts = usingTinyDetector
+              ? new faceapi.TinyFaceDetectorOptions({ inputSize: TINY_INPUT_SIZE, scoreThreshold: TINY_SCORE_THRESHOLD })
+              : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+
+            const detections = await faceapi.detectSingleFace(video, opts)
+              .withFaceLandmarks(usingTinyDetector)
+              .withFaceDescriptor();
+
+            if (detections) {
+              noDetectionCount = 0;
+              const distance = faceapi.euclideanDistance(referenceDescriptor, detections.descriptor);
+              const similarity = Math.max(0, (1 - distance) * 100);
+              // console.log(`Face comparison - Distance: ${distance.toFixed(3)}, Similarity: ${similarity.toFixed(1)}%`);
+
+              if (distance < FACE_MATCH_THRESHOLD) {
+                updateFaceStatus(`Face verified successfully!`, 'verified', similarity);
+                comparisonActive = false;
+                completeFaceVerification('verified');
+                return;
+              } else {
+                lowSimilarityCount++;
+                if (lowSimilarityCount >= MAX_LOW_SIMILARITY_ATTEMPTS) {
+                  console.log('Too many low similarity attempts, failing verification');
+                  updateFaceStatus(`Face verification failed. Similarity too low (${similarity.toFixed(1)}%).`, 'failed');
+                  comparisonActive = false;
+                  completeFaceVerification('failed');
+                  return;
+                }
+                const remainingTime = Math.ceil((FACE_VERIFICATION_TIMEOUT - elapsedTime) / 1000);
+                updateFaceStatus(`Analyzing face... (${similarity.toFixed(1)}% match, ${remainingTime}s remaining)`, 'analyzing', similarity);
+              }
+            } else {
+              noDetectionCount++;
+              const remainingTime = Math.ceil((FACE_VERIFICATION_TIMEOUT - elapsedTime) / 1000);
+              updateFaceStatus(`Position your face in the camera frame (${remainingTime}s remaining)`, 'analyzing');
+
+              // Automatic fallback: if tiny is in use but we repeatedly fail to detect, switch to SSD once
+              if (usingTinyDetector && (noDetectionCount >= MAX_NO_DETECTION_ATTEMPTS || elapsedTime > 8000)) {
+                console.log('Switching to SSD MobileNet for fallback due to repeated no detections/slow progress');
+                usingTinyDetector = false;
+                // One-time load if not already
+                try {
+                  if (!faceapi.nets.ssdMobilenetv1.params) {
+                    await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+                  }
+                  if (!faceapi.nets.faceLandmark68Net.params) {
+                    await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+                  }
+                } catch (e) {
+                  console.warn('SSD fallback load failed:', e.message);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Face comparison error:', error);
+            updateFaceStatus('Face comparison failed due to technical error', 'failed');
+            comparisonActive = false;
+            completeFaceVerification('failed');
+            return;
+          }
+
+          requestAnimationFrame(loop);
+        };
+
+        requestAnimationFrame(loop);
       }
 
       // Update face verification status
@@ -1088,6 +1203,8 @@
               currentUser = null;
               faceVerificationStartTime = null;
               lowSimilarityCount = 0;
+              noDetectionCount = 0;
+              comparisonActive = false;
             }, 3000);
           },
           error: function(err) {
@@ -1121,6 +1238,8 @@
               currentUser = null;
               faceVerificationStartTime = null;
               lowSimilarityCount = 0;
+              noDetectionCount = 0;
+              comparisonActive = false;
             }, 3000);
           }
         });
