@@ -2115,3 +2115,335 @@ exports.departmentsDelete = async (req, res) => {
     res.status(500).send('Error deleting department');
   }
 };
+
+// ========= Department API Endpoints =========
+
+exports.departmentsStatistics = async (req, res) => {
+  try {
+    if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    // Get user counts for each department
+    const [departmentUserCounts] = await db.sequelize.query(`
+      SELECT 
+        d.id,
+        d.code,
+        d.name,
+        COUNT(u.id) as user_count
+      FROM Departments d
+      LEFT JOIN Users u ON u.department = d.code
+      WHERE d.is_active = 1
+      GROUP BY d.id, d.code, d.name
+      ORDER BY d.name ASC
+    `);
+
+    const departmentUserCountsMap = {};
+    departmentUserCounts.forEach(dept => {
+      departmentUserCountsMap[dept.id] = parseInt(dept.user_count) || 0;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        departmentUserCounts: departmentUserCountsMap
+      }
+    });
+  } catch (err) {
+    console.error('Error getting department statistics:', err);
+    res.status(500).json({ success: false, error: 'Failed to load statistics' });
+  }
+};
+
+exports.departmentStatistics = async (req, res) => {
+  try {
+    if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const departmentId = req.params.id;
+    const department = await db.Department.findByPk(departmentId);
+    
+    if (!department) {
+      return res.status(404).json({ success: false, error: 'Department not found' });
+    }
+
+    // Get statistics for this specific department
+    const [stats] = await db.sequelize.query(`
+      SELECT 
+        COUNT(DISTINCT u.id) as total_users,
+        COUNT(DISTINCT c.id) as total_classes,
+        SUM(CASE WHEN al.action_type LIKE '%ENTRY_%' AND DATE(al.timestamp) = CURDATE() THEN 1 ELSE 0 END) as today_entries
+      FROM Users u
+      LEFT JOIN Classes c ON c.department = u.department
+      LEFT JOIN Audit_Logs al ON al.user_id = u.id
+      WHERE u.department = :departmentCode
+    `, {
+      replacements: { departmentCode: department.code }
+    });
+
+    const result = stats[0] || { total_users: 0, total_classes: 0, today_entries: 0 };
+
+    res.json({
+      success: true,
+      data: {
+        totalUsers: parseInt(result.total_users) || 0,
+        totalClasses: parseInt(result.total_classes) || 0,
+        todayEntries: parseInt(result.today_entries) || 0
+      }
+    });
+  } catch (err) {
+    console.error('Error getting department statistics:', err);
+    res.status(500).json({ success: false, error: 'Failed to load statistics' });
+  }
+};
+
+exports.departmentActivity = async (req, res) => {
+  try {
+    if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const departmentCode = req.params.code;
+
+    // Get recent activity for users in this department
+    const activities = await db.Audit_Log.findAll({
+      limit: 10,
+      order: [['timestamp', 'DESC']],
+      include: [{
+        model: db.User,
+        attributes: ['first_name', 'last_name', 'email'],
+        where: { department: departmentCode },
+        required: true
+      }]
+    });
+
+    const activityData = activities.map(activity => ({
+      action_type: activity.action_type,
+      timestamp: activity.timestamp,
+      user_name: activity.User ? `${activity.User.first_name} ${activity.User.last_name}` : 'Unknown User',
+      description: activity.description || formatActionType(activity.action_type)
+    }));
+
+    res.json({
+      success: true,
+      data: activityData
+    });
+  } catch (err) {
+    console.error('Error getting department activity:', err);
+    res.status(500).json({ success: false, error: 'Failed to load activity' });
+  }
+};
+
+// ========= Class API Endpoints =========
+
+exports.classesStatistics = async (req, res) => {
+  try {
+    if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    // Get class statistics
+    const [stats] = await db.sequelize.query(`
+      SELECT 
+        COUNT(*) as total_classes,
+        COUNT(DISTINCT department) as unique_departments,
+        SUM(CASE WHEN start_time <= CURTIME() AND end_time >= CURTIME() THEN 1 ELSE 0 END) as active_classes,
+        COUNT(CASE WHEN DATE(created_at) = CURDATE() THEN 1 END) as today_classes
+      FROM Classes
+    `);
+
+    // Get enrollment data to calculate total capacity
+    const [capacityStats] = await db.sequelize.query(`
+      SELECT 
+        COUNT(ce.student_id) as total_enrolled
+      FROM Class_Enrollments ce
+      INNER JOIN Classes c ON c.id = ce.class_id
+    `);
+
+    // For schedule conflicts, check for overlapping time slots (simplified)
+    const [conflictStats] = await db.sequelize.query(`
+      SELECT COUNT(*) as conflicts
+      FROM Classes c1
+      INNER JOIN Classes c2 ON c1.id < c2.id 
+      WHERE c1.room = c2.room 
+      AND c1.start_time < c2.end_time 
+      AND c1.end_time > c2.start_time
+      AND c1.schedule = c2.schedule
+    `);
+
+    const result = stats[0] || {};
+    const capacity = capacityStats[0] || {};
+    const conflicts = conflictStats[0] || {};
+
+    res.json({
+      success: true,
+      data: {
+        activeClasses: parseInt(result.active_classes) || 0,
+        todayClasses: parseInt(result.today_classes) || 0,
+        totalCapacity: parseInt(capacity.total_enrolled) || 0,
+        uniqueDepartments: parseInt(result.unique_departments) || 0,
+        scheduleConflicts: parseInt(conflicts.conflicts) || 0
+      }
+    });
+  } catch (err) {
+    console.error('Error getting class statistics:', err);
+    res.status(500).json({ success: false, error: 'Failed to load statistics' });
+  }
+};
+
+exports.classesStatusCapacity = async (req, res) => {
+  try {
+    if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    // Get enrollment data for all classes
+    const [classData] = await db.sequelize.query(`
+      SELECT 
+        c.id,
+        c.class_code,
+        c.start_time,
+        c.end_time,
+        COUNT(ce.student_id) as enrolled_count,
+        COUNT(cp.professor_id) as professor_count
+      FROM Classes c
+      LEFT JOIN Class_Enrollments ce ON ce.class_id = c.id
+      LEFT JOIN Class_Professors cp ON cp.class_id = c.id
+      GROUP BY c.id, c.class_code, c.start_time, c.end_time
+    `);
+
+    const result = {};
+    
+    classData.forEach(cls => {
+      const now = new Date();
+      const currentTime = now.toTimeString().slice(0, 8);
+      const startTime = cls.start_time;
+      const endTime = cls.end_time;
+      
+      // Determine class status
+      let status;
+      if (currentTime >= startTime && currentTime <= endTime) {
+        status = { label: 'Active', class: 'bg-success', icon: 'fa-play-circle' };
+      } else if (currentTime < startTime) {
+        status = { label: 'Scheduled', class: 'bg-info', icon: 'fa-clock' };
+      } else {
+        status = { label: 'Completed', class: 'bg-secondary', icon: 'fa-check-circle' };
+      }
+
+      // Check if class is full (assuming max capacity of 30 for demo)
+      const maxCapacity = 30;
+      const enrolled = parseInt(cls.enrolled_count) || 0;
+      
+      if (enrolled >= maxCapacity) {
+        status = { label: 'Full', class: 'bg-warning', icon: 'fa-users' };
+      }
+
+      result[cls.id] = {
+        status: status,
+        capacity: {
+          enrolled: enrolled,
+          total: maxCapacity
+        }
+      };
+    });
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (err) {
+    console.error('Error getting class status and capacity:', err);
+    res.status(500).json({ success: false, error: 'Failed to load data' });
+  }
+};
+
+exports.classesSchedule = async (req, res) => {
+  try {
+    if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const weekOffset = parseInt(req.query.weekOffset) || 0;
+
+    // Get classes with their schedule information
+    const classes = await db.Class.findAll({
+      attributes: ['id', 'class_code', 'class_name', 'room', 'start_time', 'end_time', 'schedule'],
+      order: [['start_time', 'ASC']]
+    });
+
+    // Parse schedule data and format for calendar
+    const scheduleData = [];
+    
+    classes.forEach(cls => {
+      // Parse the schedule field to extract days (assuming format like "MWF" or "TTh")
+      const schedule = cls.schedule || '';
+      const days = parseScheduleDays(schedule);
+      const timeSlot = formatTimeSlot(cls.start_time);
+      
+      days.forEach(day => {
+        scheduleData.push({
+          id: cls.id,
+          class_code: cls.class_code,
+          class_name: cls.class_name,
+          room: cls.room,
+          day: day,
+          time_slot: timeSlot,
+          start_time: cls.start_time,
+          end_time: cls.end_time
+        });
+      });
+    });
+
+    res.json({
+      success: true,
+      data: scheduleData
+    });
+  } catch (err) {
+    console.error('Error getting class schedule:', err);
+    res.status(500).json({ success: false, error: 'Failed to load schedule' });
+  }
+};
+
+// Helper functions
+function formatActionType(actionType) {
+  const actionMap = {
+    'RFID_ENTRY': 'RFID Entry',
+    'RFID_EXIT': 'RFID Exit',
+    'USER_LOGIN': 'User Login',
+    'USER_LOGOUT': 'User Logout',
+    'FACE_VERIFICATION_SUCCESS': 'Face Verified',
+    'FACE_VERIFICATION_FAILED': 'Face Verification Failed'
+  };
+  return actionMap[actionType] || actionType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function parseScheduleDays(schedule) {
+  // Parse schedule string to extract days
+  // Common formats: MWF, TTh, MW, etc.
+  const dayMap = {
+    'M': 'Monday',
+    'T': 'Tuesday', 
+    'W': 'Wednesday',
+    'Th': 'Thursday',
+    'F': 'Friday',
+    'S': 'Saturday',
+    'Su': 'Sunday'
+  };
+  
+  const days = [];
+  let i = 0;
+  while (i < schedule.length) {
+    if (i < schedule.length - 1 && schedule.substr(i, 2) === 'Th') {
+      days.push('Thursday');
+      i += 2;
+    } else if (i < schedule.length - 1 && schedule.substr(i, 2) === 'Su') {
+      days.push('Sunday');
+      i += 2;
+    } else if (dayMap[schedule[i]]) {
+      days.push(dayMap[schedule[i]]);
+      i++;
+    } else {
+      i++;
+    }
+  }
+  
+  return days;
+}
+
+function formatTimeSlot(timeString) {
+  // Convert time to hour format for calendar slots
+  if (!timeString) return '08:00';
+  
+  const time = new Date(`2000-01-01T${timeString}`);
+  const hours = time.getHours();
+  return `${hours.toString().padStart(2, '0')}:00`;
+}

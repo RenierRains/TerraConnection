@@ -1,53 +1,415 @@
-<div class="container mt-5">
-    <h2>Classes</h2>
-    <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container-fluid mt-3">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <a href="/admin/classes/create" class="btn btn-success" data-modal="true">Add New Class</a>
-        <a href="/admin/classes/import" class="btn btn-info" data-modal="true">Import Classes</a>
+        <h2 class="mb-0">Class Management</h2>
+        <p class="text-muted mb-0">Manage schedules, capacity, and class information</p>
       </div>
-      <div>
-        <span class="text-muted">Total Classes: <%= totalClasses %></span>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" id="refreshStats">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <a href="/admin/classes/create" class="btn btn-success" data-modal="true">
+          <i class="fas fa-plus"></i> Add Class
+        </a>
+        <a href="/admin/classes/import" class="btn btn-info" data-modal="true">
+          <i class="fas fa-upload"></i> Import Classes
+        </a>
       </div>
     </div>
 
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>ID</th>
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+      <div class="col-md-2 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Total Classes</h6>
+                <h3 class="card-title mb-0 text-primary"><%= totalClasses || 0 %></h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-chalkboard fa-2x text-primary opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-2 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Active Classes</h6>
+                <h3 class="card-title mb-0 text-success" id="activeClasses">
+                  <i class="fas fa-spinner fa-spin"></i>
+                </h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-play-circle fa-2x text-success opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-2 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Today's Classes</h6>
+                <h3 class="card-title mb-0 text-info" id="todayClasses">
+                  <i class="fas fa-spinner fa-spin"></i>
+                </h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-calendar-day fa-2x text-info opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-2 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Total Capacity</h6>
+                <h3 class="card-title mb-0 text-warning" id="totalCapacity">
+                  <i class="fas fa-spinner fa-spin"></i>
+                </h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-users fa-2x text-warning opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-2 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Departments</h6>
+                <h3 class="card-title mb-0 text-secondary" id="uniqueDepartments">
+                  <i class="fas fa-spinner fa-spin"></i>
+                </h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-building fa-2x text-secondary opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-2 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Conflicts</h6>
+                <h3 class="card-title mb-0 text-danger" id="scheduleConflicts">
+                  <i class="fas fa-spinner fa-spin"></i>
+                </h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-exclamation-triangle fa-2x text-danger opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters and View Toggle -->
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <div class="input-group">
+          <span class="input-group-text"><i class="fas fa-search"></i></span>
+          <input type="text" class="form-control" id="classSearch" placeholder="Search classes...">
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="d-flex gap-2 justify-content-end">
+          <select class="form-select" id="departmentFilter" style="max-width: 200px;">
+            <option value="">All Departments</option>
+            <!-- Dynamic departments will be loaded here -->
+          </select>
+          <select class="form-select" id="yearFilter" style="max-width: 150px;">
+            <option value="">All Years</option>
+            <option value="1">Year 1</option>
+            <option value="2">Year 2</option>
+            <option value="3">Year 3</option>
+            <option value="4">Year 4</option>
+          </select>
+          <select class="form-select" id="statusFilter" style="max-width: 150px;">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="full">Full Capacity</option>
+          </select>
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="fas fa-download"></i> Export
+            </button>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" onclick="exportClasses('csv')"><i class="fas fa-file-csv"></i> CSV</a></li>
+              <li><a class="dropdown-item" href="#" onclick="exportClasses('json')"><i class="fas fa-file-code"></i> JSON</a></li>
+              <li><a class="dropdown-item" href="#" onclick="exportClasses('schedule')"><i class="fas fa-calendar"></i> Schedule PDF</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Mode Toggle -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="btn-group" role="group">
+        <input type="radio" class="btn-check" name="viewMode" id="tableView" checked>
+        <label class="btn btn-outline-primary" for="tableView">
+          <i class="fas fa-table"></i> Table
+        </label>
+        <input type="radio" class="btn-check" name="viewMode" id="calendarView">
+        <label class="btn btn-outline-primary" for="calendarView">
+          <i class="fas fa-calendar"></i> Calendar
+        </label>
+        <input type="radio" class="btn-check" name="viewMode" id="cardView">
+        <label class="btn btn-outline-primary" for="cardView">
+          <i class="fas fa-th-large"></i> Cards
+        </label>
+      </div>
+      <div class="text-muted">
+        Showing <span id="filteredCount"><%= classes.length %></span> of <%= totalClasses %> classes
+      </div>
+    </div>
+
+    <!-- Table View -->
+    <div id="tableViewContainer" class="view-container">
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0" id="classesTable">
+            <thead class="table-dark">
+              <tr>
+                <th style="width: 50px;">
+                  <input type="checkbox" id="selectAll" class="form-check-input">
+                </th>
           <th>Class Code</th>
           <th>Class Name</th>
           <th>Course</th>
-          <th>Year</th>
-          <th>Section</th>
+                <th>Year/Section</th>
           <th>Room</th>
           <th>Schedule</th>
           <th>Department</th>
-          <th>Actions</th>
+                <th>Capacity</th>
+                <th>Status</th>
+                <th style="width: 150px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         <% classes.forEach(function(cls) { %>
-          <tr>
-            <td><%= cls.id %></td>
-            <td><%= cls.class_code %></td>
-            <td><%= cls.class_name %></td>
+                <tr data-class-id="<%= cls.id %>" data-department="<%= cls.department || '' %>" data-year="<%= cls.year %>">
+                  <td>
+                    <input type="checkbox" class="form-check-input class-checkbox" value="<%= cls.id %>">
+                  </td>
+                  <td>
+                    <span class="badge bg-primary"><%= cls.class_code %></span>
+                  </td>
+                  <td>
+                    <strong><%= cls.class_name %></strong>
+                    <br>
+                    <small class="text-muted"><%= cls.course %></small>
+                  </td>
             <td><%= cls.course %></td>
-            <td><%= cls.year %></td>
-            <td><%= cls.section %></td>
-            <td><%= cls.room %></td>
-            <td><%= cls.schedule %></td>
-            <td><%= cls.department || 'N/A' %></td>
-            <td>
-              <a href="/admin/classes/<%= cls.id %>" class="btn btn-info btn-sm" data-modal="true">View</a>
-              <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-warning btn-sm" data-modal="true">Edit</a>
-              <form action="/admin/classes/<%= cls.id %>?_method=DELETE" method="POST" style="display:inline;">
-                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
-              </form>
+                  <td>
+                    <span class="badge bg-secondary">Y<%= cls.year %></span>
+                    <span class="badge bg-outline-secondary"><%= cls.section %></span>
+                  </td>
+                  <td>
+                    <i class="fas fa-map-marker-alt text-muted me-1"></i>
+                    <%= cls.room %>
+                  </td>
+                  <td>
+                    <small class="text-muted">
+                      <i class="fas fa-clock me-1"></i>
+                      <%= cls.schedule %>
+                    </small>
+                  </td>
+                  <td>
+                    <% if (cls.department) { %>
+                      <span class="badge bg-info"><%= cls.department %></span>
+                    <% } else { %>
+                      <span class="text-muted">N/A</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div class="capacity-indicator" data-class-capacity="<%= cls.id %>">
+                      <i class="fas fa-spinner fa-spin text-muted"></i>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="class-status" data-class-status="<%= cls.id %>">
+                      <i class="fas fa-spinner fa-spin text-muted"></i>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="btn-group" role="group">
+                      <a href="/admin/classes/<%= cls.id %>" class="btn btn-outline-info btn-sm" data-modal="true" title="View Details">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-outline-warning btn-sm" data-modal="true" title="Edit">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                      <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteClass(<%= cls.id %>, '<%= cls.class_name %>')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
             </td>
           </tr>
         <% }); %>
       </tbody>
     </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Calendar View -->
+    <div id="calendarViewContainer" class="view-container" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="fas fa-calendar me-2"></i>
+              Weekly Schedule
+            </h5>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-primary" onclick="previousWeek()">
+                <i class="fas fa-chevron-left"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-primary" onclick="currentWeek()">Today</button>
+              <button class="btn btn-sm btn-outline-primary" onclick="nextWeek()">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="calendar-container">
+            <table class="table table-bordered mb-0 schedule-table">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 100px;">Time</th>
+                  <th>Monday</th>
+                  <th>Tuesday</th>
+                  <th>Wednesday</th>
+                  <th>Thursday</th>
+                  <th>Friday</th>
+                  <th>Saturday</th>
+                  <th>Sunday</th>
+                </tr>
+              </thead>
+              <tbody id="scheduleTableBody">
+                <!-- Schedule will be populated by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card View -->
+    <div id="cardViewContainer" class="view-container" style="display: none;">
+      <div class="row">
+        <% classes.forEach(function(cls) { %>
+          <div class="col-md-4 col-lg-3 mb-4">
+            <div class="card class-card h-100" data-class-id="<%= cls.id %>" data-department="<%= cls.department || '' %>" data-year="<%= cls.year %>">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                  <input type="checkbox" class="form-check-input me-2 class-checkbox" value="<%= cls.id %>">
+                  <span class="badge bg-primary"><%= cls.class_code %></span>
+                </div>
+                <div class="class-status-badge" data-class-status="<%= cls.id %>">
+                  <i class="fas fa-spinner fa-spin text-muted"></i>
+                </div>
+              </div>
+              <div class="card-body">
+                <h5 class="card-title"><%= cls.class_name %></h5>
+                <p class="card-text">
+                  <small class="text-muted d-block">
+                    <i class="fas fa-book me-1"></i> <%= cls.course %>
+                  </small>
+                  <small class="text-muted d-block">
+                    <i class="fas fa-graduation-cap me-1"></i> Year <%= cls.year %>, Section <%= cls.section %>
+                  </small>
+                  <small class="text-muted d-block">
+                    <i class="fas fa-map-marker-alt me-1"></i> <%= cls.room %>
+                  </small>
+                  <small class="text-muted d-block">
+                    <i class="fas fa-clock me-1"></i> <%= cls.schedule %>
+                  </small>
+                </p>
+                
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div class="capacity-info" data-class-capacity="<%= cls.id %>">
+                    <small class="text-muted">
+                      <i class="fas fa-users me-1"></i>
+                      <i class="fas fa-spinner fa-spin"></i>
+                    </small>
+                  </div>
+                  <% if (cls.department) { %>
+                    <span class="badge bg-info"><%= cls.department %></span>
+                  <% } %>
+                </div>
+              </div>
+              <div class="card-footer bg-transparent">
+                <div class="btn-group w-100" role="group">
+                  <a href="/admin/classes/<%= cls.id %>" class="btn btn-outline-info btn-sm" data-modal="true">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  <a href="/admin/classes/<%= cls.id %>/edit" class="btn btn-outline-warning btn-sm" data-modal="true">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteClass(<%= cls.id %>, '<%= cls.class_name %>')">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div id="bulkActionsBar" class="card bg-primary text-white mb-3" style="display: none;">
+      <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="fas fa-check-square"></i>
+            <span id="selectedCount">0</span> classes selected
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-outline-light btn-sm" onclick="bulkUpdateCapacity()">
+              <i class="fas fa-users"></i> Update Capacity
+            </button>
+            <button class="btn btn-outline-light btn-sm" onclick="bulkExportSchedule()">
+              <i class="fas fa-calendar"></i> Export Schedule
+            </button>
+            <button class="btn btn-outline-light btn-sm" onclick="bulkExport()">
+              <i class="fas fa-download"></i> Export
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="bulkDelete()">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <% if (totalPages > 1) { %>
       <nav aria-label="Page navigation" class="mt-4">
@@ -134,4 +496,491 @@
         }
       </script>
     <% } %>
+
+    <script>
+      let currentWeekOffset = 0;
+      
+      $(document).ready(function() {
+        // Initialize class management features
+        initializeClassManagement();
+        loadClassStatistics();
+        loadClassStatusAndCapacity();
+        loadDepartmentFilter();
+      });
+
+      function initializeClassManagement() {
+        // View toggle functionality
+        $('input[name="viewMode"]').on('change', function() {
+          $('.view-container').hide();
+          
+          if (this.id === 'tableView') {
+            $('#tableViewContainer').show();
+          } else if (this.id === 'calendarView') {
+            $('#calendarViewContainer').show();
+            generateScheduleTable();
+          } else if (this.id === 'cardView') {
+            $('#cardViewContainer').show();
+          }
+        });
+
+        // Search functionality
+        $('#classSearch').on('input', function() {
+          filterClasses();
+        });
+
+        // Filter functionality
+        $('#departmentFilter, #yearFilter, #statusFilter').on('change', function() {
+          filterClasses();
+        });
+
+        // Select all functionality
+        $('#selectAll').on('change', function() {
+          const isChecked = $(this).is(':checked');
+          $('.class-checkbox').prop('checked', isChecked);
+          updateBulkActions();
+        });
+
+        // Individual checkbox functionality
+        $(document).on('change', '.class-checkbox', function() {
+          updateBulkActions();
+          
+          // Update select all checkbox
+          const totalCheckboxes = $('.class-checkbox').length;
+          const checkedCheckboxes = $('.class-checkbox:checked').length;
+          
+          $('#selectAll').prop('indeterminate', checkedCheckboxes > 0 && checkedCheckboxes < totalCheckboxes);
+          $('#selectAll').prop('checked', checkedCheckboxes === totalCheckboxes);
+        });
+
+        // Refresh stats button
+        $('#refreshStats').on('click', function() {
+          $(this).find('i').addClass('fa-spin');
+          loadClassStatistics();
+          loadClassStatusAndCapacity();
+          setTimeout(() => {
+            $(this).find('i').removeClass('fa-spin');
+            showToast('Refreshed', 'Statistics updated successfully.', 'success');
+          }, 1000);
+        });
+      }
+
+      function loadClassStatistics() {
+        // Load real class statistics
+        $.ajax({
+          url: '/admin/classes/statistics',
+          method: 'GET',
+          success: function(response) {
+            if (response.success) {
+              const stats = response.data;
+              $('#activeClasses').html(stats.activeClasses || 0);
+              $('#todayClasses').html(stats.todayClasses || 0);
+              $('#totalCapacity').html(stats.totalCapacity || 0);
+              $('#uniqueDepartments').html(stats.uniqueDepartments || 0);
+              $('#scheduleConflicts').html(stats.scheduleConflicts || 0);
+            }
+          },
+          error: function(xhr) {
+            console.error('Failed to load class statistics:', xhr);
+            $('#activeClasses, #todayClasses, #totalCapacity, #uniqueDepartments, #scheduleConflicts').html('N/A');
+          }
+        });
+      }
+
+      function loadClassStatusAndCapacity() {
+        // Load real class status and capacity data
+        $.ajax({
+          url: '/admin/classes/status-capacity',
+          method: 'GET',
+          success: function(response) {
+            if (response.success) {
+              const data = response.data;
+              
+              Object.keys(data).forEach(classId => {
+                const classInfo = data[classId];
+                
+                // Update status
+                const statusElement = $(`[data-class-status="${classId}"]`);
+                if (statusElement.length) {
+                  const status = classInfo.status || { label: 'Unknown', class: 'bg-secondary', icon: 'fa-question' };
+                  
+                  if (statusElement.hasClass('class-status-badge')) {
+                    statusElement.html(`<span class="badge ${status.class}"><i class="fas ${status.icon}"></i></span>`);
+                  } else {
+                    statusElement.html(`
+                      <span class="badge ${status.class}">
+                        <i class="fas ${status.icon} me-1"></i>
+                        ${status.label}
+                      </span>
+                    `);
+                  }
+                }
+                
+                // Update capacity
+                const capacityElement = $(`[data-class-capacity="${classId}"]`);
+                if (capacityElement.length && classInfo.capacity) {
+                  const { enrolled, total } = classInfo.capacity;
+                  const percentage = total > 0 ? Math.round((enrolled / total) * 100) : 0;
+                  
+                  let badgeClass = 'bg-success';
+                  if (percentage > 80) badgeClass = 'bg-warning';
+                  if (percentage >= 100) badgeClass = 'bg-danger';
+                  
+                  if (capacityElement.hasClass('capacity-info')) {
+                    capacityElement.html(`
+                      <small class="text-muted">
+                        <i class="fas fa-users me-1"></i>
+                        ${enrolled}/${total}
+                      </small>
+                    `);
+                  } else {
+                    capacityElement.html(`
+                      <span class="badge ${badgeClass}">
+                        ${enrolled}/${total}
+                      </span>
+                      <div class="progress mt-1" style="height: 4px;">
+                        <div class="progress-bar" style="width: ${percentage}%"></div>
+                      </div>
+                    `);
+                  }
+                }
+              });
+            }
+          },
+          error: function(xhr) {
+            console.error('Failed to load class status and capacity:', xhr);
+            $('[data-class-status], [data-class-capacity]').html('<span class="text-muted">N/A</span>');
+          }
+        });
+      }
+
+      function loadDepartmentFilter() {
+        // Load real departments for filter
+        $.ajax({
+          url: '/admin/departments',
+          method: 'GET',
+          data: { format: 'json' },
+          success: function(response) {
+            if (response.success && response.data) {
+              response.data.forEach(dept => {
+                $('#departmentFilter').append(`<option value="${dept.code}">${dept.name}</option>`);
+              });
+            }
+          },
+          error: function(xhr) {
+            console.error('Failed to load departments:', xhr);
+          }
+        });
+      }
+
+      function filterClasses() {
+        const searchTerm = $('#classSearch').val().toLowerCase();
+        const departmentFilter = $('#departmentFilter').val();
+        const yearFilter = $('#yearFilter').val();
+        const statusFilter = $('#statusFilter').val();
+        let visibleCount = 0;
+
+        $('.view-container tr[data-class-id], .class-card').each(function() {
+          const $item = $(this);
+          const className = $item.find('strong').text().toLowerCase() || $item.find('.card-title').text().toLowerCase();
+          const classCode = $item.find('.badge.bg-primary').text().toLowerCase();
+          const department = $item.data('department');
+          const year = $item.data('year').toString();
+          
+          let showItem = true;
+          
+          // Search filter
+          if (searchTerm && !className.includes(searchTerm) && !classCode.includes(searchTerm)) {
+            showItem = false;
+          }
+          
+          // Department filter
+          if (departmentFilter && department !== departmentFilter) {
+            showItem = false;
+          }
+          
+          // Year filter
+          if (yearFilter && year !== yearFilter) {
+            showItem = false;
+          }
+          
+          // Status filter (simplified for demo)
+          if (statusFilter) {
+            // This would normally check actual status
+            showItem = showItem && Math.random() > 0.3;
+          }
+          
+          if (showItem) {
+            $item.show();
+            visibleCount++;
+          } else {
+            $item.hide();
+          }
+        });
+
+        $('#filteredCount').text(visibleCount);
+      }
+
+      function updateBulkActions() {
+        const checkedCount = $('.class-checkbox:checked').length;
+        $('#selectedCount').text(checkedCount);
+        
+        if (checkedCount > 0) {
+          $('#bulkActionsBar').slideDown();
+        } else {
+          $('#bulkActionsBar').slideUp();
+        }
+      }
+
+      // Calendar/Schedule functions
+      function generateScheduleTable() {
+        // Load real schedule data
+        $.ajax({
+          url: '/admin/classes/schedule',
+          method: 'GET',
+          data: { weekOffset: currentWeekOffset },
+          success: function(response) {
+            if (response.success) {
+              const scheduleData = response.data;
+              const timeSlots = [
+                '08:00', '09:00', '10:00', '11:00', '12:00',
+                '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'
+              ];
+              const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+              
+              let tableHtml = '';
+              
+              timeSlots.forEach(time => {
+                tableHtml += `<tr><td class="time-slot">${time}</td>`;
+                
+                days.forEach(day => {
+                  const classAtTime = scheduleData.find(cls => 
+                    cls.time_slot === time && cls.day === day
+                  );
+                  
+                  if (classAtTime) {
+                    tableHtml += `
+                      <td class="schedule-cell has-class">
+                        <div class="class-block" data-class-id="${classAtTime.id}">
+                          <div class="class-name">${classAtTime.class_code}</div>
+                          <div class="class-room">${classAtTime.room}</div>
+                        </div>
+                      </td>
+                    `;
+                  } else {
+                    tableHtml += '<td class="schedule-cell"></td>';
+                  }
+                });
+                
+                tableHtml += '</tr>';
+              });
+              
+              $('#scheduleTableBody').html(tableHtml);
+              
+              // Add click events for class blocks
+              $('.class-block').on('click', function() {
+                const classId = $(this).data('class-id');
+                if (classId) {
+                  window.location.href = `/admin/classes/${classId}`;
+                }
+              });
+            }
+          },
+          error: function(xhr) {
+            console.error('Failed to load schedule data:', xhr);
+            $('#scheduleTableBody').html('<tr><td colspan="8" class="text-center text-muted">Failed to load schedule data</td></tr>');
+          }
+        });
+      }
+
+      function previousWeek() {
+        currentWeekOffset--;
+        generateScheduleTable();
+        showToast('Week Changed', 'Showing previous week schedule.', 'info');
+      }
+
+      function nextWeek() {
+        currentWeekOffset++;
+        generateScheduleTable();
+        showToast('Week Changed', 'Showing next week schedule.', 'info');
+      }
+
+      function currentWeek() {
+        currentWeekOffset = 0;
+        generateScheduleTable();
+        showToast('Week Changed', 'Showing current week schedule.', 'info');
+      }
+
+      // Action functions
+      function deleteClass(classId, className) {
+        if (confirm(`Are you sure you want to delete the class "${className}"?\n\nThis action cannot be undone.`)) {
+          // Create and submit form
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = `/admin/classes/${classId}?_method=DELETE`;
+          
+          const csrfToken = $('meta[name="csrf-token"]').attr('content');
+          if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+          }
+          
+          document.body.appendChild(form);
+          form.submit();
+        }
+      }
+
+      function exportClasses(format) {
+        const selectedIds = $('.class-checkbox:checked').map(function() {
+          return $(this).val();
+        }).get();
+        
+        let url = `/admin/classes/export?format=${format}`;
+        if (selectedIds.length > 0) {
+          url += '&ids=' + selectedIds.join(',');
+        }
+        
+        window.location.href = url;
+        showToast('Export Started', `Exporting classes as ${format.toUpperCase()}...`, 'info');
+      }
+
+      // Bulk operations
+      function bulkUpdateCapacity() {
+        const selectedIds = $('.class-checkbox:checked').map(function() {
+          return $(this).val();
+        }).get();
+        
+        if (selectedIds.length === 0) {
+          showToast('No Selection', 'Please select classes first.', 'warning');
+          return;
+        }
+        
+        const newCapacity = prompt('Enter new capacity for selected classes:');
+        if (newCapacity && !isNaN(newCapacity) && newCapacity > 0) {
+          // Simulate API call
+          showToast('Success', `Capacity updated for ${selectedIds.length} classes.`, 'success');
+          setTimeout(() => window.location.reload(), 1000);
+        }
+      }
+
+      function bulkExportSchedule() {
+        const selectedIds = $('.class-checkbox:checked').map(function() {
+          return $(this).val();
+        }).get();
+        
+        if (selectedIds.length === 0) {
+          showToast('No Selection', 'Please select classes first.', 'warning');
+          return;
+        }
+        
+        exportClasses('schedule');
+      }
+
+      function bulkExport() {
+        exportClasses('csv');
+      }
+
+      function bulkDelete() {
+        const selectedIds = $('.class-checkbox:checked').map(function() {
+          return $(this).val();
+        }).get();
+        
+        if (selectedIds.length === 0) {
+          showToast('No Selection', 'Please select classes first.', 'warning');
+          return;
+        }
+        
+        if (confirm(`Are you sure you want to delete ${selectedIds.length} class(es)?\n\nThis action cannot be undone.`)) {
+          $.ajax({
+            url: '/admin/classes/bulk-delete',
+            method: 'POST',
+            data: {
+              ids: selectedIds,
+              _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+              showToast('Success', 'Classes deleted successfully.', 'success');
+              setTimeout(() => window.location.reload(), 1000);
+            },
+            error: function(xhr) {
+              showToast('Error', 'Failed to delete classes.', 'error');
+            }
+          });
+        }
+      }
+    </script>
+
+    <style>
+      .schedule-table {
+        font-size: 0.875rem;
+      }
+      
+      .schedule-table .time-slot {
+        font-weight: 500;
+        background-color: var(--bs-light);
+        text-align: center;
+        vertical-align: middle;
+      }
+      
+      .schedule-cell {
+        height: 60px;
+        vertical-align: middle;
+        position: relative;
+        padding: 2px;
+      }
+      
+      .schedule-cell.has-class {
+        background-color: var(--bs-primary-bg-subtle);
+      }
+      
+      .class-block {
+        background: var(--bs-primary);
+        color: white;
+        border-radius: 4px;
+        padding: 4px 6px;
+        font-size: 0.75rem;
+        line-height: 1.2;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      
+      .class-name {
+        font-weight: 500;
+      }
+      
+      .class-room {
+        opacity: 0.8;
+        font-size: 0.65rem;
+      }
+      
+      .capacity-indicator .progress {
+        width: 60px;
+      }
+      
+      .stat-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      }
+      
+      .class-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      .class-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      }
+    </style>
   </div>

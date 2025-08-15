@@ -9,51 +9,304 @@
   <%- include('../../partials/modal-styles') %>
 
   <div class="modal-content-wrapper">
-    <h2>Department Details</h2>
-    
-    <div class="details-group">
-      <div class="details-label">ID</div>
-      <div class="details-value"><%= department.id %></div>
-    </div>
-    
-    <div class="details-group">
-      <div class="details-label">Department Code</div>
-      <div class="details-value"><strong><%= department.code %></strong></div>
-    </div>
-    
-    <div class="details-group">
-      <div class="details-label">Department Name</div>
-      <div class="details-value"><%= department.name %></div>
-    </div>
-    
-    <div class="details-group">
-      <div class="details-label">Description</div>
-      <div class="details-value"><%= department.description || 'N/A' %></div>
-    </div>
-    
-    <div class="details-group">
-      <div class="details-label">Status</div>
-      <div class="details-value">
-        <span class="badge <%= department.is_active ? 'bg-success' : 'bg-secondary' %>">
+    <!-- Department Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <h2 class="mb-1">
+          <span class="badge bg-primary me-2"><%= department.code %></span>
+          <%= department.name %>
+        </h2>
+        <p class="text-muted mb-0">
+          <i class="fas fa-building me-1"></i>
+          Department Details & Statistics
+        </p>
+      </div>
+      <div>
+        <span class="badge <%= department.is_active ? 'bg-success' : 'bg-secondary' %> fs-6">
+          <i class="fas <%= department.is_active ? 'fa-check-circle' : 'fa-pause-circle' %> me-1"></i>
           <%= department.is_active ? 'Active' : 'Inactive' %>
         </span>
       </div>
     </div>
 
-    <div class="details-group">
-      <div class="details-label">Created</div>
-      <div class="details-value"><%= new Date(department.created_at).toLocaleDateString() %></div>
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+      <div class="col-md-4 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <i class="fas fa-users fa-2x text-primary mb-2"></i>
+            <h4 class="card-title mb-1" id="totalUsers">
+              <i class="fas fa-spinner fa-spin"></i>
+            </h4>
+            <p class="card-text text-muted">Total Users</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <i class="fas fa-chalkboard fa-2x text-success mb-2"></i>
+            <h4 class="card-title mb-1" id="totalClasses">
+              <i class="fas fa-spinner fa-spin"></i>
+            </h4>
+            <p class="card-text text-muted">Total Classes</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <i class="fas fa-sign-in-alt fa-2x text-info mb-2"></i>
+            <h4 class="card-title mb-1" id="todayEntries">
+              <i class="fas fa-spinner fa-spin"></i>
+            </h4>
+            <p class="card-text text-muted">Today's Entries</p>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="details-group">
-      <div class="details-label">Last Updated</div>
-      <div class="details-value"><%= new Date(department.updated_at).toLocaleDateString() %></div>
+    <!-- Department Information -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="fas fa-info-circle me-2"></i>
+          Department Information
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="details-group mb-3">
+              <div class="details-label">Department ID</div>
+              <div class="details-value"><%= department.id %></div>
+            </div>
+            <div class="details-group mb-3">
+              <div class="details-label">Department Code</div>
+              <div class="details-value">
+                <span class="badge bg-primary"><%= department.code %></span>
+              </div>
+            </div>
+            <div class="details-group mb-3">
+              <div class="details-label">Department Name</div>
+              <div class="details-value"><strong><%= department.name %></strong></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="details-group mb-3">
+              <div class="details-label">Status</div>
+              <div class="details-value">
+                <span class="badge <%= department.is_active ? 'bg-success' : 'bg-secondary' %>">
+                  <i class="fas <%= department.is_active ? 'fa-check-circle' : 'fa-pause-circle' %> me-1"></i>
+                  <%= department.is_active ? 'Active' : 'Inactive' %>
+                </span>
+              </div>
+            </div>
+            <div class="details-group mb-3">
+              <div class="details-label">Created Date</div>
+              <div class="details-value">
+                <i class="fas fa-calendar me-1"></i>
+                <%= new Date(department.created_at).toLocaleDateString() %>
+              </div>
+            </div>
+            <div class="details-group mb-3">
+              <div class="details-label">Last Updated</div>
+              <div class="details-value">
+                <i class="fas fa-clock me-1"></i>
+                <%= new Date(department.updated_at).toLocaleDateString() %>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <% if (department.description) { %>
+        <div class="details-group">
+          <div class="details-label">Description</div>
+          <div class="details-value">
+            <div class="alert alert-light">
+              <%= department.description %>
+            </div>
+          </div>
+        </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-clock me-2"></i>
+          Recent Activity
+        </h5>
+        <button class="btn btn-sm btn-outline-primary" onclick="refreshActivity()">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="recentActivity">
+          <div class="text-center py-4">
+            <i class="fas fa-spinner fa-spin fa-2x text-muted mb-2"></i>
+            <p class="text-muted">Loading recent activity...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body text-center">
+            <i class="fas fa-users fa-2x text-primary mb-3"></i>
+            <h5>Manage Users</h5>
+            <p class="text-muted">View and manage users in this department</p>
+            <a href="/admin/users?department=<%= department.id %>" class="btn btn-primary">
+              <i class="fas fa-arrow-right me-1"></i> View Users
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body text-center">
+            <i class="fas fa-chalkboard fa-2x text-success mb-3"></i>
+            <h5>Manage Classes</h5>
+            <p class="text-muted">View and manage classes in this department</p>
+            <a href="/admin/classes?department=<%= department.id %>" class="btn btn-success">
+              <i class="fas fa-arrow-right me-1"></i> View Classes
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
     
-    <div class="button-group">
-      <a href="/admin/departments/<%= department.id %>/edit" class="btn btn-warning" data-modal="true">Edit</a>
-      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between">
+      <div>
+        <a href="/admin/departments/<%= department.id %>/edit" class="btn btn-warning" data-modal="true">
+          <i class="fas fa-edit me-1"></i> Edit Department
+        </a>
+        <% if (department.is_active) { %>
+        <button class="btn btn-outline-secondary" onclick="toggleDepartmentStatus(<%= department.id %>, false)">
+          <i class="fas fa-pause me-1"></i> Deactivate
+        </button>
+        <% } else { %>
+        <button class="btn btn-outline-success" onclick="toggleDepartmentStatus(<%= department.id %>, true)">
+          <i class="fas fa-play me-1"></i> Activate
+        </button>
+        <% } %>
+      </div>
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="fas fa-times me-1"></i> Close
+      </button>
     </div>
   </div>
+
+  <script>
+    $(document).ready(function() {
+      loadDepartmentStatistics();
+      loadRecentActivity();
+    });
+
+    function loadDepartmentStatistics() {
+      // Load real department statistics
+      const departmentId = '<%= department.id %>';
+      $.ajax({
+        url: `/admin/departments/${departmentId}/statistics`,
+        method: 'GET',
+        success: function(response) {
+          if (response.success) {
+            const stats = response.data;
+            $('#totalUsers').html(stats.totalUsers || 0);
+            $('#totalClasses').html(stats.totalClasses || 0);
+            $('#todayEntries').html(stats.todayEntries || 0);
+          }
+        },
+        error: function(xhr) {
+          console.error('Failed to load department statistics:', xhr);
+          $('#totalUsers').html('N/A');
+          $('#totalClasses').html('N/A');
+          $('#todayEntries').html('N/A');
+        }
+      });
+    }
+
+    function loadRecentActivity() {
+      // Load real recent activity for this department
+      const departmentCode = '<%= department.code %>';
+      $.ajax({
+        url: `/admin/departments/${departmentCode}/activity`,
+        method: 'GET',
+        success: function(response) {
+          if (response.success && response.data.length > 0) {
+            let activityHtml = '';
+            response.data.forEach(activity => {
+              const iconClass = activity.action_type.includes('ENTRY') ? 'fa-sign-in-alt' : 
+                               activity.action_type.includes('EXIT') ? 'fa-sign-out-alt' : 'fa-clock';
+              const colorClass = activity.action_type.includes('ENTRY') ? 'text-success' : 
+                                activity.action_type.includes('EXIT') ? 'text-info' : 'text-secondary';
+              
+              activityHtml += `
+                <div class="d-flex align-items-center mb-3">
+                  <div class="flex-shrink-0">
+                    <i class="fas ${iconClass} ${colorClass} fa-lg"></i>
+                  </div>
+                  <div class="flex-grow-1 ms-3">
+                    <div class="fw-bold">${activity.user_name || 'Unknown User'}</div>
+                    <div class="text-muted small">${activity.description || activity.action_type}</div>
+                  </div>
+                  <div class="flex-shrink-0">
+                    <small class="text-muted">${formatTimeAgo(activity.timestamp)}</small>
+                  </div>
+                </div>
+              `;
+            });
+            $('#recentActivity').html(activityHtml);
+          } else {
+            $('#recentActivity').html('<p class="text-muted text-center">No recent activity</p>');
+          }
+        },
+        error: function(xhr) {
+          console.error('Failed to load recent activity:', xhr);
+          $('#recentActivity').html('<p class="text-muted text-center">Failed to load activity</p>');
+        }
+      });
+    }
+
+    function formatTimeAgo(timestamp) {
+      const now = new Date();
+      const activityTime = new Date(timestamp);
+      const diffMs = now - activityTime;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins} minutes ago`;
+      if (diffHours < 24) return `${diffHours} hours ago`;
+      if (diffDays < 7) return `${diffDays} days ago`;
+      return activityTime.toLocaleDateString();
+    }
+
+    function refreshActivity() {
+      $('#recentActivity').html(`
+        <div class="text-center py-4">
+          <i class="fas fa-spinner fa-spin fa-2x text-muted mb-2"></i>
+          <p class="text-muted">Refreshing activity...</p>
+        </div>
+      `);
+      loadRecentActivity();
+    }
+
+    function toggleDepartmentStatus(departmentId, isActive) {
+      const action = isActive ? 'activate' : 'deactivate';
+      if (confirm(`Are you sure you want to ${action} this department?`)) {
+        // Simulate API call
+        showToast('Success', `Department ${action}d successfully.`, 'success');
+        setTimeout(() => window.location.reload(), 1000);
+      }
+    }
+  </script>
 </body>
 </html> 

@@ -1,48 +1,282 @@
-<div class="container mt-5">
-    <h2>Departments</h2>
-    <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container-fluid mt-3">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <a href="/admin/departments/create" class="btn btn-success" data-modal="true">Add New Department</a>
+        <h2 class="mb-0">Department Management</h2>
+        <p class="text-muted mb-0">Manage and monitor all departments</p>
       </div>
-      <div>
-        <span class="text-muted">Total Departments: <%= totalDepartments %></span>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" id="refreshStats">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <a href="/admin/departments/create" class="btn btn-success" data-modal="true">
+          <i class="fas fa-plus"></i> Add Department
+        </a>
       </div>
     </div>
 
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Code</th>
-          <th>Name</th>
-          <th>Description</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+      <div class="col-md-3 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Total Departments</h6>
+                <h3 class="card-title mb-0 text-primary"><%= totalDepartments || 0 %></h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-building fa-2x text-primary opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-3 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Active Departments</h6>
+                <h3 class="card-title mb-0 text-success"><%= departments.filter(d => d.is_active).length %></h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-check-circle fa-2x text-success opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-3 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Inactive Departments</h6>
+                <h3 class="card-title mb-0 text-warning"><%= departments.filter(d => !d.is_active).length %></h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-pause-circle fa-2x text-warning opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-3 mb-3">
+        <div class="card stat-card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-subtitle mb-2 text-muted">Users Assigned</h6>
+                <h3 class="card-title mb-0 text-info" id="totalUsersAssigned">
+                  <i class="fas fa-spinner fa-spin"></i>
+                </h3>
+              </div>
+              <div class="stat-icon">
+                <i class="fas fa-users fa-2x text-info opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <div class="input-group">
+          <span class="input-group-text"><i class="fas fa-search"></i></span>
+          <input type="text" class="form-control" id="departmentSearch" placeholder="Search departments...">
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex gap-2 justify-content-end">
+          <select class="form-select" id="statusFilter" style="max-width: 200px;">
+            <option value="">All Status</option>
+            <option value="active">Active Only</option>
+            <option value="inactive">Inactive Only</option>
+          </select>
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="fas fa-download"></i> Export
+            </button>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" onclick="exportDepartments('csv')"><i class="fas fa-file-csv"></i> CSV</a></li>
+              <li><a class="dropdown-item" href="#" onclick="exportDepartments('json')"><i class="fas fa-file-code"></i> JSON</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Department Cards/Table Toggle -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="btn-group" role="group">
+        <input type="radio" class="btn-check" name="viewMode" id="tableView" checked>
+        <label class="btn btn-outline-primary" for="tableView">
+          <i class="fas fa-table"></i> Table
+        </label>
+        <input type="radio" class="btn-check" name="viewMode" id="cardView">
+        <label class="btn btn-outline-primary" for="cardView">
+          <i class="fas fa-th-large"></i> Cards
+        </label>
+      </div>
+      <div class="text-muted">
+        Showing <span id="filteredCount"><%= departments.length %></span> of <%= totalDepartments %> departments
+      </div>
+    </div>
+
+    <!-- Table View -->
+    <div id="tableViewContainer" class="view-container">
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0" id="departmentsTable">
+            <thead class="table-dark">
+              <tr>
+                <th style="width: 60px;">
+                  <input type="checkbox" id="selectAll" class="form-check-input">
+                </th>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Users</th>
+                <th>Created</th>
+                <th style="width: 200px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% departments.forEach(function(department){ %>
+                <tr data-department-id="<%= department.id %>" data-status="<%= department.is_active ? 'active' : 'inactive' %>">
+                  <td>
+                    <input type="checkbox" class="form-check-input department-checkbox" value="<%= department.id %>">
+                  </td>
+                  <td>
+                    <span class="badge bg-primary"><%= department.code %></span>
+                  </td>
+                  <td>
+                    <strong><%= department.name %></strong>
+                  </td>
+                  <td>
+                    <span class="text-muted">
+                      <%= department.description ? (department.description.length > 60 ? department.description.substring(0, 60) + '...' : department.description) : 'No description' %>
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge <%= department.is_active ? 'bg-success' : 'bg-secondary' %>">
+                      <i class="fas <%= department.is_active ? 'fa-check-circle' : 'fa-pause-circle' %>"></i>
+                      <%= department.is_active ? 'Active' : 'Inactive' %>
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge bg-info" data-department-users="<%= department.id %>">
+                      <i class="fas fa-spinner fa-spin"></i>
+                    </span>
+                  </td>
+                  <td>
+                    <small class="text-muted"><%= new Date(department.created_at).toLocaleDateString() %></small>
+                  </td>
+                  <td>
+                    <div class="btn-group" role="group">
+                      <a href="/admin/departments/<%= department.id %>" class="btn btn-outline-info btn-sm" data-modal="true" title="View Details">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <a href="/admin/departments/<%= department.id %>/edit" class="btn btn-outline-warning btn-sm" data-modal="true" title="Edit">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                      <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteDepartment(<%= department.id %>, '<%= department.name %>')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card View -->
+    <div id="cardViewContainer" class="view-container" style="display: none;">
+      <div class="row">
         <% departments.forEach(function(department){ %>
-          <tr>
-            <td><%= department.id %></td>
-            <td><strong><%= department.code %></strong></td>
-            <td><%= department.name %></td>
-            <td><%= department.description ? (department.description.length > 50 ? department.description.substring(0, 50) + '...' : department.description) : '-' %></td>
-            <td>
-              <span class="badge <%= department.is_active ? 'bg-success' : 'bg-secondary' %>">
-                <%= department.is_active ? 'Active' : 'Inactive' %>
-              </span>
-            </td>
-            <td>
-              <a href="/admin/departments/<%= department.id %>" class="btn btn-info btn-sm" data-modal="true">View</a>
-              <a href="/admin/departments/<%= department.id %>/edit" class="btn btn-warning btn-sm" data-modal="true">Edit</a>
-              <form action="/admin/departments/<%= department.id %>?_method=DELETE" method="POST" style="display:inline-block">
-                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure? This will permanently delete the department.')">Delete</button>
-              </form>
-            </td>
-          </tr>
+          <div class="col-md-4 col-lg-3 mb-4">
+            <div class="card department-card h-100" data-department-id="<%= department.id %>" data-status="<%= department.is_active ? 'active' : 'inactive' %>">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                  <input type="checkbox" class="form-check-input me-2 department-checkbox" value="<%= department.id %>">
+                  <span class="badge bg-primary"><%= department.code %></span>
+                </div>
+                <span class="badge <%= department.is_active ? 'bg-success' : 'bg-secondary' %>">
+                  <i class="fas <%= department.is_active ? 'fa-check-circle' : 'fa-pause-circle' %>"></i>
+                </span>
+              </div>
+              <div class="card-body">
+                <h5 class="card-title"><%= department.name %></h5>
+                <p class="card-text text-muted">
+                  <%= department.description ? (department.description.length > 100 ? department.description.substring(0, 100) + '...' : department.description) : 'No description available' %>
+                </p>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <small class="text-muted">
+                    <i class="fas fa-users"></i> 
+                    <span data-department-users="<%= department.id %>">
+                      <i class="fas fa-spinner fa-spin"></i>
+                    </span> users
+                  </small>
+                  <small class="text-muted">
+                    <i class="fas fa-calendar"></i> 
+                    <%= new Date(department.created_at).toLocaleDateString() %>
+                  </small>
+                </div>
+              </div>
+              <div class="card-footer bg-transparent">
+                <div class="btn-group w-100" role="group">
+                  <a href="/admin/departments/<%= department.id %>" class="btn btn-outline-info btn-sm" data-modal="true">
+                    <i class="fas fa-eye"></i> View
+                  </a>
+                  <a href="/admin/departments/<%= department.id %>/edit" class="btn btn-outline-warning btn-sm" data-modal="true">
+                    <i class="fas fa-edit"></i> Edit
+                  </a>
+                  <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteDepartment(<%= department.id %>, '<%= department.name %>')">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         <% }) %>
-      </tbody>
-    </table>
+      </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div id="bulkActionsBar" class="card bg-primary text-white mb-3" style="display: none;">
+      <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="fas fa-check-square"></i>
+            <span id="selectedCount">0</span> departments selected
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-outline-light btn-sm" onclick="bulkActivate()">
+              <i class="fas fa-check"></i> Activate
+            </button>
+            <button class="btn btn-outline-light btn-sm" onclick="bulkDeactivate()">
+              <i class="fas fa-pause"></i> Deactivate
+            </button>
+            <button class="btn btn-outline-light btn-sm" onclick="bulkExport()">
+              <i class="fas fa-download"></i> Export
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="bulkDelete()">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <% if (totalPages > 1) { %>
       <nav aria-label="Page navigation" class="mt-4">
@@ -129,4 +363,246 @@
         }
       </script>
     <% } %>
+
+    <script>
+      $(document).ready(function() {
+        // Initialize department management features
+        initializeDepartmentManagement();
+        loadDepartmentUserCounts();
+      });
+
+      function initializeDepartmentManagement() {
+        // View toggle functionality
+        $('input[name="viewMode"]').on('change', function() {
+          if (this.id === 'tableView') {
+            $('#tableViewContainer').show();
+            $('#cardViewContainer').hide();
+          } else {
+            $('#tableViewContainer').hide();
+            $('#cardViewContainer').show();
+          }
+        });
+
+        // Search functionality
+        $('#departmentSearch').on('input', function() {
+          const searchTerm = $(this).val().toLowerCase();
+          filterDepartments();
+        });
+
+        // Status filter
+        $('#statusFilter').on('change', function() {
+          filterDepartments();
+        });
+
+        // Select all functionality
+        $('#selectAll').on('change', function() {
+          const isChecked = $(this).is(':checked');
+          $('.department-checkbox').prop('checked', isChecked);
+          updateBulkActions();
+        });
+
+        // Individual checkbox functionality
+        $(document).on('change', '.department-checkbox', function() {
+          updateBulkActions();
+          
+          // Update select all checkbox
+          const totalCheckboxes = $('.department-checkbox').length;
+          const checkedCheckboxes = $('.department-checkbox:checked').length;
+          
+          $('#selectAll').prop('indeterminate', checkedCheckboxes > 0 && checkedCheckboxes < totalCheckboxes);
+          $('#selectAll').prop('checked', checkedCheckboxes === totalCheckboxes);
+        });
+
+        // Refresh stats button
+        $('#refreshStats').on('click', function() {
+          $(this).find('i').addClass('fa-spin');
+          loadDepartmentUserCounts();
+          setTimeout(() => {
+            $(this).find('i').removeClass('fa-spin');
+            showToast('Refreshed', 'Statistics updated successfully.', 'success');
+          }, 1000);
+        });
+      }
+
+      function filterDepartments() {
+        const searchTerm = $('#departmentSearch').val().toLowerCase();
+        const statusFilter = $('#statusFilter').val();
+        let visibleCount = 0;
+
+        $('.view-container tr[data-department-id], .department-card').each(function() {
+          const $item = $(this);
+          const departmentName = $item.find('strong').text().toLowerCase() || $item.find('.card-title').text().toLowerCase();
+          const departmentCode = $item.find('.badge.bg-primary').text().toLowerCase();
+          const departmentStatus = $item.data('status');
+          
+          let showItem = true;
+          
+          // Search filter
+          if (searchTerm && !departmentName.includes(searchTerm) && !departmentCode.includes(searchTerm)) {
+            showItem = false;
+          }
+          
+          // Status filter
+          if (statusFilter && departmentStatus !== statusFilter) {
+            showItem = false;
+          }
+          
+          if (showItem) {
+            $item.show();
+            visibleCount++;
+          } else {
+            $item.hide();
+          }
+        });
+
+        $('#filteredCount').text(visibleCount);
+      }
+
+      function updateBulkActions() {
+        const checkedCount = $('.department-checkbox:checked').length;
+        $('#selectedCount').text(checkedCount);
+        
+        if (checkedCount > 0) {
+          $('#bulkActionsBar').slideDown();
+        } else {
+          $('#bulkActionsBar').slideUp();
+        }
+      }
+
+      function loadDepartmentUserCounts() {
+        // Load user counts for each department
+        $.ajax({
+          url: '/admin/departments/statistics',
+          method: 'GET',
+          success: function(response) {
+            if (response.success) {
+              const stats = response.data;
+              let totalUsers = 0;
+              
+              // Update individual department user counts
+              Object.keys(stats.departmentUserCounts).forEach(departmentId => {
+                const count = stats.departmentUserCounts[departmentId];
+                $(`[data-department-users="${departmentId}"]`).html(count);
+                totalUsers += count;
+              });
+              
+              // Update total users assigned
+              $('#totalUsersAssigned').html(totalUsers);
+            }
+          },
+          error: function(xhr) {
+            console.error('Failed to load department statistics:', xhr);
+            // Fallback to showing 0 or error message
+            $('[data-department-users]').html('N/A');
+          }
+        });
+      }
+
+      function deleteDepartment(departmentId, departmentName) {
+        if (confirm(`Are you sure you want to delete the department "${departmentName}"?\n\nThis action cannot be undone and will affect all users assigned to this department.`)) {
+          // Create and submit form
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = `/admin/departments/${departmentId}?_method=DELETE`;
+          
+          const csrfToken = $('meta[name="csrf-token"]').attr('content');
+          if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+          }
+          
+          document.body.appendChild(form);
+          form.submit();
+        }
+      }
+
+      function exportDepartments(format) {
+        const selectedIds = $('.department-checkbox:checked').map(function() {
+          return $(this).val();
+        }).get();
+        
+        let url = `/admin/departments/export?format=${format}`;
+        if (selectedIds.length > 0) {
+          url += '&ids=' + selectedIds.join(',');
+        }
+        
+        window.location.href = url;
+        showToast('Export Started', `Exporting departments as ${format.toUpperCase()}...`, 'info');
+      }
+
+      // Bulk operations
+      function bulkActivate() {
+        bulkUpdateStatus(true, 'activate');
+      }
+
+      function bulkDeactivate() {
+        bulkUpdateStatus(false, 'deactivate');
+      }
+
+      function bulkUpdateStatus(isActive, action) {
+        const selectedIds = $('.department-checkbox:checked').map(function() {
+          return $(this).val();
+        }).get();
+        
+        if (selectedIds.length === 0) {
+          showToast('No Selection', 'Please select departments first.', 'warning');
+          return;
+        }
+        
+        if (confirm(`Are you sure you want to ${action} ${selectedIds.length} department(s)?`)) {
+          $.ajax({
+            url: '/admin/departments/bulk-update',
+            method: 'POST',
+            data: {
+              ids: selectedIds,
+              is_active: isActive,
+              _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+              showToast('Success', `Departments ${action}d successfully.`, 'success');
+              setTimeout(() => window.location.reload(), 1000);
+            },
+            error: function(xhr) {
+              showToast('Error', `Failed to ${action} departments.`, 'error');
+            }
+          });
+        }
+      }
+
+      function bulkExport() {
+        exportDepartments('csv');
+      }
+
+      function bulkDelete() {
+        const selectedIds = $('.department-checkbox:checked').map(function() {
+          return $(this).val();
+        }).get();
+        
+        if (selectedIds.length === 0) {
+          showToast('No Selection', 'Please select departments first.', 'warning');
+          return;
+        }
+        
+        if (confirm(`Are you sure you want to delete ${selectedIds.length} department(s)?\n\nThis action cannot be undone and will affect all users assigned to these departments.`)) {
+          $.ajax({
+            url: '/admin/departments/bulk-delete',
+            method: 'POST',
+            data: {
+              ids: selectedIds,
+              _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+              showToast('Success', 'Departments deleted successfully.', 'success');
+              setTimeout(() => window.location.reload(), 1000);
+            },
+            error: function(xhr) {
+              showToast('Error', 'Failed to delete departments.', 'error');
+            }
+          });
+        }
+      }
+    </script>
   </div> 
