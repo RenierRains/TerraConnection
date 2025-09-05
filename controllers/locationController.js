@@ -77,8 +77,12 @@ async function broadcastActiveUsersCount(classId, wss, io) {
 // Update user's location
 exports.updateLocation = async (req, res) => {
     try {
-        const { latitude, longitude, classId, accuracy, provider } = req.body;
-        console.log('Location update request:', { latitude, longitude, classId });
+        const { latitude, longitude, classId, accuracy, provider, generalArea, timestamp } = req.body;
+        console.log('Location update request:', { 
+            generalArea, 
+            classId, 
+            hasCoordinates: !!(latitude && longitude) 
+        });
         
         const userId = req.user?.id || req.user?.userId;
 
@@ -95,7 +99,7 @@ exports.updateLocation = async (req, res) => {
             });
         }
 
-        if (!latitude || !longitude || !classId) {
+        if (!classId || (!generalArea && (!latitude || !longitude))) {
             await logLocationAudit(userId, 'UPDATE', {
                 error: 'Missing required fields',
                 status: 'failed',
@@ -103,7 +107,7 @@ exports.updateLocation = async (req, res) => {
             }, req);
             return res.status(400).json({
                 success: false,
-                message: 'Latitude, longitude, and classId are required'
+                message: 'ClassId and either generalArea or coordinates are required'
             });
         }
 
@@ -132,11 +136,12 @@ exports.updateLocation = async (req, res) => {
         }
 
         const location = await GPS_Location.create({
-            latitude,
-            longitude,
+            latitude: latitude || null,
+            longitude: longitude || null,
             user_id: userId,
             class_id: classId,
-            timestamp: new Date()
+            general_area: generalArea || null,
+            timestamp: timestamp ? new Date(timestamp) : new Date()
         });
 
         // Get user details for the update message
@@ -146,8 +151,9 @@ exports.updateLocation = async (req, res) => {
             studentName: `${user.first_name} ${user.last_name}`,
             profilePicture: user.profile_picture,
             role: user.role,
-            latitude,
-            longitude,
+            generalArea: generalArea,
+            latitude: latitude || null,
+            longitude: longitude || null,
             timestamp: location.timestamp
         };
 
@@ -177,8 +183,9 @@ exports.updateLocation = async (req, res) => {
             provider,
             locationContext: {
                 classId,
-                latitude,
-                longitude,
+                generalArea: generalArea,
+                latitude: latitude || null,
+                longitude: longitude || null,
                 timestamp: location.timestamp
             }
         }, req);
@@ -340,7 +347,7 @@ exports.getClassLocations = async (req, res) => {
                     model: GPS_Location,
                     limit: 1,
                     order: [['timestamp', 'DESC']],
-                    attributes: ['latitude', 'longitude', 'timestamp']
+                    attributes: ['latitude', 'longitude', 'general_area', 'timestamp']
                 }]
             }]
         });
@@ -358,11 +365,12 @@ exports.getClassLocations = async (req, res) => {
                 studentName: `${enrollment.studentData.first_name} ${enrollment.studentData.last_name}`,
                 profilePicture: enrollment.studentData.profile_picture,
                 role: enrollment.studentData.role,
+                generalArea: isActive ? latestLocation.general_area : null,
                 latitude: isActive ? latestLocation.latitude : null,
                 longitude: isActive ? latestLocation.longitude : null,
                 timestamp: isActive ? latestLocation.timestamp : null
             };
-        }).filter(loc => loc.latitude !== null && loc.longitude !== null);
+        }).filter(loc => loc.generalArea !== null || (loc.latitude !== null && loc.longitude !== null));
 
         // Send initial active users count along with locations
         const io = req.app.get('io');
@@ -378,6 +386,66 @@ exports.getClassLocations = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching class locations'
+        });
+    }
+};
+
+// Update location specifically for guardian viewing (separate from class sharing)
+exports.updateGuardianLocation = async (req, res) => {
+    try {
+        const { latitude, longitude, generalArea, timestamp } = req.body;
+        console.log('Guardian location update request:', { generalArea });
+        
+        const userId = req.user?.id || req.user?.userId;
+
+        if (!userId) {
+            console.error('No user ID in request. User object:', req.user);
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated'
+            });
+        }
+
+        if (!generalArea && (!latitude || !longitude)) {
+            return res.status(400).json({
+                success: false,
+                message: 'General area or coordinates are required'
+            });
+        }
+
+        // Create location record for guardian viewing (no specific class_id)
+        const location = await GPS_Location.create({
+            latitude: latitude || null,
+            longitude: longitude || null,
+            user_id: userId,
+            class_id: null, // No specific class for guardian sharing
+            general_area: generalArea || null,
+            timestamp: timestamp ? new Date(timestamp) : new Date()
+        });
+
+        await logLocationAudit(userId, 'GUARDIAN_UPDATE', {
+            status: 'success',
+            locationContext: {
+                generalArea: generalArea,
+                latitude: latitude || null,
+                longitude: longitude || null,
+                timestamp: location.timestamp
+            }
+        }, req);
+
+        res.status(200).json({
+            success: true,
+            data: location
+        });
+    } catch (error) {
+        console.error('Error updating guardian location:', error);
+        await logLocationAudit(req.user?.id || req.user?.userId, 'GUARDIAN_UPDATE', {
+            error: error.message,
+            status: 'failed'
+        }, req);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating guardian location'
         });
     }
 };

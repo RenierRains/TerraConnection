@@ -255,7 +255,7 @@ app.get('/test-profile-pics', async (req, res) => {
 
         users.forEach(user => {
             let profileUrl = user.profile_picture;
-            if (profileUrl && !profileUrl.startsWith('/') && !profileUrl.startsWith('http')) {
+            if (profileUrl && !profileUrl.startsWith('/') && !profileUrl.startsWith('http') && !profileUrl.startsWith('uploads/')) {
                 profileUrl = `uploads/profile_pics/${profileUrl}`;
             }
             

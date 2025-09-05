@@ -71,9 +71,10 @@ exports.processScan = async (req, res) => {
     }, req);
 
     // Format profile picture URL if needed
+    // Fix for double path issue: only add path prefix if URL doesn't already contain it
     let profilePictureUrl = user.profile_picture;
-    if (profilePictureUrl && !profilePictureUrl.startsWith('/') && !profilePictureUrl.startsWith('http')) {
-      // If it's just a filename, add the proper path
+    if (profilePictureUrl && !profilePictureUrl.startsWith('/') && !profilePictureUrl.startsWith('http') && !profilePictureUrl.startsWith('uploads/')) {
+      // If it's just a filename (no path), add the proper path
       profilePictureUrl = `uploads/profile_pics/${profilePictureUrl}`;
     }
 

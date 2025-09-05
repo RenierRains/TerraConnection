@@ -15,4 +15,7 @@ router.post('/stop', locationController.stopSharing);
 // Get locations of all students in a class
 router.get('/class/:classId', locationController.getClassLocations);
 
+// Update location for guardian viewing (separate from class sharing)
+router.post('/guardian-update', locationController.updateGuardianLocation);
+
 module.exports = router; 
