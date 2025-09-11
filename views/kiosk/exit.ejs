@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitor Exit - TerraConnection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(-45deg, #e74c3c, #c0392b, #dc3545, #b71c1c);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .kiosk-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .kiosk-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.3) 100%);
+            pointer-events: none;
+        }
+
+        .kiosk-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            animation: fadeInUp 0.8s ease-out;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .kiosk-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .kiosk-header {
+            background: linear-gradient(135deg, #c0392b, #e74c3c);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .kiosk-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .kiosk-header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .kiosk-body {
+            padding: 40px;
+        }
+
+        .camera-section {
+            background: rgba(231, 76, 60, 0.05);
+            border: 2px solid rgba(231, 76, 60, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin: 25px 0;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.1);
+        }
+
+        .camera-section h4 {
+            color: #c0392b;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(192, 57, 43, 0.1);
+        }
+
+        .camera-container {
+            position: relative;
+            display: inline-block;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.2);
+            border: 3px solid rgba(231, 76, 60, 0.3);
+        }
+
+        #video {
+            width: 320px;
+            height: 240px;
+            border-radius: 15px;
+            object-fit: cover;
+            background: #f8f9fa;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .verification-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(231, 76, 60, 0.1);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+        }
+
+        .verification-success {
+            background: rgba(39, 174, 96, 0.9) !important;
+        }
+
+        .verification-failed {
+            background: rgba(231, 76, 60, 0.9) !important;
+        }
+
+        .btn-kiosk {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 10px;
+            border: none;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6a0dad 0%, #8a2be2 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(106, 13, 173, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #8a2be2 0%, #6a0dad 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(106, 13, 173, 0.4);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+            color: white;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px 0;
+            font-weight: 600;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-success {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.2);
+        }
+
+        .status-error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border: 1px solid rgba(220, 53, 69, 0.2);
+        }
+
+        .status-info {
+            background: rgba(231, 76, 60, 0.1);
+            color: #c0392b;
+            border: 1px solid rgba(231, 76, 60, 0.2);
+        }
+
+        .status-warning {
+            background: rgba(243, 156, 18, 0.1);
+            color: #f39c12;
+            border: 1px solid rgba(243, 156, 18, 0.2);
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+
+        .verification-result {
+            display: none;
+            padding: 30px;
+            text-align: center;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .verification-success-result {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724;
+            border: 2px solid #27ae60;
+        }
+
+        .verification-failed-result {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            color: #721c24;
+            border: 2px solid #e74c3c;
+        }
+
+        .visitor-info {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .camera-instructions {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .form-footer {
+            background: rgba(231, 76, 60, 0.05);
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid rgba(231, 76, 60, 0.1);
+            backdrop-filter: blur(5px);
+        }
+
+        .similarity-bar {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .similarity-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .similarity-high {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+        }
+
+        .similarity-medium {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+
+        .similarity-low {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        @media (max-width: 768px) {
+            .kiosk-container {
+                padding: 10px;
+            }
+            
+            .kiosk-body {
+                padding: 20px;
+            }
+            
+            .kiosk-header h1 {
+                font-size: 2rem;
+            }
+            
+            #video {
+                width: 280px;
+                height: 210px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="kiosk-container">
+        <div class="kiosk-card">
+            <div class="kiosk-header">
+                <img src="/logo.png" alt="TerraConnection" style="max-width: 200px; max-height: 80px; width: auto; height: auto; margin-bottom: 1rem; filter: brightness(0) invert(1); transition: all 0.3s ease;">
+                <h1><i class="fas fa-sign-out-alt"></i> Visitor Exit</h1>
+                <p>Please verify your identity to complete your visit.</p>
+            </div>
+
+            <div class="kiosk-body">
+                <div class="camera-section">
+                    <h4><i class="fas fa-camera"></i> Face Verification Required</h4>
+                    <p class="camera-instructions">
+                        Please position yourself in front of the camera for face verification.
+                        We'll match your face with your entry photo to confirm your identity.
+                    </p>
+
+                    <div class="camera-container">
+                        <video id="video" autoplay playsinline></video>
+                        <canvas id="canvas"></canvas>
+                        <div class="verification-overlay" id="verificationOverlay">
+                            <div class="text-white text-center">
+                                <i class="fas fa-sync fa-spin fa-3x"></i>
+                                <p class="mt-2">Verifying...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="button" id="startCameraBtn" class="btn btn-primary btn-kiosk me-2">
+                            <i class="fas fa-video"></i> Start Camera
+                        </button>
+                        <button type="button" id="verifyBtn" class="btn btn-success btn-kiosk" disabled>
+                            <i class="fas fa-user-check"></i> Verify Exit
+                        </button>
+                    </div>
+
+                    <div id="statusMessage"></div>
+
+                    <div class="loading-spinner" id="loadingSpinner">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">Verifying...</span>
+                        </div>
+                        <p class="mt-2">Processing face verification...</p>
+                    </div>
+                </div>
+
+                <div class="verification-result" id="verificationResult">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+
+            <div class="form-footer">
+                <button type="button" class="btn btn-secondary btn-kiosk me-2" onclick="window.location.href='/kiosk/'">
+                    <i class="fas fa-arrow-left"></i> Back to Main Menu
+                </button>
+                <button type="button" id="tryAgainBtn" class="btn btn-primary btn-kiosk me-2" style="display: none;">
+                    <i class="fas fa-redo"></i> Try Again
+                </button>
+                <button type="button" id="newVisitorBtn" class="btn btn-danger btn-kiosk" onclick="window.location.href='/kiosk/entry'">
+                    <i class="fas fa-user-plus"></i> New Visitor Entry
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Face-API.js CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js" 
+            onload="console.log('✅ Face-API.js loaded successfully'); window.faceApiLoaded = true;" 
+            onerror="console.error('❌ Failed to load Face-API.js'); window.faceApiLoaded = false;"></script>
+    <script>
+        class VisitorExit {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.stream = null;
+                this.isVerifying = false;
+                this.faceDetectionInitialized = false;
+                this.usingTinyDetector = true;
+                this.activeVisitors = [];
+                this.referenceDescriptors = new Map(); // visitorId -> descriptor
+
+                // Face detection constants
+                this.FACE_MATCH_THRESHOLD = 0.6;
+                this.TINY_INPUT_SIZE = 320;
+                this.TINY_SCORE_THRESHOLD = 0.55;
+
+                this.initializeEventListeners();
+                this.initializeFaceDetection();
+            }
+
+            initializeEventListeners() {
+                document.getElementById('startCameraBtn').addEventListener('click', () => this.startCamera());
+                document.getElementById('verifyBtn').addEventListener('click', () => this.verifyExit());
+                document.getElementById('tryAgainBtn').addEventListener('click', () => this.resetVerification());
+            }
+
+            // Initialize face-api.js models (same as entry kiosk)
+            async initializeFaceDetection() {
+                if (this.faceDetectionInitialized) {
+                    console.log('Face detection already initialized');
+                    return;
+                }
+
+                try {
+                    // Check if face-api is available
+                    if (typeof faceapi === 'undefined') {
+                        console.log('Face-API.js not yet loaded, will retry...');
+                        setTimeout(() => this.initializeFaceDetection(), 1000);
+                        return;
+                    }
+
+                    console.log('Loading face detection models...');
+
+                    // Set TF backend to WebGL for performance
+                    try {
+                        if (faceapi.tf && typeof faceapi.tf.setBackend === 'function') {
+                            await faceapi.tf.setBackend('webgl');
+                            await faceapi.tf.ready();
+                            console.log('✅ TFJS backend set to WebGL');
+                        }
+                    } catch (e) {
+                        console.warn('WebGL backend not available, falling back to CPU:', e.message);
+                        try {
+                            await faceapi.tf.setBackend('cpu');
+                            await faceapi.tf.ready();
+                        } catch (e2) {
+                            console.warn('CPU backend setup warning:', e2.message);
+                        }
+                    }
+
+                    // Load models from local files
+                    let tinyLoaded = false;
+                    if (this.usingTinyDetector) {
+                        try {
+                            await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+                            if (faceapi.nets.faceLandmark68TinyNet) {
+                                await faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models');
+                            } else {
+                                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+                            }
+                            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+                            tinyLoaded = true;
+                            console.log('✅ Tiny models loaded');
+                        } catch (e) {
+                            console.warn('Tiny models not available, will use SSD:', e.message);
+                            this.usingTinyDetector = false;
+                        }
+                    }
+
+                    if (!tinyLoaded) {
+                        await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+                        await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+                        await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+                        console.log('✅ SSD models loaded');
+                    }
+
+                    this.faceDetectionInitialized = true;
+                    console.log('✅ Face detection initialized successfully');
+
+                } catch (error) {
+                    console.error('❌ Error loading face-api models:', error);
+                    this.faceDetectionInitialized = false;
+                }
+            }
+
+            async startCamera() {
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            width: 640, 
+                            height: 480,
+                            facingMode: 'user'
+                        } 
+                    });
+                    
+                    this.video.srcObject = this.stream;
+                    
+                    document.getElementById('startCameraBtn').disabled = true;
+                    document.getElementById('verifyBtn').disabled = false;
+                    
+                    this.showStatus('Camera started. Please position yourself clearly in the frame.', 'info');
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    this.showStatus('Error accessing camera. Please ensure camera permissions are granted.', 'error');
+                }
+            }
+
+            async verifyExit() {
+                if (this.isVerifying) return;
+                
+                try {
+                    this.isVerifying = true;
+                    this.showLoading(true);
+                    this.showVerificationOverlay(true);
+
+                    if (!this.faceDetectionInitialized) {
+                        throw new Error('Face detection not ready. Please wait and try again.');
+                    }
+                    
+                    // Capture current frame and detect face
+                    this.canvas.width = this.video.videoWidth;
+                    this.canvas.height = this.video.videoHeight;
+                    this.ctx.drawImage(this.video, 0, 0);
+                    
+                    const faceImageData = this.canvas.toDataURL('image/jpeg', 0.8);
+
+                    // Detect face and generate descriptor
+                    console.log('Detecting face in exit verification...');
+                    const opts = this.usingTinyDetector
+                        ? new faceapi.TinyFaceDetectorOptions({ 
+                            inputSize: this.TINY_INPUT_SIZE, 
+                            scoreThreshold: this.TINY_SCORE_THRESHOLD 
+                          })
+                        : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+
+                    const detections = await faceapi.detectSingleFace(this.video, opts)
+                        .withFaceLandmarks(this.usingTinyDetector)
+                        .withFaceDescriptor();
+
+                    if (!detections) {
+                        throw new Error('No face detected. Please position your face clearly in the camera and try again.');
+                    }
+
+                    const currentFaceDescriptor = Array.from(detections.descriptor);
+                    console.log('✅ Face detected and descriptor generated for exit verification');
+                    
+                    // Send to server for initial verification (get active visitors list)
+                    const response = await fetch('/api/kiosk/visitor/exit', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            faceImage: faceImageData,
+                            faceDescriptor: currentFaceDescriptor
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        throw new Error(result.error || 'Exit verification failed');
+                    }
+
+                    if (result.requiresFrontendMatching) {
+                        // Perform face matching on frontend
+                        console.log('Performing frontend face matching...');
+                        const matchResult = await this.performFaceMatching(currentFaceDescriptor, result.data.visitors);
+                        
+                        if (matchResult.match) {
+                            // Complete the exit on the server
+                            await this.completeExit(matchResult.visitorId, matchResult);
+                        } else {
+                            this.showVerificationFailed('No matching visitor found', { 
+                                verification: matchResult 
+                            });
+                        }
+                    } else {
+                        this.showVerificationSuccess(result.data);
+                    }
+
+                } catch (error) {
+                    console.error('Verification error:', error);
+                    this.showStatus(error.message || 'Verification failed', 'error');
+                    this.showVerificationOverlay(false);
+                } finally {
+                    this.isVerifying = false;
+                    this.showLoading(false);
+                }
+            }
+
+            // Perform face matching against active visitors
+            async performFaceMatching(currentDescriptor, visitors) {
+                console.log(`Comparing face against ${visitors.length} active visitors...`);
+                
+                let bestMatch = null;
+                let bestDistance = 999;
+
+                for (const visitor of visitors) {
+                    try {
+                        // Load the visitor's reference image if not cached
+                        if (!this.referenceDescriptors.has(visitor.id)) {
+                            const referenceDescriptor = await this.loadVisitorFaceDescriptor(visitor);
+                            if (referenceDescriptor) {
+                                this.referenceDescriptors.set(visitor.id, referenceDescriptor);
+                            } else {
+                                console.warn(`Could not load face descriptor for visitor ${visitor.name}`);
+                                continue;
+                            }
+                        }
+
+                        const referenceDescriptor = this.referenceDescriptors.get(visitor.id);
+                        if (!referenceDescriptor) continue;
+
+                        // Calculate euclidean distance (same as face-api.js)
+                        const distance = this.calculateEuclideanDistance(currentDescriptor, referenceDescriptor);
+                        const similarity = Math.max(0, (1 - distance) * 100);
+
+                        console.log(`Visitor ${visitor.name}: distance=${distance.toFixed(3)}, similarity=${similarity.toFixed(1)}%`);
+
+                        if (distance < bestDistance) {
+                            bestDistance = distance;
+                            bestMatch = {
+                                visitorId: visitor.id,
+                                visitor: visitor,
+                                distance: distance,
+                                similarity: similarity,
+                                match: distance < this.FACE_MATCH_THRESHOLD
+                            };
+                        }
+                    } catch (error) {
+                        console.error(`Error matching visitor ${visitor.name}:`, error);
+                    }
+                }
+
+                if (bestMatch) {
+                    console.log(`Best match: ${bestMatch.visitor.name} (distance: ${bestMatch.distance.toFixed(3)}, match: ${bestMatch.match})`);
+                    return bestMatch;
+                } else {
+                    return {
+                        match: false,
+                        distance: 999,
+                        similarity: 0,
+                        error: 'No valid face comparisons could be performed'
+                    };
+                }
+            }
+
+            // Load face descriptor for a visitor's reference image
+            async loadVisitorFaceDescriptor(visitor) {
+                try {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    
+                    return new Promise((resolve, reject) => {
+                        img.onload = async () => {
+                            try {
+                                const opts = this.usingTinyDetector
+                                    ? new faceapi.TinyFaceDetectorOptions({ 
+                                        inputSize: this.TINY_INPUT_SIZE, 
+                                        scoreThreshold: this.TINY_SCORE_THRESHOLD 
+                                      })
+                                    : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+
+                                const detections = await faceapi.detectSingleFace(img, opts)
+                                    .withFaceLandmarks(this.usingTinyDetector)
+                                    .withFaceDescriptor();
+
+                                if (detections) {
+                                    resolve(Array.from(detections.descriptor));
+                                } else {
+                                    console.warn(`No face detected in reference image for ${visitor.name}`);
+                                    resolve(null);
+                                }
+                            } catch (error) {
+                                console.error(`Error analyzing reference image for ${visitor.name}:`, error);
+                                reject(error);
+                            }
+                        };
+
+                        img.onerror = () => {
+                            console.error(`Could not load reference image for ${visitor.name}: ${visitor.faceImagePath}`);
+                            resolve(null);
+                        };
+
+                        img.src = `/${visitor.faceImagePath}`;
+                    });
+                } catch (error) {
+                    console.error(`Error loading visitor face descriptor:`, error);
+                    return null;
+                }
+            }
+
+            // Calculate euclidean distance between two descriptors
+            calculateEuclideanDistance(desc1, desc2) {
+                if (desc1.length !== desc2.length) {
+                    throw new Error('Descriptor length mismatch');
+                }
+
+                let sum = 0;
+                for (let i = 0; i < desc1.length; i++) {
+                    const diff = desc1[i] - desc2[i];
+                    sum += diff * diff;
+                }
+                return Math.sqrt(sum);
+            }
+
+            // Complete the exit process
+            async completeExit(visitorId, matchResult) {
+                try {
+                    const response = await fetch('/api/kiosk/visitor/exit/complete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            visitorId: visitorId,
+                            matchResult: matchResult
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.showVerificationSuccess(result.data);
+                    } else {
+                        this.showVerificationFailed(result.error, result.data);
+                    }
+                } catch (error) {
+                    console.error('Error completing exit:', error);
+                    this.showVerificationFailed('Network error while completing exit', null);
+                }
+            }
+
+            showVerificationSuccess(data) {
+                const { visitor, verification } = data;
+                
+                this.showVerificationOverlay(false, 'success');
+                
+                const resultDiv = document.getElementById('verificationResult');
+                resultDiv.className = 'verification-result verification-success-result';
+                resultDiv.style.display = 'block';
+                
+                resultDiv.innerHTML = `
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle fa-4x text-success"></i>
+                    </div>
+                    <h2 class="text-success mb-3">Exit Verified Successfully!</h2>
+                    <div class="visitor-info">
+                        <h5>Visitor Information</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Name:</strong> ${visitor.name}</p>
+                                <p><strong>Purpose:</strong> ${visitor.purpose}</p>
+                                <p><strong>Entry Time:</strong> ${new Date(visitor.entryTime).toLocaleString()}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Exit Time:</strong> ${new Date(visitor.exitTime).toLocaleString()}</p>
+                                <p><strong>Visit Duration:</strong> ${visitor.durationMinutes} minutes</p>
+                                <p><strong>Verification Match:</strong> ${(verification.similarity * 100).toFixed(1)}%</p>
+                            </div>
+                        </div>
+                        <div class="similarity-bar">
+                            <div class="similarity-fill similarity-high" style="width: ${verification.similarity * 100}%"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-success">
+                            <i class="fas fa-thumbs-up"></i> Thank you for your visit! Have a great day.
+                        </p>
+                    </div>
+                `;
+
+                this.stopCamera();
+                document.getElementById('tryAgainBtn').style.display = 'none';
+                
+                // Auto-refresh after 15 seconds
+                setTimeout(() => {
+                    window.location.reload();
+                }, 15000);
+            }
+
+            showVerificationFailed(error, data) {
+                this.showVerificationOverlay(false, 'failed');
+                
+                const resultDiv = document.getElementById('verificationResult');
+                resultDiv.className = 'verification-result verification-failed-result';
+                resultDiv.style.display = 'block';
+                
+                let additionalInfo = '';
+                if (data && data.verification) {
+                    additionalInfo = `
+                        <div class="visitor-info">
+                            <p><strong>Active Visitors:</strong> ${data.verification.activeVisitors}</p>
+                            <p><strong>Reason:</strong> No matching face found in our records</p>
+                        </div>
+                    `;
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="mb-4">
+                        <i class="fas fa-times-circle fa-4x text-danger"></i>
+                    </div>
+                    <h2 class="text-danger mb-3">Verification Failed</h2>
+                    <div class="visitor-info">
+                        <p><strong>Error:</strong> ${error}</p>
+                        ${additionalInfo}
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-danger">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Please contact security or try registering as a new visitor.
+                        </p>
+                    </div>
+                `;
+
+                document.getElementById('tryAgainBtn').style.display = 'inline-block';
+            }
+
+            showVerificationOverlay(show, type = 'processing') {
+                const overlay = document.getElementById('verificationOverlay');
+                
+                if (show) {
+                    overlay.style.display = 'flex';
+                    
+                    if (type === 'success') {
+                        overlay.className = 'verification-overlay verification-success';
+                        overlay.innerHTML = `
+                            <div class="text-white text-center">
+                                <i class="fas fa-check fa-3x"></i>
+                                <p class="mt-2">Verified!</p>
+                            </div>
+                        `;
+                        setTimeout(() => {
+                            overlay.style.display = 'none';
+                        }, 2000);
+                    } else if (type === 'failed') {
+                        overlay.className = 'verification-overlay verification-failed';
+                        overlay.innerHTML = `
+                            <div class="text-white text-center">
+                                <i class="fas fa-times fa-3x"></i>
+                                <p class="mt-2">Failed!</p>
+                            </div>
+                        `;
+                        setTimeout(() => {
+                            overlay.style.display = 'none';
+                        }, 2000);
+                    }
+                } else {
+                    overlay.style.display = 'none';
+                }
+            }
+
+            resetVerification() {
+                document.getElementById('verificationResult').style.display = 'none';
+                document.getElementById('tryAgainBtn').style.display = 'none';
+                document.getElementById('startCameraBtn').disabled = false;
+                document.getElementById('verifyBtn').disabled = true;
+                
+                this.showStatus('Ready to try again. Please start the camera.', 'info');
+            }
+
+            stopCamera() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+                document.getElementById('startCameraBtn').disabled = false;
+                document.getElementById('verifyBtn').disabled = true;
+            }
+
+            showStatus(message, type) {
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.innerHTML = `<div class="status-message status-${type}">${message}</div>`;
+                
+                // Auto-hide success messages after 5 seconds
+                if (type === 'success') {
+                    setTimeout(() => {
+                        statusDiv.innerHTML = '';
+                    }, 5000);
+                }
+            }
+
+            showLoading(show) {
+                const loadingSpinner = document.getElementById('loadingSpinner');
+                const verifyBtn = document.getElementById('verifyBtn');
+                
+                if (show) {
+                    loadingSpinner.style.display = 'block';
+                    verifyBtn.disabled = true;
+                } else {
+                    loadingSpinner.style.display = 'none';
+                    verifyBtn.disabled = false;
+                }
+            }
+        }
+
+        // Initialize the visitor exit system
+        document.addEventListener('DOMContentLoaded', () => {
+            new VisitorExit();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (window.visitorExit && window.visitorExit.stream) {
+                window.visitorExit.stopCamera();
+            }
+        });
+    </script>
+</body>
+</html>

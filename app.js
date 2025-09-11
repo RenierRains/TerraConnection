@@ -26,6 +26,9 @@ const professorRoutes = require('./routes/professor');
 const guardianRoutes = require('./routes/guardian');
 const userRoutes = require('./routes/user');
 const locationRoutes = require('./routes/locationRoutes');
+const visitorKioskRoutes = require('./routes/visitorKiosk');
+const visitorAdminRoutes = require('./routes/visitorAdmin');
+const kioskRoutes = require('./routes/kiosk');
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -204,6 +207,9 @@ app.use('/api/professor', professorRoutes);
 app.use('/api/guardian', guardianRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/location', locationRoutes);
+app.use('/api/kiosk/visitor', visitorKioskRoutes);
+app.use('/admin/visitors', visitorAdminRoutes);
+app.use('/kiosk', kioskRoutes);
 // Serve uploads directory with proper headers
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   setHeaders: (res, path) => {

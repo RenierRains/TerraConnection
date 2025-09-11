@@ -1,0 +1,153 @@
+<div class="container-fluid">
+    <h2 class="mb-4">
+        <i class="fas fa-download text-primary"></i> Export Visitor Logs
+    </h2>
+    
+    <form action="/admin/visitors/export" method="GET" id="exportForm" target="_blank">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="exportFormat" class="form-label">Export Format *</label>
+                    <select class="form-select" id="exportFormat" name="format" required>
+                        <option value="csv">CSV (Comma Separated Values)</option>
+                        <option value="json">JSON (JavaScript Object Notation)</option>
+                    </select>
+                    <div class="form-text">Choose the format for your exported data</div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="exportStatus" class="form-label">Status Filter</label>
+                    <select class="form-select" id="exportStatus" name="status">
+                        <option value="">All Status</option>
+                        <option value="active">Active Only</option>
+                        <option value="exited">Exited Only</option>
+                        <option value="expired">Expired Only</option>
+                    </select>
+                    <div class="form-text">Filter visitors by their current status</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="exportDateFrom" class="form-label">From Date</label>
+                    <input type="date" class="form-control" id="exportDateFrom" name="dateFrom">
+                    <div class="form-text">Start date for the export range (optional)</div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="exportDateTo" class="form-label">To Date</label>
+                    <input type="date" class="form-control" id="exportDateTo" name="dateTo">
+                    <div class="form-text">End date for the export range (optional)</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="exportLimit" class="form-label">Record Limit</label>
+                    <select class="form-select" id="exportLimit" name="limit">
+                        <option value="">No Limit</option>
+                        <option value="100">100 records</option>
+                        <option value="500">500 records</option>
+                        <option value="1000">1,000 records</option>
+                        <option value="5000">5,000 records</option>
+                    </select>
+                    <div class="form-text">Limit the number of records exported (optional)</div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="exportSearch" class="form-label">Search Filter</label>
+                    <input type="text" class="form-control" id="exportSearch" name="search" placeholder="Search by visitor name...">
+                    <div class="form-text">Filter by visitor name (optional)</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Export Information:</strong>
+            <ul class="mb-0 mt-2">
+                <li>CSV format is recommended for Excel compatibility</li>
+                <li>JSON format preserves all data types and relationships</li>
+                <li>Large exports may take a few moments to process</li>
+                <li>Exported files will be downloaded to your default download folder</li>
+            </ul>
+        </div>
+        
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-download"></i> Export Data
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default date range to last 30 days
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    document.getElementById('exportDateTo').value = today.toISOString().split('T')[0];
+    document.getElementById('exportDateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    // Form validation and submission handling
+    document.getElementById('exportForm').addEventListener('submit', function(e) {
+        const format = document.getElementById('exportFormat').value;
+        const dateFrom = document.getElementById('exportDateFrom').value;
+        const dateTo = document.getElementById('exportDateTo').value;
+        
+        if (!format) {
+            e.preventDefault();
+            alert('Please select an export format.');
+            return;
+        }
+        
+        // Validate date range
+        if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
+            e.preventDefault();
+            alert('From date cannot be after To date.');
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+        submitBtn.disabled = true;
+        
+        // Close modal after a short delay to allow form submission
+        setTimeout(() => {
+            // Close the modal
+            const modal = document.querySelector('.modal.show');
+            if (modal) {
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+            
+            // Show success message
+            if (typeof showToast === 'function') {
+                showToast('Export Started', 'Your file download should begin shortly.', 'success');
+            }
+            
+            // Reset button
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 1000);
+    });
+});
+</script>

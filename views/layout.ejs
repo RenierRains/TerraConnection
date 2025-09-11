@@ -92,7 +92,7 @@
       position: fixed;
       top: 20px;
       right: 20px;
-      z-index: 9999;
+      z-index: 10100;
     }
 
     .toast {
@@ -190,7 +190,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 9999;
+      z-index: 9000;
       opacity: 0;
       visibility: hidden;
       transition: all 0.3s ease;
@@ -278,16 +278,21 @@
                <i class="fa-solid fa-id-card"></i> <span class="nav-text">Manage RFID Cards</span>
              </a>
            </li>
-           <li class="nav-item">
-             <a class="nav-link" href="/admin/audit-logs" data-page="audit-logs">
-               <i class="fa-solid fa-clipboard-list"></i> <span class="nav-text">Audit Logs</span>
-             </a>
-           </li>
-           <li class="nav-item">
-             <a class="nav-link" href="/admin/guardian-link" data-page="guardian-link">
-               <i class="fa-solid fa-link"></i> <span class="nav-text">Guardian Link</span>
-             </a>
-           </li>
+                     <li class="nav-item">
+            <a class="nav-link" href="/admin/visitors" data-page="visitors">
+              <i class="fa-solid fa-user-clock"></i> <span class="nav-text">Visitor Logs</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/audit-logs" data-page="audit-logs">
+              <i class="fa-solid fa-clipboard-list"></i> <span class="nav-text">Audit Logs</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/guardian-link" data-page="guardian-link">
+              <i class="fa-solid fa-link"></i> <span class="nav-text">Guardian Link</span>
+            </a>
+          </li>
            <li class="nav-item mt-auto">
              <a class="nav-link" href="/admin/logout">
                <i class="fa-solid fa-sign-out-alt"></i> <span class="nav-text">Logout</span>
@@ -361,8 +366,14 @@
             modal.find('.modal-title').text(title);
             
             modal.find('form').on('submit', function(e) {
-              e.preventDefault();
               const form = $(this);
+              
+              // Don't intercept forms with target="_blank" (for file downloads)
+              if (form.attr('target') === '_blank') {
+                return; // Let the form submit naturally
+              }
+              
+              e.preventDefault();
               const submitBtn = form.find('button[type="submit"]');
               const originalText = submitBtn.text();
               

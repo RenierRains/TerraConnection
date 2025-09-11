@@ -8,11 +8,16 @@ module.exports = (sequelize, DataTypes) => {
     },
     latitude: {
       type: DataTypes.DOUBLE,
-      allowNull: false
+      allowNull: true
     },
     longitude: {
       type: DataTypes.DOUBLE,
-      allowNull: false
+      allowNull: true
+    },
+    general_area: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: 'Privacy-preserving general location area name'
     },
     timestamp: {
       type: DataTypes.DATE,

@@ -1,0 +1,492 @@
+<% if (typeof title === 'undefined') { %>
+  <% title = 'Visitor Logs'; %>
+<% } %>
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas fa-user-clock text-primary"></i> Visitor Logs
+            </h1>
+            <p class="text-muted mb-0">Manage and monitor visitor entries and exits</p>
+        </div>
+        <div>
+            <a href="/admin/visitors/export" class="btn btn-primary me-2" data-modal="true">
+                <i class="fas fa-download"></i> Export Logs
+            </a>
+            <a href="/kiosk/entry" class="btn btn-success" target="_blank">
+                <i class="fas fa-external-link-alt"></i> Kiosk Entry
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-left-primary shadow h-100 py-2" style="border-left: 4px solid var(--primary-color) !important;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: var(--primary-color);">
+                                Active Visitors
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold" style="color: var(--bs-body-color);">
+                                <%= stats.active %>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x" style="color: var(--primary-color); opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-left-success shadow h-100 py-2" style="border-left: 4px solid #28a745 !important;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #28a745;">
+                                Today's Visitors
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold" style="color: var(--bs-body-color);">
+                                <%= stats.today %>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-day fa-2x" style="color: #28a745; opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-left-info shadow h-100 py-2" style="border-left: 4px solid #17a2b8 !important;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #17a2b8;">
+                                This Month
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold" style="color: var(--bs-body-color);">
+                                <%= stats.month %>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-alt fa-2x" style="color: #17a2b8; opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-left-warning shadow h-100 py-2" style="border-left: 4px solid #ffc107 !important;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #ffc107;">
+                                Avg Visit Time
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold" style="color: var(--bs-body-color);">
+                                <%= stats.averageVisitMinutes %> min
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x" style="color: #ffc107; opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-light)); color: white;">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-filter"></i> Filters & Search
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="/admin/visitors" id="filterForm">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="search" class="form-label">Search Name</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="<%= filters.search %>" placeholder="Enter visitor name...">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Status</option>
+                            <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+                            <option value="exited" <%= filters.status === 'exited' ? 'selected' : '' %>>Exited</option>
+                            <option value="expired" <%= filters.status === 'expired' ? 'selected' : '' %>>Expired</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="dateFrom" class="form-label">From Date</label>
+                        <input type="date" class="form-control" id="dateFrom" name="dateFrom" 
+                               value="<%= filters.dateFrom %>">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="dateTo" class="form-label">To Date</label>
+                        <input type="date" class="form-control" id="dateTo" name="dateTo" 
+                               value="<%= filters.dateTo %>">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="limit" class="form-label">Per Page</label>
+                        <select class="form-select" id="limit" name="limit">
+                            <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+                            <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+                            <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+                            <option value="100" <%= pagination.limit === 100 ? 'selected' : '' %>>100</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 mb-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <a href="/admin/visitors" class="btn btn-secondary">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Visitor Logs Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-light)); color: white;">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-list"></i> Visitor Records
+                <span class="badge bg-light text-dark ms-2"><%= pagination.totalItems %> total</span>
+            </h6>
+            <div>
+                <button type="button" class="btn btn-sm btn-danger" id="bulkDeleteBtn" disabled>
+                    <i class="fas fa-trash"></i> Delete Selected
+                </button>
+                <button type="button" class="btn btn-sm btn-info" id="bulkExportBtn" disabled>
+                    <i class="fas fa-download"></i> Export Selected
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <% if (visitors.length === 0) { %>
+                <div class="text-center py-5">
+                    <i class="fas fa-user-clock fa-3x text-gray-300 mb-3"></i>
+                    <h5 class="text-gray-600">No visitor records found</h5>
+                    <p class="text-muted">Try adjusting your search filters or check back later.</p>
+                </div>
+            <% } else { %>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="visitorsTable">
+                        <thead style="background: var(--primary-color); color: white;">
+                            <tr>
+                                <th width="40">
+                                    <input type="checkbox" id="selectAll" class="form-check-input">
+                                </th>
+                                <th>Visitor</th>
+                                <th>Purpose</th>
+                                <th>Status</th>
+                                <th>Entry Time</th>
+                                <th>Exit Time</th>
+                                <th>Duration</th>
+                                <th>Face Verification</th>
+                                <th width="120">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% visitors.forEach(visitor => { %>
+                                <tr data-visitor-id="<%= visitor.id %>">
+                                    <td>
+                                        <input type="checkbox" class="form-check-input visitor-checkbox" 
+                                               value="<%= visitor.id %>">
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm me-3">
+                                                <% if (visitor.faceImagePath) { %>
+                                                    <img src="/<%= visitor.faceImagePath %>" 
+                                                         class="rounded-circle" width="32" height="32"
+                                                         alt="<%= visitor.name %>'s photo">
+                                                <% } else { %>
+                                                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" 
+                                                         style="width: 32px; height: 32px; color: white; font-size: 12px;">
+                                                        <%= visitor.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() %>
+                                                    </div>
+                                                <% } %>
+                                            </div>
+                                            <div>
+                                                <strong><%= visitor.name %></strong>
+                                                <br>
+                                                <small class="text-muted">ID: <%= visitor.id.substring(0, 8) %>...</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="text-truncate" style="max-width: 200px; display: inline-block;" 
+                                              title="<%= visitor.purpose %>">
+                                            <%= visitor.purpose %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <% if (visitor.status === 'active') { %>
+                                            <span class="badge bg-success">Active</span>
+                                        <% } else if (visitor.status === 'exited') { %>
+                                            <span class="badge bg-primary">Exited</span>
+                                        <% } else { %>
+                                            <span class="badge bg-warning">Expired</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <%= new Date(visitor.entryTime).toLocaleString() %>
+                                    </td>
+                                    <td>
+                                        <% if (visitor.exitTime) { %>
+                                            <%= new Date(visitor.exitTime).toLocaleString() %>
+                                        <% } else { %>
+                                            <span class="text-muted">-</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (visitor.exitTime) { %>
+                                            <% 
+                                                const duration = new Date(visitor.exitTime) - new Date(visitor.entryTime);
+                                                const minutes = Math.round(duration / (1000 * 60));
+                                            %>
+                                            <%= minutes %> min
+                                        <% } else { %>
+                                            <% 
+                                                const duration = new Date() - new Date(visitor.entryTime);
+                                                const minutes = Math.round(duration / (1000 * 60));
+                                            %>
+                                            <span class="text-warning"><%= minutes %> min</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="text-center">
+                                        <% if (visitor.faceImagePath) { %>
+                                            <i class="fas fa-check-circle text-success" title="Face verification enabled"></i>
+                                        <% } else { %>
+                                            <i class="fas fa-times-circle text-muted" title="No face verification"></i>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="/admin/visitors/<%= visitor.id %>" 
+                                               class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger delete-visitor" 
+                                                    data-visitor-id="<%= visitor.id %>" 
+                                                    data-visitor-name="<%= visitor.name %>" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <% if (pagination.totalPages > 1) { %>
+                    <nav aria-label="Visitor logs pagination">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item <%= !pagination.hasPrev ? 'disabled' : '' %>">
+                                <a class="page-link" href="?page=<%= pagination.currentPage - 1 %>&<%= new URLSearchParams(filters).toString() %>&limit=<%= pagination.limit %>">
+                                    Previous
+                                </a>
+                            </li>
+                            
+                            <% for (let i = Math.max(1, pagination.currentPage - 2); i <= Math.min(pagination.totalPages, pagination.currentPage + 2); i++) { %>
+                                <li class="page-item <%= i === pagination.currentPage ? 'active' : '' %>">
+                                    <a class="page-link" href="?page=<%= i %>&<%= new URLSearchParams(filters).toString() %>&limit=<%= pagination.limit %>">
+                                        <%= i %>
+                                    </a>
+                                </li>
+                            <% } %>
+                            
+                            <li class="page-item <%= !pagination.hasNext ? 'disabled' : '' %>">
+                                <a class="page-link" href="?page=<%= pagination.currentPage + 1 %>&<%= new URLSearchParams(filters).toString() %>&limit=<%= pagination.limit %>">
+                                    Next
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                <% } %>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select all checkbox functionality
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const visitorCheckboxes = document.querySelectorAll('.visitor-checkbox');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const bulkExportBtn = document.getElementById('bulkExportBtn');
+
+    selectAllCheckbox.addEventListener('change', function() {
+        visitorCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBulkButtons();
+    });
+
+    visitorCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkButtons);
+    });
+
+    function updateBulkButtons() {
+        const selectedCheckboxes = document.querySelectorAll('.visitor-checkbox:checked');
+        const hasSelected = selectedCheckboxes.length > 0;
+        
+        bulkDeleteBtn.disabled = !hasSelected;
+        bulkExportBtn.disabled = !hasSelected;
+        
+        // Update select all checkbox state
+        selectAllCheckbox.indeterminate = selectedCheckboxes.length > 0 && selectedCheckboxes.length < visitorCheckboxes.length;
+        selectAllCheckbox.checked = selectedCheckboxes.length === visitorCheckboxes.length;
+    }
+
+    // Individual delete buttons
+    document.querySelectorAll('.delete-visitor').forEach(button => {
+        button.addEventListener('click', function() {
+            const visitorId = this.dataset.visitorId;
+            const visitorName = this.dataset.visitorName;
+            
+            if (confirm(`Are you sure you want to delete the visitor record for "${visitorName}"? This action cannot be undone.`)) {
+                deleteVisitor(visitorId);
+            }
+        });
+    });
+
+    // Bulk delete
+    bulkDeleteBtn.addEventListener('click', function() {
+        const selectedIds = Array.from(document.querySelectorAll('.visitor-checkbox:checked'))
+            .map(checkbox => checkbox.value);
+        
+        if (selectedIds.length === 0) return;
+        
+        if (confirm(`Are you sure you want to delete ${selectedIds.length} visitor record(s)? This action cannot be undone.`)) {
+            bulkAction('delete', selectedIds);
+        }
+    });
+
+    // Bulk export
+    bulkExportBtn.addEventListener('click', function() {
+        const selectedIds = Array.from(document.querySelectorAll('.visitor-checkbox:checked'))
+            .map(checkbox => checkbox.value);
+        
+        if (selectedIds.length === 0) return;
+        
+        bulkAction('export', selectedIds);
+    });
+
+    async function deleteVisitor(visitorId) {
+        try {
+            const response = await fetch(`/admin/visitors/${visitorId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Remove the row from the table
+                const row = document.querySelector(`tr[data-visitor-id="${visitorId}"]`);
+                if (row) {
+                    row.remove();
+                }
+                showToast('Visitor record deleted successfully', 'success');
+            } else {
+                showToast(result.error || 'Failed to delete visitor record', 'error');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            showToast('Network error occurred', 'error');
+        }
+    }
+
+    async function bulkAction(action, visitorIds) {
+        try {
+            const response = await fetch('/admin/visitors/bulk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    action: action,
+                    visitorIds: visitorIds
+                })
+            });
+
+            if (action === 'export') {
+                // Handle file download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `selected-visitors-${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                showToast('Export completed successfully', 'success');
+            } else {
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Reload the page to reflect changes
+                    window.location.reload();
+                } else {
+                    showToast(result.error || 'Bulk action failed', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Bulk action error:', error);
+            showToast('Network error occurred', 'error');
+        }
+    }
+
+    function showToast(message, type) {
+        // Simple toast notification (you can enhance this with a proper toast library)
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        toast.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <span>${message}</span>
+                <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 5000);
+    }
+
+    // Auto-submit filter form on change
+    document.querySelectorAll('#filterForm select, #filterForm input[type="date"]').forEach(element => {
+        element.addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    });
+
+});
+</script>

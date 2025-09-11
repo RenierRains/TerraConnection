@@ -1,0 +1,412 @@
+<% if (typeof title === 'undefined') { %>
+  <% title = `Visitor Details - ${visitor.name}`; %>
+<% } %>
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/admin/dashboard">Dashboard</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="/admin/visitors">Visitor Logs</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <%= visitor.name %>
+                    </li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0" style="color: var(--bs-body-color);">
+                <i class="fas fa-user-circle" style="color: var(--primary-color);"></i> Visitor Details
+            </h1>
+        </div>
+        <div>
+            <a href="/admin/visitors" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+            <button type="button" class="btn btn-danger" id="deleteVisitorBtn" 
+                    data-visitor-id="<%= visitor.id %>" 
+                    data-visitor-name="<%= visitor.name %>">
+                <i class="fas fa-trash"></i> Delete Record
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Visitor Information Card -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-light)); color: white;">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-info-circle"></i> Visitor Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-4">
+                                <label class="form-label text-muted">Full Name</label>
+                                <h5 class="text-dark"><%= visitor.name %></h5>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-label text-muted">Visitor ID</label>
+                                <p class="text-dark">
+                                    <code><%= visitor.id %></code>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" 
+                                            onclick="copyToClipboard('<%= visitor.id %>')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </p>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label text-muted">Status</label>
+                                <div>
+                                    <% if (visitor.status === 'active') { %>
+                                        <span class="badge bg-success fs-6">
+                                            <i class="fas fa-user-check"></i> Active
+                                        </span>
+                                    <% } else if (visitor.status === 'exited') { %>
+                                        <span class="badge bg-primary fs-6">
+                                            <i class="fas fa-sign-out-alt"></i> Exited
+                                        </span>
+                                    <% } else { %>
+                                        <span class="badge bg-warning fs-6">
+                                            <i class="fas fa-clock"></i> Expired
+                                        </span>
+                                    <% } %>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label text-muted">Face Verification</label>
+                                <div>
+                                    <% if (visitor.faceImagePath) { %>
+                                        <span class="badge bg-success fs-6">
+                                            <i class="fas fa-check-circle"></i> Enabled
+                                        </span>
+                                    <% } else { %>
+                                        <span class="badge bg-secondary fs-6">
+                                            <i class="fas fa-times-circle"></i> Not Available
+                                        </span>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-4">
+                                <label class="form-label text-muted">Entry Time</label>
+                                <p class="text-dark">
+                                    <i class="fas fa-sign-in-alt text-success"></i>
+                                    <%= new Date(visitor.entryTime).toLocaleString() %>
+                                </p>
+                            </div>
+
+                            <% if (visitor.exitTime) { %>
+                                <div class="mb-4">
+                                    <label class="form-label text-muted">Exit Time</label>
+                                    <p class="text-dark">
+                                        <i class="fas fa-sign-out-alt text-primary"></i>
+                                        <%= new Date(visitor.exitTime).toLocaleString() %>
+                                    </p>
+                                </div>
+                            <% } %>
+
+                            <% if (visitDuration) { %>
+                                <div class="mb-4">
+                                    <label class="form-label text-muted">Visit Duration</label>
+                                    <p class="text-dark">
+                                        <i class="fas fa-clock text-info"></i>
+                                        <% if (visitDuration.hours > 0) { %>
+                                            <%= visitDuration.hours %>h 
+                                        <% } %>
+                                        <%= visitDuration.minutes %>m
+                                        <% if (visitDuration.hours === 0 && visitDuration.minutes === 0) { %>
+                                            <%= visitDuration.seconds %>s
+                                        <% } %>
+                                    </p>
+                                </div>
+                            <% } else { %>
+                                <div class="mb-4">
+                                    <label class="form-label text-muted">Current Duration</label>
+                                    <p class="text-warning">
+                                        <i class="fas fa-clock text-warning"></i>
+                                        <span id="currentDuration">Calculating...</span>
+                                    </p>
+                                </div>
+                            <% } %>
+
+                            <div class="mb-4">
+                                <label class="form-label text-muted">Record Created</label>
+                                <p class="text-muted">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    <%= new Date(visitor.createdAt).toLocaleString() %>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted">Purpose of Visit</label>
+                        <div class="bg-light p-3 rounded">
+                            <p class="mb-0"><%= visitor.purpose %></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Face Image and Additional Info -->
+        <div class="col-lg-4 mb-4">
+            <!-- Face Image Card -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-light)); color: white;">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-camera"></i> Face Verification Image
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <% if (visitor.faceImagePath && faceImageInfo && faceImageInfo.exists) { %>
+                        <div class="mb-3">
+                            <img src="/<%= visitor.faceImagePath %>" 
+                                 class="img-fluid rounded border" 
+                                 alt="<%= visitor.name %>'s verification photo"
+                                 style="max-width: 250px; max-height: 250px; object-fit: cover;">
+                        </div>
+                        <div class="text-muted small">
+                            <p class="mb-1">
+                                <i class="fas fa-file-image"></i> 
+                                Size: <%= (faceImageInfo.size / 1024).toFixed(1) %> KB
+                            </p>
+                            <p class="mb-0">
+                                <i class="fas fa-calendar"></i> 
+                                Captured: <%= new Date(faceImageInfo.created).toLocaleString() %>
+                            </p>
+                        </div>
+                    <% } else { %>
+                        <div class="text-center py-4">
+                            <i class="fas fa-user-circle fa-5x text-gray-300 mb-3"></i>
+                            <h6 class="text-muted">No Face Image Available</h6>
+                            <p class="text-muted small">
+                                This visitor did not provide face verification during registration.
+                            </p>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Quick Stats Card -->
+            <div class="card shadow">
+                <div class="card-header py-3" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-light)); color: white;">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-chart-line"></i> Visit Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-12 mb-3">
+                            <div class="border-bottom pb-2">
+                                <h4 class="text-primary mb-0">
+                                    <% if (visitor.status === 'active') { %>
+                                        <i class="fas fa-user-check text-success"></i> Currently Visiting
+                                    <% } else if (visitor.status === 'exited') { %>
+                                        <i class="fas fa-check-circle text-primary"></i> Visit Completed
+                                    <% } else { %>
+                                        <i class="fas fa-clock text-warning"></i> Visit Expired
+                                    <% } %>
+                                </h4>
+                            </div>
+                        </div>
+                        
+                        <% if (visitor.status === 'active') { %>
+                            <div class="col-12">
+                                <div class="bg-light p-3 rounded">
+                                    <h6 class="text-muted mb-1">Entry Method</h6>
+                                    <p class="mb-0">
+                                        <% if (visitor.faceImagePath) { %>
+                                            <i class="fas fa-camera text-success"></i> 
+                                            Face Verification Kiosk
+                                        <% } else { %>
+                                            <i class="fas fa-keyboard text-info"></i> 
+                                            Manual Registration
+                                        <% } %>
+                                    </p>
+                                </div>
+                            </div>
+                        <% } %>
+                        
+                        <% if (visitor.status === 'exited' && visitDuration) { %>
+                            <div class="col-12">
+                                <div class="bg-light p-3 rounded">
+                                    <h6 class="text-muted mb-1">Total Visit Time</h6>
+                                    <h5 class="text-dark mb-0">
+                                        <% if (visitDuration.hours > 0) { %>
+                                            <%= visitDuration.hours %>h <%= visitDuration.minutes %>m
+                                        <% } else { %>
+                                            <%= visitDuration.minutes %> minutes
+                                        <% } %>
+                                    </h5>
+                                </div>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Row -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-light)); color: white;">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-cogs"></i> Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Export Options</h6>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-info" onclick="exportVisitor('json')">
+                                    <i class="fas fa-file-code"></i> Export as JSON
+                                </button>
+                                <button type="button" class="btn btn-outline-success" onclick="exportVisitor('csv')">
+                                    <i class="fas fa-file-csv"></i> Export as CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Quick Links</h6>
+                            <div class="btn-group" role="group">
+                                <a href="/kiosk/entry" class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-external-link-alt"></i> Kiosk Entry
+                                </a>
+                                <a href="/kiosk/exit" class="btn btn-outline-warning" target="_blank">
+                                    <i class="fas fa-external-link-alt"></i> Kiosk Exit
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update current duration for active visitors
+    <% if (visitor.status === 'active') { %>
+        function updateCurrentDuration() {
+            const entryTime = new Date('<%= visitor.entryTime %>');
+            const now = new Date();
+            const duration = now - entryTime;
+            
+            const hours = Math.floor(duration / (1000 * 60 * 60));
+            const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((duration % (1000 * 60)) / 1000);
+            
+            let durationText = '';
+            if (hours > 0) {
+                durationText = `${hours}h ${minutes}m`;
+            } else if (minutes > 0) {
+                durationText = `${minutes}m`;
+            } else {
+                durationText = `${seconds}s`;
+            }
+            
+            document.getElementById('currentDuration').textContent = durationText;
+        }
+        
+        // Update every second
+        updateCurrentDuration();
+        setInterval(updateCurrentDuration, 1000);
+    <% } %>
+
+    // Delete visitor functionality
+    document.getElementById('deleteVisitorBtn').addEventListener('click', function() {
+        const visitorId = this.dataset.visitorId;
+        const visitorName = this.dataset.visitorName;
+        
+        if (confirm(`Are you sure you want to delete the visitor record for "${visitorName}"? This action cannot be undone.`)) {
+            deleteVisitor(visitorId);
+        }
+    });
+
+    async function deleteVisitor(visitorId) {
+        try {
+            const response = await fetch(`/admin/visitors/${visitorId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast('Visitor record deleted successfully', 'success');
+                setTimeout(() => {
+                    window.location.href = '/admin/visitors';
+                }, 2000);
+            } else {
+                showToast(result.error || 'Failed to delete visitor record', 'error');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            showToast('Network error occurred', 'error');
+        }
+    }
+});
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        showToast('Visitor ID copied to clipboard', 'success');
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+        showToast('Failed to copy to clipboard', 'error');
+    });
+}
+
+function exportVisitor(format) {
+    const visitorId = '<%= visitor.id %>';
+    const url = `/admin/visitors/export?format=${format}&visitorIds[]=${visitorId}`;
+    
+    // Create a temporary link to trigger download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `visitor-<%= visitor.name.replace(/\s+/g, '-').toLowerCase() %>-${new Date().toISOString().split('T')[0]}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    showToast(`Export started (${format.toUpperCase()})`, 'info');
+}
+
+function showToast(message, type) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <span>${message}</span>
+            <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 5000);
+}
+</script>

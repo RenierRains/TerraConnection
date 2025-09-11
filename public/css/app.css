@@ -709,21 +709,21 @@ canvas {
 
 /* MODAL FIXES - HIGHEST PRIORITY */
 .modal {
-  z-index: 10060 !important;
+  z-index: 9999 !important;
   position: fixed !important;
 }
 
 .modal-backdrop {
-  z-index: 10050 !important;
+  z-index: 9998 !important;
 }
 
 .modal-dialog {
-  z-index: 10061 !important;
+  z-index: 10000 !important;
   position: relative !important;
 }
 
 .modal-content {
-  z-index: 10062 !important;
+  z-index: 10001 !important;
   position: relative !important;
 }
 
@@ -732,27 +732,240 @@ canvas {
   display: block !important;
   opacity: 1 !important;
   pointer-events: auto !important;
+  z-index: 9999 !important;
 }
 
 .modal-backdrop.show {
   opacity: 0.5 !important;
+  z-index: 9998 !important;
 }
 
-/* Override Bootstrap modal positioning */
-html .modal {
-  z-index: 10060 !important;
+/* Override Bootstrap modal positioning with higher specificity */
+html .modal,
+body .modal,
+.modal {
+  z-index: 9999 !important;
 }
 
-html .modal-backdrop {
-  z-index: 10050 !important;
+html .modal-backdrop,
+body .modal-backdrop,
+.modal-backdrop {
+  z-index: 9998 !important;
 }
 
-body .modal {
-  z-index: 10060 !important;
+/* Ensure modal dialog and content are above backdrop */
+.modal .modal-dialog {
+  z-index: 10000 !important;
 }
 
-body .modal-backdrop {
-  z-index: 10050 !important;
+.modal .modal-content {
+  z-index: 10001 !important;
+}
+
+/* Additional modal positioning fixes */
+.modal.fade {
+  z-index: 9999 !important;
+}
+
+.modal.fade.show {
+  z-index: 9999 !important;
+}
+
+/* Ensure Bootstrap modal backdrop stays behind modal */
+.modal-backdrop.fade {
+  z-index: 9998 !important;
+}
+
+.modal-backdrop.fade.show {
+  z-index: 9998 !important;
+}
+
+/* Force modal to be positioned correctly */
+.modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  outline: 0 !important;
+}
+
+/* Specific fix for visitors export modal - HIGHEST PRIORITY */
+#exportModal {
+  z-index: 1050 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+#exportModal .modal-dialog {
+  z-index: 1051 !important;
+  position: relative !important;
+  margin: 1.75rem auto !important;
+}
+
+#exportModal .modal-content {
+  z-index: 1052 !important;
+  position: relative !important;
+  background-color: var(--bs-body-bg) !important;
+  border: 1px solid var(--bs-border-color) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+#exportModal .modal-backdrop {
+  z-index: 1040 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Force modal to be interactive */
+#exportModal.show {
+  display: block !important;
+  z-index: 1050 !important;
+}
+
+#exportModal.show .modal-dialog {
+  z-index: 1051 !important;
+}
+
+#exportModal.show .modal-content {
+  z-index: 1052 !important;
+}
+
+/* Specific fix for users bulk department modal - HIGHEST PRIORITY */
+#bulkDepartmentModal {
+  z-index: 1050 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+#bulkDepartmentModal .modal-dialog {
+  z-index: 1051 !important;
+  position: relative !important;
+  margin: 1.75rem auto !important;
+}
+
+#bulkDepartmentModal .modal-content {
+  z-index: 1052 !important;
+  position: relative !important;
+  background-color: var(--bs-body-bg) !important;
+  border: 1px solid var(--bs-border-color) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+#bulkDepartmentModal .modal-backdrop {
+  z-index: 1040 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Force modal to be interactive */
+#bulkDepartmentModal.show {
+  display: block !important;
+  z-index: 1050 !important;
+}
+
+#bulkDepartmentModal.show .modal-dialog {
+  z-index: 1051 !important;
+}
+
+#bulkDepartmentModal.show .modal-content {
+  z-index: 1052 !important;
+}
+
+/* Override Bootstrap modal z-index completely */
+.modal.fade#exportModal,
+.modal.fade#bulkDepartmentModal {
+  z-index: 1050 !important;
+}
+
+.modal.fade#exportModal .modal-dialog,
+.modal.fade#bulkDepartmentModal .modal-dialog {
+  z-index: 1051 !important;
+}
+
+.modal.fade#exportModal .modal-content,
+.modal.fade#bulkDepartmentModal .modal-content {
+  z-index: 1052 !important;
+}
+
+/* Ensure backdrop stays behind modal content */
+body .modal-backdrop.fade#exportModal + .modal,
+body .modal-backdrop.fade#bulkDepartmentModal + .modal {
+  z-index: 1050 !important;
+}
+
+/* Force modal to be clickable */
+.modal#exportModal,
+.modal#bulkDepartmentModal {
+  pointer-events: auto !important;
+}
+
+.modal#exportModal .modal-content,
+.modal#bulkDepartmentModal .modal-content {
+  pointer-events: auto !important;
+}
+
+/* Ensure backdrop doesn't block modal interactions */
+.modal-backdrop {
+  pointer-events: none !important;
+}
+
+.modal-backdrop + .modal {
+  pointer-events: auto !important;
+}
+
+.modal-backdrop + .modal .modal-content {
+  pointer-events: auto !important;
+}
+
+/* Specific fix for export modal backdrop */
+.modal-backdrop.fade.show {
+  pointer-events: none !important;
+}
+
+#exportModal.show {
+  pointer-events: auto !important;
+}
+
+#exportModal.show .modal-content {
+  pointer-events: auto !important;
+}
+
+/* Force all modals to be interactive when shown */
+.modal.show {
+  pointer-events: auto !important;
+}
+
+.modal.show .modal-content {
+  pointer-events: auto !important;
+}
+
+.modal.show .modal-dialog {
+  pointer-events: auto !important;
+}
+
+/* Ensure backdrop never blocks anything */
+.modal-backdrop,
+.modal-backdrop.show,
+.modal-backdrop.fade,
+.modal-backdrop.fade.show {
+  pointer-events: none !important;
 }
 
 /* Dashboard Layout */
