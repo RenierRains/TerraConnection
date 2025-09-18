@@ -56,10 +56,27 @@ exports.getLinkedStudents = async (req, res) => {
         onCampus = (lastLog.type === 'entry');
       }
 
-      // get last GPS location
-      const lastGPS = await db.GPS_Location.findOne({
+      // get last GPS location - prioritize guardian-specific location sharing
+      const guardianGPS = await db.GPS_Location.findOne({
+        where: { 
+          user_id: student.id,
+          class_id: null // Guardian sharing records have null class_id
+        },
+        order: [['timestamp', 'DESC']]
+      });
+      
+      const anyGPS = await db.GPS_Location.findOne({
         where: { user_id: student.id },
         order: [['timestamp', 'DESC']]
+      });
+      
+      const lastGPS = guardianGPS || anyGPS;
+      
+      console.log(`Guardian GPS for student ${student.id}:`, {
+        guardianGPS: guardianGPS ? 'found' : 'none',
+        anyGPS: anyGPS ? 'found' : 'none',
+        selected: lastGPS ? 'found' : 'none',
+        generalArea: lastGPS?.general_area
       });
 
       return {
@@ -113,8 +130,14 @@ exports.getChildStatus = async (req, res) => {
       onCampus = (lastLog.type === 'entry');
     }
 
-    // get last GPS location
+    // get last GPS location - prioritize guardian-specific location sharing
     const lastGPS = await db.GPS_Location.findOne({
+      where: { 
+        user_id: studentId,
+        class_id: null // Guardian sharing records have null class_id
+      },
+      order: [['timestamp', 'DESC']]
+    }) || await db.GPS_Location.findOne({
       where: { user_id: studentId },
       order: [['timestamp', 'DESC']]
     });

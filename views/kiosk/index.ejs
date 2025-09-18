@@ -111,7 +111,6 @@
             width: auto;
             height: auto;
             margin-bottom: 1.5rem;
-            filter: brightness(0) invert(1);
             transition: all 0.3s ease;
             animation: float 3s ease-in-out infinite;
         }
@@ -345,8 +344,8 @@
         <div class="kiosk-main-card">
             <!-- Header -->
             <div class="kiosk-header">
-                <img src="/logo.png" alt="TerraConnection" id="logo">
-                <h1><i class="fas fa-building"></i> TerraConnection</h1>
+                <img src="/logo.png" alt="TerraConnection" id="logo" onerror="this.style.display='none'">
+                <h1>TerraConnection</h1>
                 <p>Visitor Management System</p>
             </div>
 

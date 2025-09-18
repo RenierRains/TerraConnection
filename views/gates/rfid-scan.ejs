@@ -604,9 +604,9 @@
       let video, canvas, ctx, faceDetectionInterval;
       
       // Face matching threshold (lower = more strict)
-      const FACE_MATCH_THRESHOLD = 0.6;
+      const FACE_MATCH_THRESHOLD = 0.4; // Reduced from 0.6 for stricter matching (same as kiosks)
       const TINY_INPUT_SIZE = 320; // 224 for very low-end
-      const TINY_SCORE_THRESHOLD = 0.55; // tune 0.5-0.6
+      const TINY_SCORE_THRESHOLD = 0.65; // Increased from 0.55 for better detection quality (same as kiosks)
       const MAX_NO_DETECTION_ATTEMPTS = 20;
       const TARGET_FPS = 10; // throttle rAF loop
       
@@ -762,8 +762,8 @@
             const tmp = document.createElement('canvas');
             tmp.width = 64; tmp.height = 64;
             const opts = usingTinyDetector
-              ? new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.5 })
-              : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+              ? new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.6 })
+              : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 });
             await faceapi.detectSingleFace(tmp, opts);
             console.log('✅ Warm-up pass complete');
           } catch (e) {
@@ -837,7 +837,7 @@
                 
                 const opts = usingTinyDetector
                   ? new faceapi.TinyFaceDetectorOptions({ inputSize: TINY_INPUT_SIZE, scoreThreshold: TINY_SCORE_THRESHOLD })
-                  : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+                  : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 });
 
                 const detections = await faceapi.detectSingleFace(img, opts)
                   .withFaceLandmarks(usingTinyDetector)
