@@ -87,17 +87,43 @@ router.post('/rfid-cards', adminWebController.rfidCardsCreate);
 router.get('/rfid-cards/:id', adminWebController.rfidCardsShow);
 router.get('/rfid-cards/:id/edit', adminWebController.rfidCardsEditForm);
 router.put('/rfid-cards/:id', adminWebController.rfidCardsEdit);
+router.post('/rfid-cards/:id/toggle-status', adminWebController.rfidCardsToggleStatus);
+router.get('/rfid-cards/:id/replace', adminWebController.rfidCardsReplaceForm);
+router.post('/rfid-cards/:id/replace', adminWebController.rfidCardsReplace);
 router.delete('/rfid-cards/:id', adminWebController.rfidCardsDelete);
+
+// RFID Cards bulk operations
+router.post('/rfid-cards/bulk-activate', adminWebController.rfidCardsBulkActivate);
+router.post('/rfid-cards/bulk-deactivate', adminWebController.rfidCardsBulkDeactivate);
+router.post('/rfid-cards/bulk-delete', adminWebController.rfidCardsBulkDelete);
+router.post('/rfid-cards/bulk-export', adminWebController.rfidCardsBulkExport);
+
+// RFID Cards analytics and export
+router.get('/rfid-cards-analytics', adminWebController.rfidCardsAnalytics);
+router.get('/rfid-cards/export', adminWebController.rfidCardsExport);
+
+// RFID Cards statistics API
+router.get('/rfid-cards/statistics', adminWebController.rfidCardsStatistics);
 
 router.get('/audit-logs', adminWebController.auditLogs);
 router.get('/audit-logs/export', exportController.exportAuditLogs);
 
+// Guardian Links Management
 router.get('/guardian-link', adminWebController.guardianLinksIndex);
 router.get('/guardian-link/new', adminWebController.guardianLinkNewForm);
 router.post('/guardian-link', adminWebController.guardianLinkCreate);
+router.get('/guardian-link/:id', adminWebController.guardianLinkShow);
 router.get('/guardian-link/:id/edit', adminWebController.guardianLinkEditForm);
 router.put('/guardian-link/:id', adminWebController.guardianLinkUpdate);
 router.delete('/guardian-link/:id', adminWebController.guardianLinkDelete);
+
+// Guardian Links API endpoints
+router.get('/guardian-links/statistics', adminWebController.guardianLinksStatistics);
+router.post('/guardian-links/bulk-delete', adminWebController.guardianLinksBulkDelete);
+router.post('/guardian-links/bulk-export', adminWebController.guardianLinksBulkExport);
+router.post('/guardian-links/quick-edit', adminWebController.guardianLinksQuickEdit);
+router.get('/guardian-links/:id/export', adminWebController.guardianLinkExport);
+router.post('/guardian-links/:id/notify', adminWebController.guardianLinkNotify);
 
 router.get('/students/search', adminWebController.searchStudents);
 router.get('/professors/search', adminWebController.searchProfessors);

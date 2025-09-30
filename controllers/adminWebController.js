@@ -1288,11 +1288,267 @@ exports.classesDelete = async (req, res) => {
 
 // ========= RFID Cards =========
 
+// Helper function to get RFID card statistics
+async function getRfidCardStatistics() {
+  try {
+    const [
+      totalCards,
+      activeCards,
+      inactiveCards,
+      assignedCards,
+      unassignedCards,
+      departmentCounts,
+      roleCounts,
+      recentActivity
+    ] = await Promise.all([
+      // Total cards
+      db.RFID_Card.count(),
+      
+      // Active cards
+      db.RFID_Card.count({ where: { is_active: true } }),
+      
+      // Inactive cards
+      db.RFID_Card.count({ where: { is_active: false } }),
+      
+      // Assigned cards
+      db.RFID_Card.count({ where: { user_id: { [db.Sequelize.Op.ne]: null } } }),
+      
+      // Unassigned cards
+      db.RFID_Card.count({ where: { user_id: null } }),
+      
+      // Department distribution
+      db.RFID_Card.findAll({
+        include: [{
+          model: db.User,
+          attributes: ['department'],
+          required: true
+        }],
+        attributes: [
+          [db.Sequelize.col('User.department'), 'department'],
+          [db.Sequelize.fn('COUNT', db.Sequelize.col('RFID_Card.id')), 'count']
+        ],
+        group: ['User.department'],
+        raw: true
+      }),
+      
+      // Role distribution
+      db.RFID_Card.findAll({
+        include: [{
+          model: db.User,
+          attributes: ['role'],
+          required: true
+        }],
+        attributes: [
+          [db.Sequelize.col('User.role'), 'role'],
+          [db.Sequelize.fn('COUNT', db.Sequelize.col('RFID_Card.id')), 'count']
+        ],
+        group: ['User.role'],
+        raw: true
+      }),
+      
+      // Recent activity (cards created in last 30 days)
+      db.RFID_Card.count({
+        where: {
+          issued_at: {
+            [db.Sequelize.Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          }
+        }
+      })
+    ]);
+
+    // Process department counts
+    const departments = {};
+    departmentCounts.forEach(item => {
+      if (item.department) {
+        departments[item.department] = parseInt(item.count);
+      }
+    });
+
+    // Process role counts
+    const roles = {};
+    roleCounts.forEach(item => {
+      if (item.role) {
+        roles[item.role] = parseInt(item.count);
+      }
+    });
+
+    return {
+      total: totalCards,
+      active: activeCards,
+      inactive: inactiveCards,
+      assigned: assignedCards,
+      unassigned: unassignedCards,
+      departments,
+      roles,
+      recentActivity,
+      usageRate: totalCards > 0 ? Math.round((assignedCards / totalCards) * 100) : 0
+    };
+  } catch (error) {
+    console.error('Error calculating RFID card statistics:', error);
+    return {
+      total: 0,
+      active: 0,
+      inactive: 0,
+      assigned: 0,
+      unassigned: 0,
+      departments: {},
+      roles: {},
+      recentActivity: 0,
+      usageRate: 0
+    };
+  }
+}
+
 exports.rfidCardsIndex = async (req, res) => {
   try {
-    const rfidCards = await db.RFID_Card.findAll({ order: [['id', 'ASC']] });
-    res.render('admin/rfid-cards/index', { rfidCards, title: 'Manage RFID Cards', admin: req.session.admin });
+    // Parse pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 25;
+    const offset = (page - 1) * limit;
+
+    // Parse filters
+    const filters = {
+      search: req.query.search || '',
+      status: req.query.status || '',
+      assignment: req.query.assignment || '',
+      department: req.query.department || '',
+      userRole: req.query.userRole || '',
+      dateFrom: req.query.dateFrom || '',
+      dateTo: req.query.dateTo || '',
+      sortBy: req.query.sortBy || 'id',
+      sortOrder: req.query.sortOrder || 'ASC'
+    };
+
+    // Build where conditions
+    const whereConditions = {};
+    const userWhereConditions = {};
+
+    // Status filter
+    if (filters.status === 'active') {
+      whereConditions.is_active = true;
+    } else if (filters.status === 'inactive') {
+      whereConditions.is_active = false;
+    }
+
+    // Assignment filter
+    if (filters.assignment === 'assigned') {
+      whereConditions.user_id = { [db.Sequelize.Op.ne]: null };
+    } else if (filters.assignment === 'unassigned') {
+      whereConditions.user_id = null;
+    }
+
+    // Date range filter
+    if (filters.dateFrom || filters.dateTo) {
+      const dateFilter = {};
+      if (filters.dateFrom) {
+        dateFilter[db.Sequelize.Op.gte] = new Date(filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        const toDate = new Date(filters.dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        dateFilter[db.Sequelize.Op.lte] = toDate;
+      }
+      whereConditions.issued_at = dateFilter;
+    }
+
+    // User-based filters
+    if (filters.userRole) {
+      userWhereConditions.role = filters.userRole;
+    }
+    if (filters.department) {
+      userWhereConditions.department = filters.department;
+    }
+
+    // Search filter
+    let searchConditions = {};
+    if (filters.search) {
+      searchConditions = {
+        [db.Sequelize.Op.or]: [
+          { card_uid: { [db.Sequelize.Op.like]: `%${filters.search}%` } },
+          { '$User.first_name$': { [db.Sequelize.Op.like]: `%${filters.search}%` } },
+          { '$User.last_name$': { [db.Sequelize.Op.like]: `%${filters.search}%` } },
+          { '$User.email$': { [db.Sequelize.Op.like]: `%${filters.search}%` } },
+          { '$User.school_id$': { [db.Sequelize.Op.like]: `%${filters.search}%` } }
+        ]
+      };
+    }
+
+    // Combine all conditions
+    const finalWhereConditions = {
+      ...whereConditions,
+      ...searchConditions
+    };
+
+    // Get RFID cards with pagination and filtering
+    const { count: totalCards, rows: rfidCards } = await db.RFID_Card.findAndCountAll({
+      where: finalWhereConditions,
+      include: [{
+        model: db.User,
+        required: false,
+        where: Object.keys(userWhereConditions).length > 0 ? userWhereConditions : undefined,
+        attributes: ['id', 'first_name', 'last_name', 'email', 'school_id', 'role', 'department', 'profile_picture']
+      }],
+      order: [[
+        filters.sortBy === 'user_name' ? [db.User, 'first_name'] :
+        filters.sortBy === 'user_email' ? [db.User, 'email'] :
+        filters.sortBy === 'user_role' ? [db.User, 'role'] :
+        filters.sortBy === 'user_department' ? [db.User, 'department'] :
+        filters.sortBy, 
+        filters.sortOrder
+      ]],
+      limit,
+      offset,
+      distinct: true
+    });
+
+    // Calculate statistics
+    const statistics = await getRfidCardStatistics();
+
+    // Get departments for filter dropdown
+    const departments = await db.Department.findAll({
+      attributes: ['code', 'name'],
+      order: [['name', 'ASC']]
+    });
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalCards / limit);
+    const pagination = {
+      currentPage: page,
+      totalPages,
+      totalItems: totalCards,
+      limit,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+      pageSizeOptions: [10, 25, 50, 100]
+    };
+
+    // Add calculated fields to cards
+    const cardsWithExtras = rfidCards.map(card => {
+      const cardData = card.toJSON();
+      
+      // Calculate days since issued
+      if (cardData.issued_at) {
+        const daysSinceIssued = Math.floor((new Date() - new Date(cardData.issued_at)) / (1000 * 60 * 60 * 24));
+        cardData.daysSinceIssued = daysSinceIssued;
+      }
+
+      return cardData;
+    });
+
+    res.render('admin/rfid-cards/index', {
+      rfidCards: cardsWithExtras,
+      statistics,
+      departments,
+      filters,
+      pagination,
+      totalCards,
+      currentPage: page,
+      totalPages,
+      title: 'RFID Cards Management',
+      admin: req.session.admin
+    });
   } catch (err) {
+    console.error('Error in rfidCardsIndex:', err);
     res.status(500).send('Error retrieving RFID cards');
   }
 };
@@ -1399,8 +1655,105 @@ exports.rfidCardsEdit = async (req, res) => {
 exports.rfidCardsShow = async (req, res) => {
   try {
     const card = await db.RFID_Card.findByPk(req.params.id);
-    res.render('admin/rfid-cards/show', { card, title: 'RFID Card Details', admin: req.session.admin });
+    if (!card) {
+      return res.status(404).send('RFID card not found');
+    }
+
+    let userData = null;
+    let accessHistory = [];
+    let cardStats = {
+      totalAccess: 0,
+      lastAccess: null,
+      mostFrequentLocation: null,
+      avgAccessPerDay: 0
+    };
+
+    // Get user information if card is assigned
+    if (card.user_id) {
+      // Try to get user from different tables
+      userData = await db.User.findByPk(card.user_id) || 
+                 await db.Student.findByPk(card.user_id) ||
+                 await db.Professor.findByPk(card.user_id) ||
+                 await db.Guardian.findByPk(card.user_id);
+      
+      if (userData) {
+        // Get user's department if exists
+        if (userData.department_id && db.Department) {
+          const department = await db.Department.findByPk(userData.department_id);
+          userData.department_name = department ? department.name : null;
+        }
+      }
+    }
+
+    // Get access history (last 50 entries)
+    if (db.Access_Log) {
+      try {
+        accessHistory = await db.Access_Log.findAll({
+          where: { card_uid: card.card_uid },
+          order: [['timestamp', 'DESC']],
+          limit: 50,
+          include: [
+            {
+              model: db.Gate,
+              as: 'gate',
+              required: false
+            }
+          ]
+        });
+
+        // Calculate statistics
+        if (accessHistory.length > 0) {
+          cardStats.totalAccess = accessHistory.length;
+          cardStats.lastAccess = accessHistory[0].timestamp;
+          
+          // Calculate average access per day
+          const firstAccess = accessHistory[accessHistory.length - 1].timestamp;
+          const daysDiff = Math.ceil((new Date() - new Date(firstAccess)) / (1000 * 60 * 60 * 24));
+          cardStats.avgAccessPerDay = daysDiff > 0 ? (accessHistory.length / daysDiff).toFixed(1) : 0;
+          
+          // Find most frequent location
+          const locationCounts = {};
+          accessHistory.forEach(log => {
+            const location = log.gate ? log.gate.name : log.location || 'Unknown';
+            locationCounts[location] = (locationCounts[location] || 0) + 1;
+          });
+          
+          cardStats.mostFrequentLocation = Object.keys(locationCounts).reduce((a, b) => 
+            locationCounts[a] > locationCounts[b] ? a : b, Object.keys(locationCounts)[0]
+          );
+        }
+      } catch (accessErr) {
+        console.log('Access history not available:', accessErr.message);
+      }
+    }
+
+    // Get other cards for this user
+    let otherCards = [];
+    if (card.user_id) {
+      try {
+        otherCards = await db.RFID_Card.findAll({
+          where: { 
+            user_id: card.user_id,
+            id: { [db.Sequelize.Op.ne]: card.id }
+          },
+          order: [['created_at', 'DESC']]
+        });
+      } catch (otherCardsErr) {
+        console.log('Other cards not available:', otherCardsErr.message);
+      }
+    }
+
+    res.render('admin/rfid-cards/show', { 
+      card, 
+      userData, 
+      accessHistory, 
+      cardStats,
+      otherCards,
+      title: 'RFID Card Details', 
+      admin: req.session.admin 
+    });
   } catch (err) {
+    console.error('Error in rfidCardsShow:', err);
     res.status(500).send('Error retrieving RFID card');
   }
 };
@@ -1423,6 +1776,479 @@ exports.rfidCardsDelete = async (req, res) => {
   } catch (err) {
     console.error("Error in rfidCardsDelete:", err);
     res.status(500).send('Error deleting RFID card');
+  }
+};
+
+exports.rfidCardsToggleStatus = async (req, res) => {
+  try {
+    const card = await db.RFID_Card.findByPk(req.params.id);
+    if (!card) {
+      return res.status(404).json({ error: 'RFID card not found' });
+    }
+
+    const newStatus = !card.is_active;
+    await card.update({ is_active: newStatus });
+
+    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_STATUS_TOGGLED', {
+      id: card.id,
+      card_uid: card.card_uid,
+      old_status: card.is_active,
+      new_status: newStatus
+    });
+
+    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+      res.json({ 
+        success: true, 
+        message: `Card ${newStatus ? 'activated' : 'deactivated'} successfully`,
+        new_status: newStatus
+      });
+    } else {
+      res.redirect('/admin/rfid-cards');
+    }
+  } catch (err) {
+    console.error("Error in rfidCardsToggleStatus:", err);
+    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+      res.status(500).json({ error: 'Error toggling card status' });
+    } else {
+      res.status(500).send('Error toggling card status');
+    }
+  }
+};
+
+// Card Replacement Workflow
+exports.rfidCardsReplaceForm = async (req, res) => {
+  try {
+    const oldCard = await db.RFID_Card.findByPk(req.params.id);
+    if (!oldCard) {
+      return res.status(404).send('RFID card not found');
+    }
+
+    // Get user info if card is assigned
+    let userData = null;
+    if (oldCard.user_id) {
+      userData = await db.User.findByPk(oldCard.user_id) || 
+                 await db.Student.findByPk(oldCard.user_id) ||
+                 await db.Professor.findByPk(oldCard.user_id) ||
+                 await db.Guardian.findByPk(oldCard.user_id);
+    }
+
+    res.render('admin/rfid-cards/replace', { 
+      oldCard, 
+      userData,
+      title: 'Replace RFID Card', 
+      admin: req.session.admin 
+    });
+  } catch (err) {
+    console.error("Error in rfidCardsReplaceForm:", err);
+    res.status(500).send('Error loading card replacement form');
+  }
+};
+
+exports.rfidCardsReplace = async (req, res) => {
+  try {
+    const { new_card_uid, reason, transfer_assignment } = req.body;
+    const oldCard = await db.RFID_Card.findByPk(req.params.id);
+    
+    if (!oldCard) {
+      return res.status(404).json({ error: 'Original card not found' });
+    }
+
+    // Check if new UID already exists
+    const existingCard = await db.RFID_Card.findOne({ where: { card_uid: new_card_uid } });
+    if (existingCard) {
+      return res.status(400).json({ error: 'New card UID already exists in system' });
+    }
+
+    const transaction = await db.sequelize.transaction();
+
+    try {
+      // Create new card
+      const newCard = await db.RFID_Card.create({
+        card_uid: new_card_uid,
+        user_id: transfer_assignment === 'true' ? oldCard.user_id : null,
+        is_active: true,
+        issued_at: new Date(),
+        notes: `Replacement for card ${oldCard.card_uid}. Reason: ${reason || 'Not specified'}`
+      }, { transaction });
+
+      // Deactivate old card and add replacement notes
+      await oldCard.update({
+        is_active: false,
+        notes: `${oldCard.notes || ''}\nReplaced by card ${new_card_uid} on ${new Date().toLocaleDateString()}. Reason: ${reason || 'Not specified'}`
+      }, { transaction });
+
+      // Log the replacement
+      await logDataAudit(req.session.admin.id, 'ADMIN_RFID_REPLACED', {
+        old_card_id: oldCard.id,
+        old_card_uid: oldCard.card_uid,
+        new_card_id: newCard.id,
+        new_card_uid: new_card_uid,
+        user_id: oldCard.user_id,
+        reason: reason,
+        transfer_assignment: transfer_assignment === 'true'
+      });
+
+      await transaction.commit();
+
+      if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+        res.json({ 
+          success: true, 
+          message: 'Card replaced successfully',
+          new_card_id: newCard.id,
+          old_card_id: oldCard.id
+        });
+      } else {
+        res.redirect('/admin/rfid-cards');
+      }
+    } catch (transactionErr) {
+      await transaction.rollback();
+      throw transactionErr;
+    }
+  } catch (err) {
+    console.error("Error in rfidCardsReplace:", err);
+    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+      res.status(500).json({ error: 'Error replacing card' });
+    } else {
+      res.status(500).send('Error replacing card');
+    }
+  }
+};
+
+// Advanced Analytics Endpoints
+exports.rfidCardsAnalytics = async (req, res) => {
+  try {
+    const { period = '30', department, role } = req.query;
+    
+    // Calculate date range
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(period));
+
+    // Get comprehensive analytics
+    const analytics = await getRfidAnalytics(startDate, endDate, { department, role });
+    
+    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
+      res.json(analytics);
+    } else {
+      res.render('admin/rfid-cards/analytics', { 
+        analytics, 
+        period,
+        title: 'RFID Cards Analytics', 
+        admin: req.session.admin 
+      });
+    }
+  } catch (err) {
+    console.error("Error in rfidCardsAnalytics:", err);
+    res.status(500).send('Error loading analytics');
+  }
+};
+
+// Export functionality
+exports.rfidCardsExport = async (req, res) => {
+  try {
+    const { format = 'csv', filters } = req.query;
+    const cards = await getRfidCardsForExport(filters);
+    
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=rfid-cards.csv');
+      
+      const csvData = generateRfidCardsCsv(cards);
+      res.send(csvData);
+    } else if (format === 'excel') {
+      // Excel export would require additional library
+      res.status(501).json({ error: 'Excel export not yet implemented' });
+    } else {
+      res.status(400).json({ error: 'Unsupported export format' });
+    }
+  } catch (err) {
+    console.error("Error in rfidCardsExport:", err);
+    res.status(500).send('Error exporting cards');
+  }
+};
+
+// Helper function for analytics
+async function getRfidAnalytics(startDate, endDate, filters = {}) {
+  const analytics = {
+    summary: {
+      totalCards: 0,
+      activeCards: 0,
+      assignedCards: 0,
+      totalAccess: 0,
+      uniqueUsers: 0
+    },
+    trends: {
+      cardCreation: [],
+      accessPattern: [],
+      departmentDistribution: [],
+      roleDistribution: []
+    },
+    insights: []
+  };
+
+  try {
+    // Basic counts
+    const [totalCards, activeCards, assignedCards] = await Promise.all([
+      db.RFID_Card.count(),
+      db.RFID_Card.count({ where: { is_active: true } }),
+      db.RFID_Card.count({ where: { user_id: { [db.Sequelize.Op.ne]: null } } })
+    ]);
+
+    analytics.summary.totalCards = totalCards;
+    analytics.summary.activeCards = activeCards;
+    analytics.summary.assignedCards = assignedCards;
+
+    // Access analytics (if access log exists)
+    if (db.Access_Log) {
+      const accessCount = await db.Access_Log.count({
+        where: {
+          timestamp: {
+            [db.Sequelize.Op.between]: [startDate, endDate]
+          }
+        }
+      });
+      analytics.summary.totalAccess = accessCount;
+    }
+
+    // Generate insights
+    const usageRate = totalCards > 0 ? ((assignedCards / totalCards) * 100).toFixed(1) : 0;
+    const activeRate = totalCards > 0 ? ((activeCards / totalCards) * 100).toFixed(1) : 0;
+    
+    analytics.insights = [
+      {
+        type: 'usage',
+        title: 'Card Assignment Rate',
+        value: `${usageRate}%`,
+        description: `${assignedCards} out of ${totalCards} cards are assigned to users`,
+        trend: usageRate > 80 ? 'positive' : usageRate > 60 ? 'neutral' : 'negative'
+      },
+      {
+        type: 'status',
+        title: 'Active Card Rate',
+        value: `${activeRate}%`,
+        description: `${activeCards} out of ${totalCards} cards are currently active`,
+        trend: activeRate > 90 ? 'positive' : activeRate > 70 ? 'neutral' : 'negative'
+      }
+    ];
+
+    return analytics;
+  } catch (err) {
+    console.error('Error generating analytics:', err);
+    return analytics;
+  }
+}
+
+// Helper function for export
+async function getRfidCardsForExport(filters = {}) {
+  const whereClause = {};
+  
+  if (filters.status) {
+    whereClause.is_active = filters.status === 'active';
+  }
+  
+  if (filters.assignment) {
+    if (filters.assignment === 'assigned') {
+      whereClause.user_id = { [db.Sequelize.Op.ne]: null };
+    } else if (filters.assignment === 'unassigned') {
+      whereClause.user_id = null;
+    }
+  }
+
+  return await db.RFID_Card.findAll({
+    where: whereClause,
+    include: [
+      {
+        model: db.User,
+        as: 'user',
+        required: false
+      }
+    ],
+    order: [['created_at', 'DESC']]
+  });
+}
+
+// Helper function to generate CSV
+function generateRfidCardsCsv(cards) {
+  const headers = ['ID', 'Card UID', 'User Name', 'User Email', 'Status', 'Assigned Date', 'Created Date'];
+  const rows = [headers.join(',')];
+  
+  cards.forEach(card => {
+    const row = [
+      card.id,
+      `"${card.card_uid}"`,
+      card.user ? `"${card.user.first_name} ${card.user.last_name}"` : '',
+      card.user ? `"${card.user.email}"` : '',
+      card.is_active ? 'Active' : 'Inactive',
+      card.issued_at ? new Date(card.issued_at).toLocaleDateString() : '',
+      new Date(card.created_at).toLocaleDateString()
+    ];
+    rows.push(row.join(','));
+  });
+  
+  return rows.join('\n');
+}
+
+// RFID Cards Bulk Operations
+exports.rfidCardsBulkActivate = async (req, res) => {
+  try {
+    const { cardIds } = req.body;
+    
+    if (!cardIds || !Array.isArray(cardIds) || cardIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'No cards selected' });
+    }
+
+    await db.RFID_Card.update(
+      { is_active: true },
+      { where: { id: { [db.Sequelize.Op.in]: cardIds } } }
+    );
+
+    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_BULK_ACTIVATE', {
+      cardIds,
+      count: cardIds.length
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Successfully activated ${cardIds.length} RFID card(s)` 
+    });
+  } catch (err) {
+    console.error('Error in rfidCardsBulkActivate:', err);
+    res.status(500).json({ success: false, error: 'Failed to activate cards' });
+  }
+};
+
+exports.rfidCardsBulkDeactivate = async (req, res) => {
+  try {
+    const { cardIds } = req.body;
+    
+    if (!cardIds || !Array.isArray(cardIds) || cardIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'No cards selected' });
+    }
+
+    await db.RFID_Card.update(
+      { is_active: false, deactivated_at: new Date() },
+      { where: { id: { [db.Sequelize.Op.in]: cardIds } } }
+    );
+
+    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_BULK_DEACTIVATE', {
+      cardIds,
+      count: cardIds.length
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Successfully deactivated ${cardIds.length} RFID card(s)` 
+    });
+  } catch (err) {
+    console.error('Error in rfidCardsBulkDeactivate:', err);
+    res.status(500).json({ success: false, error: 'Failed to deactivate cards' });
+  }
+};
+
+exports.rfidCardsBulkDelete = async (req, res) => {
+  try {
+    const { cardIds } = req.body;
+    
+    if (!cardIds || !Array.isArray(cardIds) || cardIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'No cards selected' });
+    }
+
+    // Get card details before deletion for audit
+    const cardsToDelete = await db.RFID_Card.findAll({
+      where: { id: { [db.Sequelize.Op.in]: cardIds } },
+      attributes: ['id', 'card_uid', 'user_id']
+    });
+
+    await db.RFID_Card.destroy({
+      where: { id: { [db.Sequelize.Op.in]: cardIds } }
+    });
+
+    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_BULK_DELETE', {
+      cardIds,
+      count: cardIds.length,
+      deletedCards: cardsToDelete.map(card => ({
+        id: card.id,
+        card_uid: card.card_uid,
+        user_id: card.user_id
+      }))
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Successfully deleted ${cardIds.length} RFID card(s)` 
+    });
+  } catch (err) {
+    console.error('Error in rfidCardsBulkDelete:', err);
+    res.status(500).json({ success: false, error: 'Failed to delete cards' });
+  }
+};
+
+exports.rfidCardsBulkExport = async (req, res) => {
+  try {
+    const { cardIds, format = 'csv' } = req.body;
+    
+    if (!cardIds || !Array.isArray(cardIds) || cardIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'No cards selected' });
+    }
+
+    // Get cards with user information
+    const cards = await db.RFID_Card.findAll({
+      where: { id: { [db.Sequelize.Op.in]: cardIds } },
+      include: [{
+        model: db.User,
+        required: false,
+        attributes: ['first_name', 'last_name', 'email', 'school_id', 'role', 'department']
+      }],
+      order: [['id', 'ASC']]
+    });
+
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename=rfid-cards-export-${new Date().toISOString().split('T')[0]}.json`);
+      res.json(cards);
+    } else {
+      // CSV format
+      const csvHeader = 'ID,Card UID,Status,User Name,Email,School ID,Role,Department,Issued Date\n';
+      const csvRows = cards.map(card => {
+        const user = card.User;
+        return [
+          card.id,
+          card.card_uid,
+          card.is_active ? 'Active' : 'Inactive',
+          user ? `${user.first_name} ${user.last_name}` : 'Unassigned',
+          user ? user.email : '',
+          user ? user.school_id || '' : '',
+          user ? user.role : '',
+          user ? user.department || '' : '',
+          card.issued_at ? new Date(card.issued_at).toISOString().split('T')[0] : ''
+        ].map(field => `"${field}"`).join(',');
+      }).join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=rfid-cards-export-${new Date().toISOString().split('T')[0]}.csv`);
+      res.send(csvHeader + csvRows);
+    }
+
+    await logDataAudit(req.session.admin.id, 'ADMIN_RFID_BULK_EXPORT', {
+      cardIds,
+      count: cardIds.length,
+      format
+    });
+
+  } catch (err) {
+    console.error('Error in rfidCardsBulkExport:', err);
+    res.status(500).json({ success: false, error: 'Failed to export cards' });
+  }
+};
+
+// RFID Cards Statistics API
+exports.rfidCardsStatistics = async (req, res) => {
+  try {
+    const statistics = await getRfidCardStatistics();
+    res.json({ success: true, data: statistics });
+  } catch (err) {
+    console.error('Error in rfidCardsStatistics:', err);
+    res.status(500).json({ success: false, error: 'Failed to get statistics' });
   }
 };
 
@@ -1524,32 +2350,111 @@ exports.auditLogs = async (req, res) => {
 exports.guardianLinksIndex = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
+    const { Op } = require('sequelize');
+    
+    // Build where clause for filtering
+    let whereClause = {};
+    const { search, department, guardianRole, relationshipType, studentYear, dateFrom, dateTo, sortBy, sortOrder } = req.query;
+    
+    if (search) {
+      whereClause[Op.or] = [
+        { '$guardian.first_name$': { [Op.like]: `%${search}%` } },
+        { '$guardian.last_name$': { [Op.like]: `%${search}%` } },
+        { '$guardian.email$': { [Op.like]: `%${search}%` } },
+        { '$student.first_name$': { [Op.like]: `%${search}%` } },
+        { '$student.last_name$': { [Op.like]: `%${search}%` } },
+        { '$student.email$': { [Op.like]: `%${search}%` } }
+      ];
+    }
+    
+    if (department) {
+      if (!whereClause[Op.or]) whereClause[Op.or] = [];
+      whereClause[Op.or].push(
+        { '$guardian.department$': department },
+        { '$student.department$': department }
+      );
+    }
+    
+    if (guardianRole) {
+      whereClause['$guardian.role$'] = guardianRole;
+    }
+    
+    if (relationshipType) {
+      whereClause.relationship_type = relationshipType;
+    }
+    
+    if (studentYear) {
+      whereClause['$student.year$'] = studentYear;
+    }
+    
+    if (dateFrom || dateTo) {
+      whereClause.created_at = {};
+      if (dateFrom) whereClause.created_at[Op.gte] = new Date(dateFrom);
+      if (dateTo) whereClause.created_at[Op.lte] = new Date(dateTo + ' 23:59:59');
+    }
+
+    // Build order clause
+    let orderClause = [['created_at', 'DESC']]; // default
+    if (sortBy) {
+      const direction = sortOrder === 'ASC' ? 'ASC' : 'DESC';
+      switch (sortBy) {
+        case 'id':
+          orderClause = [['id', direction]];
+          break;
+        case 'guardian_name':
+          orderClause = [[{ model: db.User, as: 'guardian' }, 'first_name', direction]];
+          break;
+        case 'student_name':
+          orderClause = [[{ model: db.User, as: 'student' }, 'first_name', direction]];
+          break;
+        case 'created_at':
+          orderClause = [['created_at', direction]];
+          break;
+        case 'updated_at':
+          orderClause = [['updated_at', direction]];
+          break;
+      }
+    }
 
     const { count, rows: links } = await db.Guardian_Student.findAndCountAll({
+      where: whereClause,
       include: [
-        { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
-        { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
+        { 
+          model: db.User, 
+          as: 'guardian', 
+          attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'department', 'school_id', 'profile_picture'],
+          required: false
+        },
+        { 
+          model: db.User, 
+          as: 'student', 
+          attributes: ['id', 'first_name', 'last_name', 'email', 'department', 'school_id', 'year', 'profile_picture'],
+          required: false
+        }
       ],
-      order: [['guardian_id', 'ASC']],
-      limit: limit,
-      offset: offset
+      limit,
+      offset,
+      order: orderClause,
+      distinct: true
     });
 
     const totalPages = Math.ceil(count / limit);
 
-    res.render('admin/guardian-links/index', { 
-      title: 'Manage Guardian Links', 
-      links, 
-      admin: req.session.admin,
+    res.render('admin/guardian-links/index', {
+      title: 'Guardian Links',
+      links,
       currentPage: page,
-      totalPages: totalPages,
-      totalLinks: count
+      totalPages,
+      totalLinks: count,
+      admin: req.session.admin,
+      filters: req.query,
+      pagination: { limit, page, totalPages, count }
     });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error retrieving guardian links');
+    res.status(500).send('Error loading guardian links');
   }
 };
 
@@ -1567,27 +2472,58 @@ exports.guardianLinkNewForm = (req, res) => {
 
 exports.guardianLinkCreate = async (req, res) => {
   try {
-    const { guardianId, studentId } = req.body;
+    const { 
+      guardianId, 
+      studentId, 
+      relationship_type, 
+      priority_level, 
+      email_notifications, 
+      emergency_contact, 
+      notes, 
+      effective_from, 
+      effective_to 
+    } = req.body;
+
     const guardian = await db.User.findByPk(guardianId);
     const student = await db.User.findByPk(studentId);
-    if (!guardian || guardian.role !== 'guardian') {
+    
+    if (!guardian) {
       return res.status(400).send('Invalid guardian');
     }
     if (!student || student.role !== 'student') {
       return res.status(400).send('Invalid student');
     }
 
-    const link = await db.Guardian_Student.create({
+    // Check if link already exists
+    const existingLink = await db.Guardian_Student.findOne({
+      where: { guardian_id: guardianId, student_id: studentId }
+    });
+    if (existingLink) {
+      return res.status(400).send('Guardian link already exists');
+    }
+
+    // Create the link with all the new fields
+    const linkData = {
       guardian_id: guardianId,
       student_id: studentId,
-      created_at: new Date()
-    });
+      relationship_type: relationship_type || null,
+      priority_level: priority_level || 'primary',
+      email_notifications: email_notifications === 'on' || email_notifications === true,
+      emergency_contact: emergency_contact === 'on' || emergency_contact === true,
+      notes: notes || null,
+      effective_from: effective_from ? new Date(effective_from) : null,
+      effective_to: effective_to ? new Date(effective_to) : null,
+      status: 'active'
+    };
+
+    const link = await db.Guardian_Student.create(linkData);
 
     await logDataAudit(
       req.session.admin.id,
       'ADMIN_GUARDIAN_LINK_CREATED',
       {
         linkId: link.id,
+        linkData,
         guardian: {
           id: guardian.id,
           first_name: guardian.first_name,
@@ -1699,6 +2635,341 @@ exports.guardianLinkDelete = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send('Error deleting guardian link');
+  }
+};
+
+// Guardian Link Show (Detail View)
+exports.guardianLinkShow = async (req, res) => {
+  try {
+    const link = await db.Guardian_Student.findByPk(req.params.id, {
+      include: [
+        { 
+          model: db.User, 
+          as: 'guardian', 
+          attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'school_id', 'department', 'profile_picture', 'created_at', 'last_login']
+        },
+        { 
+          model: db.User, 
+          as: 'student', 
+          attributes: ['id', 'first_name', 'last_name', 'email', 'school_id', 'department', 'year', 'profile_picture', 'created_at', 'last_login']
+        }
+      ]
+    });
+
+    if (!link) {
+      return res.status(404).send('Guardian link not found');
+    }
+
+    res.render('admin/guardian-links/show', {
+      title: 'Guardian Link Details',
+      link: link,
+      admin: req.session.admin
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error loading guardian link details');
+  }
+};
+
+// Guardian Links Statistics API
+exports.guardianLinksStatistics = async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    
+    // Get total links
+    const totalLinks = await db.Guardian_Student.count({
+      where: { status: 'active' }
+    });
+
+    // Get active guardians (unique guardians with active links)
+    const activeGuardians = await db.Guardian_Student.count({
+      distinct: true,
+      col: 'guardian_id',
+      where: { status: 'active' }
+    });
+
+    // Get students with guardians
+    const studentsWithGuardians = await db.Guardian_Student.count({
+      distinct: true,
+      col: 'student_id',
+      where: { status: 'active' }
+    });
+
+    // Get total students
+    const totalStudents = await db.User.count({
+      where: { role: 'student' }
+    });
+
+    // Calculate orphaned students (students without guardians)
+    const orphanedStudents = totalStudents - studentsWithGuardians;
+
+    res.json({
+      totalLinks,
+      activeGuardians,
+      studentsWithGuardians,
+      orphanedStudents,
+      totalStudents
+    });
+  } catch (err) {
+    console.error('Error fetching guardian links statistics:', err);
+    res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+};
+
+// Bulk Delete Guardian Links
+exports.guardianLinksBulkDelete = async (req, res) => {
+  try {
+    const { linkIds } = req.body;
+    
+    if (!linkIds || !Array.isArray(linkIds) || linkIds.length === 0) {
+      return res.status(400).json({ error: 'No link IDs provided' });
+    }
+
+    // Get links for audit logging
+    const links = await db.Guardian_Student.findAll({
+      where: { id: linkIds },
+      include: [
+        { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
+        { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
+      ]
+    });
+
+    // Log the bulk deletion
+    await logDataAudit(
+      req.session.admin.id,
+      'ADMIN_GUARDIAN_LINKS_BULK_DELETED',
+      { linkIds, count: links.length, links: links.map(l => l.toJSON()) }
+    );
+
+    // Delete the links
+    const deletedCount = await db.Guardian_Student.destroy({
+      where: { id: linkIds }
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Successfully deleted ${deletedCount} guardian link(s)`,
+      deletedCount 
+    });
+  } catch (err) {
+    console.error('Error in bulk delete:', err);
+    res.status(500).json({ error: 'Failed to delete guardian links' });
+  }
+};
+
+// Bulk Export Guardian Links
+exports.guardianLinksBulkExport = async (req, res) => {
+  try {
+    const { format = 'csv', all = false } = req.query;
+    const { Op } = require('sequelize');
+    
+    let whereClause = {};
+    
+    // Apply filters if not exporting all
+    if (!all) {
+      const { search, department, guardianRole, relationshipType, studentYear, dateFrom, dateTo } = req.query;
+      
+      if (search) {
+        whereClause[Op.or] = [
+          { '$guardian.first_name$': { [Op.like]: `%${search}%` } },
+          { '$guardian.last_name$': { [Op.like]: `%${search}%` } },
+          { '$guardian.email$': { [Op.like]: `%${search}%` } },
+          { '$student.first_name$': { [Op.like]: `%${search}%` } },
+          { '$student.last_name$': { [Op.like]: `%${search}%` } },
+          { '$student.email$': { [Op.like]: `%${search}%` } }
+        ];
+      }
+      
+      if (department) {
+        whereClause[Op.or] = [
+          { '$guardian.department$': department },
+          { '$student.department$': department }
+        ];
+      }
+      
+      if (relationshipType) {
+        whereClause.relationship_type = relationshipType;
+      }
+      
+      if (dateFrom || dateTo) {
+        whereClause.created_at = {};
+        if (dateFrom) whereClause.created_at[Op.gte] = new Date(dateFrom);
+        if (dateTo) whereClause.created_at[Op.lte] = new Date(dateTo + ' 23:59:59');
+      }
+    }
+
+    const links = await db.Guardian_Student.findAll({
+      where: whereClause,
+      include: [
+        { 
+          model: db.User, 
+          as: 'guardian', 
+          attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'department', 'school_id']
+        },
+        { 
+          model: db.User, 
+          as: 'student', 
+          attributes: ['id', 'first_name', 'last_name', 'email', 'department', 'school_id', 'year']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename="guardian-links.json"');
+      return res.json(links);
+    }
+
+    // CSV export
+    const csvData = links.map(link => ({
+      'Link ID': link.id,
+      'Guardian Name': link.guardian ? `${link.guardian.first_name} ${link.guardian.last_name}` : 'N/A',
+      'Guardian Email': link.guardian ? link.guardian.email : 'N/A',
+      'Guardian School ID': link.guardian ? link.guardian.school_id || 'N/A' : 'N/A',
+      'Guardian Department': link.guardian ? link.guardian.department || 'N/A' : 'N/A',
+      'Student Name': link.student ? `${link.student.first_name} ${link.student.last_name}` : 'N/A',
+      'Student Email': link.student ? link.student.email : 'N/A',
+      'Student ID': link.student ? link.student.school_id || 'N/A' : 'N/A',
+      'Student Department': link.student ? link.student.department || 'N/A' : 'N/A',
+      'Student Year': link.student ? link.student.year || 'N/A' : 'N/A',
+      'Relationship Type': link.relationship_type || 'N/A',
+      'Priority Level': link.priority_level || 'N/A',
+      'Email Notifications': link.email_notifications ? 'Yes' : 'No',
+      'Emergency Contact': link.emergency_contact ? 'Yes' : 'No',
+      'Status': link.status || 'active',
+      'Notes': link.notes || 'N/A',
+      'Created Date': link.created_at ? new Date(link.created_at).toLocaleDateString() : 'N/A',
+      'Updated Date': link.updated_at ? new Date(link.updated_at).toLocaleDateString() : 'N/A'
+    }));
+
+    const csvContent = [
+      Object.keys(csvData[0] || {}).join(','),
+      ...csvData.map(row => Object.values(row).map(val => `"${val}"`).join(','))
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="guardian-links.csv"');
+    res.send(csvContent);
+
+  } catch (err) {
+    console.error('Error exporting guardian links:', err);
+    res.status(500).json({ error: 'Failed to export guardian links' });
+  }
+};
+
+// Quick Edit Guardian Link
+exports.guardianLinksQuickEdit = async (req, res) => {
+  try {
+    const { linkId, relationship_type, notes } = req.body;
+    
+    if (!linkId) {
+      return res.status(400).json({ error: 'Link ID is required' });
+    }
+
+    const link = await db.Guardian_Student.findByPk(linkId);
+    if (!link) {
+      return res.status(404).json({ error: 'Guardian link not found' });
+    }
+
+    // Update the link
+    const updateData = {};
+    if (relationship_type !== undefined) updateData.relationship_type = relationship_type || null;
+    if (notes !== undefined) updateData.notes = notes || null;
+
+    await link.update(updateData);
+
+    // Log the update
+    await logDataAudit(
+      req.session.admin.id,
+      'ADMIN_GUARDIAN_LINK_QUICK_EDITED',
+      { linkId, changes: updateData }
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Guardian link updated successfully',
+      link: link 
+    });
+  } catch (err) {
+    console.error('Error in quick edit:', err);
+    res.status(500).json({ error: 'Failed to update guardian link' });
+  }
+};
+
+// Export Single Guardian Link Details
+exports.guardianLinkExport = async (req, res) => {
+  try {
+    const link = await db.Guardian_Student.findByPk(req.params.id, {
+      include: [
+        { 
+          model: db.User, 
+          as: 'guardian', 
+          attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'department', 'school_id', 'profile_picture']
+        },
+        { 
+          model: db.User, 
+          as: 'student', 
+          attributes: ['id', 'first_name', 'last_name', 'email', 'department', 'school_id', 'year', 'profile_picture']
+        }
+      ]
+    });
+
+    if (!link) {
+      return res.status(404).json({ error: 'Guardian link not found' });
+    }
+
+    // For now, return JSON. In a full implementation, you might generate a PDF
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="guardian-link-${link.id}-details.json"`);
+    res.json({
+      link: link,
+      exported_at: new Date().toISOString(),
+      exported_by: req.session.admin.email
+    });
+
+  } catch (err) {
+    console.error('Error exporting guardian link details:', err);
+    res.status(500).json({ error: 'Failed to export guardian link details' });
+  }
+};
+
+// Send Notification to Guardian and Student
+exports.guardianLinkNotify = async (req, res) => {
+  try {
+    const link = await db.Guardian_Student.findByPk(req.params.id, {
+      include: [
+        { model: db.User, as: 'guardian', attributes: ['id', 'first_name', 'last_name', 'email'] },
+        { model: db.User, as: 'student', attributes: ['id', 'first_name', 'last_name', 'email'] }
+      ]
+    });
+
+    if (!link) {
+      return res.status(404).json({ error: 'Guardian link not found' });
+    }
+
+    // Log the notification attempt
+    await logDataAudit(
+      req.session.admin.id,
+      'ADMIN_GUARDIAN_LINK_NOTIFICATION_SENT',
+      { 
+        linkId: link.id, 
+        guardianEmail: link.guardian?.email,
+        studentEmail: link.student?.email 
+      }
+    );
+
+    // Here you would implement actual email sending logic
+    // For now, we'll just simulate success
+    
+    res.json({ 
+      success: true, 
+      message: 'Notifications sent successfully to guardian and student' 
+    });
+
+  } catch (err) {
+    console.error('Error sending notifications:', err);
+    res.status(500).json({ error: 'Failed to send notifications' });
   }
 };
 

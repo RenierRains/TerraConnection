@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Replace RFID Card</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <%- include('../../partials/modal-styles') %>
+
+  <div class="modal-content-wrapper">
+    <!-- Enhanced Header -->
+    <div class="replacement-header mb-4">
+      <div class="d-flex align-items-center">
+        <div class="icon-circle me-3">
+          <i class="fas fa-exchange-alt text-danger"></i>
+        </div>
+        <div>
+          <h2 class="mb-0">Replace RFID Card</h2>
+          <small class="text-muted">Create a replacement for damaged or lost card</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current Card Information -->
+    <div class="current-card-info mb-4">
+      <div class="card border-warning">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Current Card Information</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Card ID</div>
+                  <div class="info-value">#<%= oldCard.id %></div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Card UID</div>
+                  <div class="info-value">
+                    <code class="uid-display"><%= oldCard.card_uid %></code>
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Status</div>
+                  <div class="info-value">
+                    <span class="badge bg-<%= oldCard.is_active ? 'success' : 'secondary' %>">
+                      <%= oldCard.is_active ? 'Active' : 'Inactive' %>
+                    </span>
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Issued Date</div>
+                  <div class="info-value">
+                    <% if (oldCard.issued_at) { %>
+                      <%= new Date(oldCard.issued_at).toLocaleDateString() %>
+                    <% } else { %>
+                      <span class="text-muted">Not set</span>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <% if (userData) { %>
+                <div class="assigned-user-info">
+                  <h6 class="text-primary mb-3"><i class="fas fa-user me-2"></i>Assigned User</h6>
+                  <div class="d-flex align-items-center">
+                    <div class="user-avatar me-3">
+                      <% if (userData.profile_picture) { %>
+                        <img src="/<%= userData.profile_picture %>" alt="Profile" class="profile-img">
+                      <% } else { %>
+                        <div class="profile-initials">
+                          <%= (userData.first_name.charAt(0) + userData.last_name.charAt(0)).toUpperCase() %>
+                        </div>
+                      <% } %>
+                    </div>
+                    <div>
+                      <div class="user-name"><%= userData.first_name %> <%= userData.last_name %></div>
+                      <div class="user-details">
+                        <small class="text-muted">
+                          <i class="fas fa-envelope me-1"></i><%= userData.email %>
+                          <% if (userData.role) { %>
+                            <br><i class="fas fa-user-tag me-1"></i>
+                            <span class="badge bg-<%= userData.role === 'admin' ? 'danger' : userData.role === 'professor' ? 'warning' : userData.role === 'student' ? 'success' : 'info' %>">
+                              <%= userData.role.charAt(0).toUpperCase() + userData.role.slice(1) %>
+                            </span>
+                          <% } %>
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% } else { %>
+                <div class="unassigned-info text-center">
+                  <i class="fas fa-user-slash fa-2x text-muted mb-2"></i>
+                  <h6 class="text-muted">Unassigned Card</h6>
+                  <small class="text-muted">This card is not assigned to any user</small>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Replacement Form -->
+    <form id="replacementForm" action="/admin/rfid-cards/<%= oldCard.id %>/replace" method="POST">
+      <!-- Replacement Details -->
+      <div class="replacement-section mb-4">
+        <div class="section-header mb-3">
+          <h5><i class="fas fa-plus-circle me-2 text-success"></i>New Card Details</h5>
+          <small class="text-muted">Enter the details for the replacement card</small>
+        </div>
+
+        <div class="row">
+          <div class="col-md-8">
+            <div class="form-group mb-3">
+              <label for="new_card_uid" class="form-label required">New Card UID</label>
+              <div class="input-group">
+                <span class="input-group-text">
+                  <i class="fas fa-barcode"></i>
+                </span>
+                <input type="text" 
+                       id="new_card_uid" 
+                       name="new_card_uid" 
+                       class="form-control" 
+                       placeholder="Enter new card UID" 
+                       required>
+                <button class="btn btn-outline-secondary" type="button" onclick="generateRandomUID()">
+                  <i class="fas fa-random me-1"></i>Generate
+                </button>
+              </div>
+              <div class="form-text">
+                <i class="fas fa-info-circle me-1"></i>
+                Enter the UID of the new physical card
+              </div>
+              <div class="invalid-feedback" id="new_card_uid_error"></div>
+              <div class="valid-feedback">New card UID looks good!</div>
+            </div>
+
+            <div class="form-group mb-3">
+              <label for="reason" class="form-label">Replacement Reason</label>
+              <select id="reason" name="reason" class="form-select">
+                <option value="">Select reason...</option>
+                <option value="lost">Card Lost</option>
+                <option value="stolen">Card Stolen</option>
+                <option value="damaged">Card Damaged</option>
+                <option value="malfunction">Card Malfunction</option>
+                <option value="expired">Card Expired</option>
+                <option value="security">Security Concern</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group mb-3" id="custom_reason_group" style="display: none;">
+              <label for="custom_reason" class="form-label">Custom Reason</label>
+              <textarea id="custom_reason" 
+                        name="custom_reason" 
+                        class="form-control" 
+                        rows="2" 
+                        placeholder="Please specify the reason for replacement..."></textarea>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="replacement-preview">
+              <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                  <i class="fas fa-id-card fa-3x mb-3"></i>
+                  <h6>New Card Preview</h6>
+                  <div class="preview-uid mt-2">
+                    <code id="preview_new_uid" class="text-white">Enter UID</code>
+                  </div>
+                  <small class="mt-2 d-block">Status: Active</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assignment Transfer Options -->
+      <div class="assignment-section mb-4">
+        <div class="section-header mb-3">
+          <h5><i class="fas fa-user-cog me-2 text-primary"></i>Assignment Transfer</h5>
+          <small class="text-muted">Choose how to handle the user assignment</small>
+        </div>
+
+        <div class="assignment-options">
+          <% if (userData) { %>
+            <div class="form-check form-check-lg mb-3">
+              <input class="form-check-input" type="radio" name="transfer_assignment" id="transfer_yes" value="true" checked>
+              <label class="form-check-label" for="transfer_yes">
+                <strong>Transfer Assignment</strong>
+                <div class="option-description">
+                  <small class="text-muted">
+                    Assign the new card to <strong><%= userData.first_name %> <%= userData.last_name %></strong>
+                    and deactivate the old card
+                  </small>
+                </div>
+              </label>
+            </div>
+            <div class="form-check form-check-lg mb-3">
+              <input class="form-check-input" type="radio" name="transfer_assignment" id="transfer_no" value="false">
+              <label class="form-check-label" for="transfer_no">
+                <strong>Create Unassigned Card</strong>
+                <div class="option-description">
+                  <small class="text-muted">
+                    Create the new card without assignment and deactivate the old card
+                  </small>
+                </div>
+              </label>
+            </div>
+          <% } else { %>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              The old card is unassigned. The new card will also be created as unassigned.
+            </div>
+            <input type="hidden" name="transfer_assignment" value="false">
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Replacement Summary -->
+      <div class="replacement-summary mb-4">
+        <div class="card border-primary">
+          <div class="card-header bg-primary text-white">
+            <h6 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Replacement Summary</h6>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <h6 class="text-danger">Old Card (Will be deactivated)</h6>
+                <ul class="list-unstyled">
+                  <li><strong>UID:</strong> <code><%= oldCard.card_uid %></code></li>
+                  <li><strong>Status:</strong> Will become <span class="badge bg-secondary">Inactive</span></li>
+                  <li><strong>Notes:</strong> Will record replacement details</li>
+                </ul>
+              </div>
+              <div class="col-md-6">
+                <h6 class="text-success">New Card (Will be created)</h6>
+                <ul class="list-unstyled">
+                  <li><strong>UID:</strong> <code id="summary_new_uid">Not set</code></li>
+                  <li><strong>Status:</strong> <span class="badge bg-success">Active</span></li>
+                  <li><strong>Assignment:</strong> <span id="summary_assignment"><%= userData ? userData.first_name + ' ' + userData.last_name : 'Unassigned' %></span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Warning Notice -->
+      <div class="warning-notice mb-4">
+        <div class="alert alert-warning">
+          <div class="d-flex">
+            <div class="flex-shrink-0">
+              <i class="fas fa-exclamation-triangle fa-2x"></i>
+            </div>
+            <div class="flex-grow-1 ms-3">
+              <h6 class="alert-heading">Important Notice</h6>
+              <ul class="mb-0">
+                <li>The old card will be <strong>permanently deactivated</strong> and cannot be reused</li>
+                <li>All access history will be preserved for both cards</li>
+                <li>The replacement will be logged in the audit trail</li>
+                <li>This action cannot be undone</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="form-actions">
+        <div class="d-flex justify-content-between">
+          <div class="form-info">
+            <small class="text-muted">
+              <i class="fas fa-shield-alt me-1"></i>
+              All replacement actions are logged for security
+            </small>
+          </div>
+          <div class="action-buttons">
+            <button type="submit" class="btn btn-danger" id="replaceBtn">
+              <i class="fas fa-exchange-alt me-1"></i>Replace Card
+            </button>
+            <button type="button" class="btn btn-secondary ms-2" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    $(document).ready(function() {
+      initializeReplacementForm();
+    });
+
+    function initializeReplacementForm() {
+      // Real-time validation and preview updates
+      $('#new_card_uid').on('input', function() {
+        validateNewCardUID();
+        updatePreview();
+        updateSummary();
+      });
+
+      $('#reason').on('change', function() {
+        toggleCustomReason();
+        updateSummary();
+      });
+
+      $('input[name="transfer_assignment"]').on('change', function() {
+        updateSummary();
+      });
+
+      // Initialize
+      updateSummary();
+    }
+
+    function validateNewCardUID() {
+      const newCardUID = $('#new_card_uid').val().trim();
+      const input = $('#new_card_uid');
+      
+      if (newCardUID.length === 0) {
+        input.removeClass('is-valid is-invalid');
+        return false;
+      }
+
+      // Check for valid UID format (alphanumeric, 4-20 characters)
+      const uidPattern = /^[A-Za-z0-9]{4,20}$/;
+      
+      if (!uidPattern.test(newCardUID)) {
+        input.removeClass('is-valid').addClass('is-invalid');
+        $('#new_card_uid_error').text('Card UID must be 4-20 alphanumeric characters');
+        return false;
+      }
+
+      // Check if it's different from old card
+      if (newCardUID === '<%= oldCard.card_uid %>') {
+        input.removeClass('is-valid').addClass('is-invalid');
+        $('#new_card_uid_error').text('New card UID must be different from the old one');
+        return false;
+      }
+
+      input.removeClass('is-invalid').addClass('is-valid');
+      return true;
+    }
+
+    function updatePreview() {
+      const newCardUID = $('#new_card_uid').val().trim();
+      $('#preview_new_uid').text(newCardUID || 'Enter UID');
+    }
+
+    function updateSummary() {
+      const newCardUID = $('#new_card_uid').val().trim();
+      const transferAssignment = $('input[name="transfer_assignment"]:checked').val();
+      
+      $('#summary_new_uid').text(newCardUID || 'Not set');
+      
+      <% if (userData) { %>
+        if (transferAssignment === 'true') {
+          $('#summary_assignment').text('<%= userData.first_name %> <%= userData.last_name %>');
+        } else {
+          $('#summary_assignment').text('Unassigned');
+        }
+      <% } else { %>
+        $('#summary_assignment').text('Unassigned');
+      <% } %>
+    }
+
+    function toggleCustomReason() {
+      const reason = $('#reason').val();
+      if (reason === 'other') {
+        $('#custom_reason_group').show();
+        $('#custom_reason').attr('required', true);
+      } else {
+        $('#custom_reason_group').hide();
+        $('#custom_reason').attr('required', false);
+      }
+    }
+
+    function generateRandomUID() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = '';
+      for (let i = 0; i < 8; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      $('#new_card_uid').val(result).trigger('input');
+    }
+
+    // Enhanced form submission
+    $('#replacementForm').on('submit', function(e) {
+      e.preventDefault();
+      
+      if (!validateNewCardUID()) {
+        return;
+      }
+
+      // Show confirmation dialog
+      const newUID = $('#new_card_uid').val().trim();
+      const reason = $('#reason').val() || $('#custom_reason').val() || 'Not specified';
+      
+      const confirmMsg = `Are you sure you want to replace card '<%= oldCard.card_uid %>' with '${newUID}'?\n\nReason: ${reason}\n\nThis action cannot be undone.`;
+      
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+
+      const form = $(this);
+      const submitBtn = $('#replaceBtn');
+      const originalHtml = submitBtn.html();
+      
+      submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Replacing...');
+      
+      // Prepare form data
+      let formData = form.serialize();
+      
+      // Add custom reason if selected
+      if ($('#reason').val() === 'other') {
+        formData += '&reason=' + encodeURIComponent($('#custom_reason').val());
+      }
+      
+      $.ajax({
+        url: form.attr('action'),
+        method: 'POST',
+        data: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        success: function(response) {
+          // Close modal
+          const modalElement = document.getElementById('appModal');
+          if (modalElement) {
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+              modalInstance.hide();
+            }
+          }
+          
+          // Show success message
+          if (window.showToast) {
+            window.showToast('Success!', 'Card replaced successfully. The old card has been deactivated.', 'success');
+          }
+          
+          // Redirect to new card details
+          setTimeout(() => {
+            if (response.new_card_id) {
+              window.location.href = `/admin/rfid-cards/${response.new_card_id}`;
+            } else {
+              window.location.reload();
+            }
+          }, 1500);
+        },
+        error: function(xhr) {
+          submitBtn.prop('disabled', false).html(originalHtml);
+          
+          let errorMsg = 'An error occurred. Please try again.';
+          
+          if (xhr.responseJSON && xhr.responseJSON.error) {
+            errorMsg = xhr.responseJSON.error;
+          } else if (xhr.responseText) {
+            errorMsg = xhr.responseText;
+          }
+          
+          // Show error message
+          if (window.showToast) {
+            window.showToast('Error', errorMsg, 'error');
+          }
+          
+          // Show error in form
+          const alertHtml = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+              <i class="fas fa-exclamation-triangle me-2"></i>${errorMsg}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          `;
+          
+          $('.alert-danger').remove();
+          form.prepend(alertHtml);
+        }
+      });
+    });
+  </script>
+
+  <style>
+    /* Enhanced Replacement Form Styles */
+    .modal-content-wrapper {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .replacement-header {
+      background: linear-gradient(135deg, var(--bs-danger), #dc3545);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+    }
+
+    .icon-circle {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .current-card-info .info-grid {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .info-item {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: var(--bs-secondary);
+      font-size: 0.875rem;
+    }
+
+    .info-value {
+      color: var(--bs-body-color);
+    }
+
+    .uid-display {
+      background: var(--bs-light);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-family: monospace;
+    }
+
+    .assigned-user-info .user-avatar {
+      width: 50px;
+      height: 50px;
+    }
+
+    .profile-img {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .profile-initials {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .unassigned-info {
+      padding: 2rem;
+      background: var(--bs-light);
+      border-radius: 0.5rem;
+    }
+
+    .replacement-section,
+    .assignment-section,
+    .replacement-summary {
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      background: var(--bs-body-bg);
+    }
+
+    .section-header h5 {
+      color: var(--bs-primary);
+      font-weight: 600;
+    }
+
+    .replacement-preview .card {
+      transition: all 0.3s ease;
+    }
+
+    .replacement-preview .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .form-check-lg {
+      padding: 1rem;
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-check-lg:hover {
+      background-color: var(--bs-light);
+    }
+
+    .form-check-lg .form-check-input:checked + .form-check-label {
+      color: var(--bs-primary);
+    }
+
+    .option-description {
+      margin-top: 0.25rem;
+    }
+
+    .warning-notice .alert {
+      border-left: 4px solid var(--bs-warning);
+    }
+
+    .required::after {
+      content: " *";
+      color: var(--bs-danger);
+    }
+
+    /* Dark mode support */
+    [data-bs-theme="dark"] .replacement-header {
+      background: linear-gradient(135deg, var(--bs-danger), #dc3545);
+    }
+
+    [data-bs-theme="dark"] .replacement-section,
+    [data-bs-theme="dark"] .assignment-section,
+    [data-bs-theme="dark"] .replacement-summary {
+      background: var(--bs-dark);
+      border-color: var(--bs-border-color);
+    }
+
+    [data-bs-theme="dark"] .form-check-lg:hover {
+      background-color: var(--bs-secondary);
+    }
+
+    [data-bs-theme="dark"] .unassigned-info {
+      background: var(--bs-secondary);
+    }
+  </style>
+</body>
+</html>

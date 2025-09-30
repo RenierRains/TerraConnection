@@ -1,34 +1,770 @@
-<div class="container mt-5">
-    <h2>RFID Cards</h2>
-    <a href="/admin/rfid-cards/create" class="btn btn-success mb-3" data-modal="true">Add New RFID Card</a>
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>ID</th>
+<div class="container-fluid mt-4">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">RFID Cards Management</h2>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+          <li class="breadcrumb-item active">RFID Cards</li>
+        </ol>
+      </nav>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/admin/rfid-cards/create" class="btn btn-success" data-modal="true">
+        <i class="fas fa-plus me-1"></i>Add RFID Card
+      </a>
+      <a href="/admin/rfid-cards-analytics" class="btn btn-outline-primary" data-modal="true">
+        <i class="fas fa-chart-bar me-1"></i>Analytics
+      </a>
+      <div class="dropdown">
+        <button class="btn btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown">
+          <i class="fas fa-download me-1"></i>Export
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="#" onclick="exportAllCards('csv')">
+            <i class="fas fa-file-csv me-1"></i>Export All (CSV)
+          </a></li>
+          <li><a class="dropdown-item" href="#" onclick="exportAllCards('json')">
+            <i class="fas fa-file-code me-1"></i>Export All (JSON)
+          </a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0"><%= statistics.total %></h4>
+              <small>Total Cards</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-id-card fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0"><%= statistics.active %></h4>
+              <small>Active Cards</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-check-circle fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0"><%= statistics.assigned %></h4>
+              <small>Assigned Cards</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-user-tag fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0"><%= statistics.usageRate %>%</h4>
+              <small>Usage Rate</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-chart-pie fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Advanced Filters -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0">
+        <i class="fas fa-filter me-2"></i>Advanced Filters
+      </h5>
+    </div>
+    <div class="card-body">
+      <form method="GET" id="filterForm">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-control" placeholder="Card UID, user name, or email" 
+                   value="<%= filters.search || '' %>">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+              <option value="">All Status</option>
+              <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+              <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Assignment</label>
+            <select name="assignment" class="form-select">
+              <option value="">All Cards</option>
+              <option value="assigned" <%= filters.assignment === 'assigned' ? 'selected' : '' %>>Assigned</option>
+              <option value="unassigned" <%= filters.assignment === 'unassigned' ? 'selected' : '' %>>Unassigned</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Department</label>
+            <select name="department" class="form-select">
+              <option value="">All Departments</option>
+              <% departments.forEach(function(dept){ %>
+                <option value="<%= dept.code %>" <%= filters.department === dept.code ? 'selected' : '' %>>
+                  <%= dept.name %> (<%= dept.code %>)
+                </option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">User Role</label>
+            <select name="userRole" class="form-select">
+              <option value="">All Roles</option>
+              <option value="student" <%= filters.userRole === 'student' ? 'selected' : '' %>>Student</option>
+              <option value="professor" <%= filters.userRole === 'professor' ? 'selected' : '' %>>Professor</option>
+              <option value="guardian" <%= filters.userRole === 'guardian' ? 'selected' : '' %>>Guardian</option>
+              <option value="admin" <%= filters.userRole === 'admin' ? 'selected' : '' %>>Admin</option>
+            </select>
+          </div>
+          <div class="col-md-1">
+            <label class="form-label">Sort Order</label>
+            <select name="sortOrder" class="form-select">
+              <option value="ASC" <%= filters.sortOrder === 'ASC' ? 'selected' : '' %>>↑</option>
+              <option value="DESC" <%= filters.sortOrder === 'DESC' ? 'selected' : '' %>>↓</option>
+            </select>
+          </div>
+        </div>
+        <div class="row mt-3">
+          <div class="col-md-3">
+            <label class="form-label">From Date</label>
+            <input type="date" name="dateFrom" class="form-control" value="<%= filters.dateFrom || '' %>">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">To Date</label>
+            <input type="date" name="dateTo" class="form-control" value="<%= filters.dateTo || '' %>">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Sort By</label>
+            <select name="sortBy" class="form-select">
+              <option value="id" <%= filters.sortBy === 'id' ? 'selected' : '' %>>ID</option>
+              <option value="card_uid" <%= filters.sortBy === 'card_uid' ? 'selected' : '' %>>Card UID</option>
+              <option value="user_name" <%= filters.sortBy === 'user_name' ? 'selected' : '' %>>User Name</option>
+              <option value="issued_at" <%= filters.sortBy === 'issued_at' ? 'selected' : '' %>>Issue Date</option>
+            </select>
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary me-2">
+              <i class="fas fa-search me-1"></i>Apply Filters
+            </button>
+            <a href="/admin/rfid-cards" class="btn btn-outline-secondary">
+              <i class="fas fa-times me-1"></i>Clear
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bulk Actions -->
+  <div class="card mb-4" id="bulkActionsCard" style="display: none;">
+    <div class="card-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+          <i class="fas fa-tasks me-2"></i>Bulk Actions
+          <span id="selectedCount" class="badge bg-primary ms-2">0</span>
+        </h6>
+        <button type="button" class="btn-close" onclick="clearBulkSelection()"></button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-success" onclick="bulkActivate()">
+          <i class="fas fa-check me-1"></i>Activate Selected
+        </button>
+        <button type="button" class="btn btn-warning" onclick="bulkDeactivate()">
+          <i class="fas fa-pause me-1"></i>Deactivate Selected
+        </button>
+        <button type="button" class="btn btn-info" onclick="bulkExport()">
+          <i class="fas fa-download me-1"></i>Export Selected
+        </button>
+        <button type="button" class="btn btn-danger" onclick="bulkDelete()">
+          <i class="fas fa-trash me-1"></i>Delete Selected
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RFID Cards Table -->
+  <div class="card">
+    <div class="card-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">RFID Cards (<%= totalCards %> total)</h5>
+        <div class="d-flex align-items-center gap-2">
+          <label class="form-label mb-0">Page Size:</label>
+          <select class="form-select form-select-sm" style="width: auto;" onchange="changePageSize(this.value)">
+            <% pagination.pageSizeOptions.forEach(function(size){ %>
+              <option value="<%= size %>" <%= pagination.limit === size ? 'selected' : '' %>><%= size %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th width="40">
+                <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+              </th>
+              <th width="60">ID</th>
           <th>Card UID</th>
-          <th>User ID</th>
-          <th>Active</th>
-          <th>Issued At</th>
-          <th>Actions</th>
+              <th width="80">Profile</th>
+              <th>Assigned User</th>
+              <th width="100">Role</th>
+              <th width="120">Department</th>
+              <th width="100">Status</th>
+              <th width="120">Issued Date</th>
+              <th width="200">Actions</th>
         </tr>
       </thead>
       <tbody>
-        <% rfidCards.forEach(function(card) { %>
-          <tr>
+            <% rfidCards.forEach(function(card){ %>
+              <tr class="card-row" data-card-id="<%= card.id %>">
+                <td>
+                  <input type="checkbox" class="form-check-input card-checkbox" value="<%= card.id %>" onchange="updateBulkActions()">
+                </td>
             <td><%= card.id %></td>
-            <td><%= card.card_uid %></td>
-            <td><%= card.user_id %></td>
-            <td><%= card.is_active ? 'Yes' : 'No' %></td>
-            <td><%= card.issued_at %></td>
-            <td>
-              <a href="/admin/rfid-cards/<%= card.id %>" class="btn btn-info btn-sm" data-modal="true">View</a>
-              <a href="/admin/rfid-cards/<%= card.id %>/edit" class="btn btn-warning btn-sm" data-modal="true">Edit</a>
-              <form action="/admin/rfid-cards/<%= card.id %>?_method=DELETE" method="POST" style="display:inline;">
-                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
-              </form>
+                <td>
+                  <code class="text-primary"><%= card.card_uid %></code>
+                </td>
+                <td>
+                  <% if (card.User) { %>
+                    <div class="profile-picture-container">
+                      <% if (card.User.profile_picture) { %>
+                        <img src="/<%= card.User.profile_picture.startsWith('/') ? card.User.profile_picture.substring(1) : card.User.profile_picture %>" 
+                             alt="Profile" class="profile-thumbnail" 
+                             data-bs-toggle="tooltip" 
+                             title="<%= card.User.first_name %> <%= card.User.last_name %>">
+                      <% } else { %>
+                        <div class="profile-initials" 
+                             data-bs-toggle="tooltip" 
+                             title="<%= card.User.first_name %> <%= card.User.last_name %>">
+                          <%= card.User.first_name.charAt(0).toUpperCase() %><%= card.User.last_name.charAt(0).toUpperCase() %>
+                        </div>
+                      <% } %>
+                    </div>
+                  <% } else { %>
+                    <span class="text-muted">-</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (card.User) { %>
+                    <div class="d-flex flex-column">
+                      <strong><%= card.User.first_name %> <%= card.User.last_name %></strong>
+                      <small class="text-muted"><%= card.User.email %></small>
+                      <% if (card.User.school_id) { %>
+                        <small class="text-muted">ID: <%= card.User.school_id %></small>
+                      <% } %>
+                    </div>
+                  <% } else { %>
+                    <span class="badge bg-secondary">Unassigned</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (card.User) { %>
+                    <span class="badge bg-<%= card.User.role === 'admin' ? 'danger' : card.User.role === 'professor' ? 'warning' : card.User.role === 'guardian' ? 'info' : 'success' %>">
+                      <%= card.User.role.charAt(0).toUpperCase() + card.User.role.slice(1) %>
+                    </span>
+                  <% } else { %>
+                    <span class="text-muted">-</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (card.User && card.User.department) { %>
+                    <span class="badge bg-secondary"><%= card.User.department %></span>
+                  <% } else { %>
+                    <span class="text-muted">-</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (card.is_active) { %>
+                    <span class="badge bg-success">
+                      <i class="fas fa-circle me-1"></i>Active
+                    </span>
+                  <% } else { %>
+                    <span class="badge bg-secondary">
+                      <i class="fas fa-circle me-1"></i>Inactive
+                    </span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (card.issued_at) { %>
+                    <%= new Date(card.issued_at).toLocaleDateString() %>
+                    <% if (card.daysSinceIssued !== undefined) { %>
+                      <br><small class="text-muted">
+                        <% if (card.daysSinceIssued === 0) { %>
+                          Today
+                        <% } else if (card.daysSinceIssued === 1) { %>
+                          Yesterday
+                        <% } else if (card.daysSinceIssued < 7) { %>
+                          <%= card.daysSinceIssued %> days ago
+                        <% } else { %>
+                          <%= Math.floor(card.daysSinceIssued / 7) %> weeks ago
+                        <% } %>
+                      </small>
+                    <% } %>
+                  <% } else { %>
+                    <span class="text-muted">-</span>
+                  <% } %>
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm" role="group">
+                    <a href="/admin/rfid-cards/<%= card.id %>" class="btn btn-outline-info" 
+                       data-modal="true" data-bs-toggle="tooltip" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="/admin/rfid-cards/<%= card.id %>/edit" class="btn btn-outline-warning"
+                       data-modal="true" data-bs-toggle="tooltip" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <button type="button" class="btn btn-outline-<%= card.is_active ? 'secondary' : 'success' %>" 
+                            onclick="toggleCardStatus(<%= card.id %>, <%= !card.is_active %>)"
+                            data-bs-toggle="tooltip" title="<%= card.is_active ? 'Deactivate' : 'Activate' %>">
+                      <i class="fas fa-<%= card.is_active ? 'pause' : 'play' %>"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger delete-card-btn" 
+                            data-card-id="<%= card.id %>" data-card-uid="<%= card.card_uid %>"
+                            data-bs-toggle="tooltip" title="Delete">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
             </td>
           </tr>
-        <% }); %>
+            <% }) %>
       </tbody>
     </table>
   </div>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <% if (totalPages > 1) { %>
+    <div class="d-flex justify-content-between align-items-center mt-4">
+      <div class="text-muted">
+        Showing <%= ((currentPage - 1) * pagination.limit) + 1 %> to <%= Math.min(currentPage * pagination.limit, totalCards) %> of <%= totalCards %> cards
+      </div>
+      <nav aria-label="Page navigation">
+        <ul class="pagination mb-0">
+          <!-- First page -->
+          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=1<%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>" aria-label="First">
+              <i class="fas fa-angle-double-left"></i>
+            </a>
+          </li>
+          <!-- Previous page -->
+          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= currentPage - 1 %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>" aria-label="Previous">
+              <i class="fas fa-angle-left"></i>
+            </a>
+          </li>
+          
+          <% 
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+            
+            if (endPage - startPage < 4) {
+              startPage = Math.max(1, endPage - 4);
+            }
+
+            if (startPage > 1) { %>
+              <li class="page-item">
+                <a class="page-link" href="?page=1<%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>">1</a>
+              </li>
+              <% if (startPage > 2) { %>
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              <% } %>
+            <% } %>
+
+            <% for(let i = startPage; i <= endPage; i++) { %>
+              <li class="page-item <%= currentPage === i ? 'active' : '' %>">
+                <a class="page-link" href="?page=<%= i %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>"><%= i %></a>
+              </li>
+            <% } %>
+
+            <% if (endPage < totalPages) { %>
+              <% if (endPage < totalPages - 1) { %>
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              <% } %>
+              <li class="page-item">
+                <a class="page-link" href="?page=<%= totalPages %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>"><%= totalPages %></a>
+              </li>
+            <% } %>
+          
+          <!-- Next page -->
+          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= currentPage + 1 %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>" aria-label="Next">
+              <i class="fas fa-angle-right"></i>
+            </a>
+          </li>
+          <!-- Last page -->
+          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= totalPages %><%= Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') %>" aria-label="Last">
+              <i class="fas fa-angle-double-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  <% } %>
+</div>
+
+<script>
+// Helper function to build pagination URLs with current filters
+function buildPaginationUrl(page) {
+  const url = new URL(window.location);
+  url.searchParams.set('page', page);
+  return url.toString();
+}
+
+// Change page size
+function changePageSize(size) {
+  const url = new URL(window.location);
+  url.searchParams.set('limit', size);
+  url.searchParams.set('page', '1');
+  window.location.href = url.toString();
+}
+
+// Bulk actions
+let selectedCards = [];
+
+function toggleSelectAll() {
+  const selectAll = document.getElementById('selectAll');
+  const checkboxes = document.querySelectorAll('.card-checkbox');
+  
+  checkboxes.forEach(checkbox => {
+    checkbox.checked = selectAll.checked;
+  });
+  
+  updateBulkActions();
+}
+
+function updateBulkActions() {
+  const checkboxes = document.querySelectorAll('.card-checkbox:checked');
+  selectedCards = Array.from(checkboxes).map(cb => cb.value);
+  
+  const bulkCard = document.getElementById('bulkActionsCard');
+  const selectedCount = document.getElementById('selectedCount');
+  
+  if (selectedCards.length > 0) {
+    bulkCard.style.display = 'block';
+    selectedCount.textContent = selectedCards.length;
+  } else {
+    bulkCard.style.display = 'none';
+  }
+}
+
+function clearBulkSelection() {
+  document.getElementById('selectAll').checked = false;
+  document.querySelectorAll('.card-checkbox').forEach(cb => cb.checked = false);
+  updateBulkActions();
+}
+
+// Bulk activate
+function bulkActivate() {
+  if (selectedCards.length === 0) return;
+  
+  if (confirm(`Are you sure you want to activate ${selectedCards.length} selected cards?`)) {
+    fetch('/admin/rfid-cards/bulk-activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardIds: selectedCards })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast('success', data.message);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('error', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', 'Failed to activate cards');
+    });
+  }
+}
+
+// Bulk deactivate
+function bulkDeactivate() {
+  if (selectedCards.length === 0) return;
+  
+  if (confirm(`Are you sure you want to deactivate ${selectedCards.length} selected cards?`)) {
+    fetch('/admin/rfid-cards/bulk-deactivate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardIds: selectedCards })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast('success', data.message);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('error', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', 'Failed to deactivate cards');
+    });
+  }
+}
+
+// Bulk export
+function bulkExport() {
+  if (selectedCards.length === 0) return;
+  
+  fetch('/admin/rfid-cards/bulk-export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cardIds: selectedCards, format: 'csv' })
+  })
+  .then(response => response.blob())
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rfid-cards-selected-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showToast('error', 'Failed to export cards');
+  });
+}
+
+// Bulk delete
+function bulkDelete() {
+  if (selectedCards.length === 0) return;
+  
+  if (confirm(`Are you sure you want to delete ${selectedCards.length} selected cards? This action cannot be undone.`)) {
+    fetch('/admin/rfid-cards/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardIds: selectedCards })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast('success', data.message);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('error', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', 'Failed to delete cards');
+    });
+  }
+}
+
+// Export all cards
+function exportAllCards(format) {
+  const url = `/admin/rfid-cards/bulk-export?format=${format}&all=true`;
+  window.location.href = url;
+  showToast('info', `Exporting all cards as ${format.toUpperCase()}...`);
+}
+
+// Toggle card status
+function toggleCardStatus(cardId, newStatus) {
+  const action = newStatus ? 'activate' : 'deactivate';
+  
+  if (confirm(`Are you sure you want to ${action} this card?`)) {
+    fetch(`/admin/rfid-cards/bulk-${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardIds: [cardId] })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast('success', data.message);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('error', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', `Failed to ${action} card`);
+    });
+  }
+}
+
+// Delete single card
+function deleteCard(cardId, cardUid) {
+  if (confirm(`Are you sure you want to delete card "${cardUid}"? This action cannot be undone.`)) {
+    fetch('/admin/rfid-cards/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardIds: [cardId] })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast('success', data.message);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('error', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', 'Failed to delete card');
+    });
+  }
+}
+
+// Initialize tooltips and event listeners
+document.addEventListener('DOMContentLoaded', function() {
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+
+  // Delete card event listeners
+  document.querySelectorAll('.delete-card-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const cardId = this.dataset.cardId;
+      const cardUid = this.dataset.cardUid;
+      deleteCard(cardId, cardUid);
+    });
+  });
+});
+</script>
+
+<style>
+.profile-picture-container {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-thumbnail {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #dee2e6;
+  transition: all 0.3s ease;
+}
+
+.profile-thumbnail:hover {
+  transform: scale(1.1);
+  border-color: #007bff;
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.profile-initials {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  border: 2px solid #dee2e6;
+  transition: all 0.3s ease;
+}
+
+.profile-initials:hover {
+  transform: scale(1.1);
+  border-color: #007bff;
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.card-row:hover {
+  background-color: rgba(0,123,255,0.05);
+}
+
+.btn-group-sm .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.table th {
+  border-top: none;
+  font-weight: 600;
+  color: #495057;
+}
+
+.card-header {
+  background-color: var(--primary-color) !important;
+  color: var(--text-light) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125) !important;
+}
+
+.badge {
+  font-size: 0.75em;
+}
+
+.text-break {
+  word-break: break-word;
+}
+
+/* Fix page layout issues */
+.container-fluid {
+  max-width: 100%;
+  padding-right: 15px;
+  padding-left: 15px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* Ensure proper card styling */
+.card {
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Force CSS variables to load properly */
+:root {
+  --primary-color: #8a2be2;
+  --text-light: #ffffff;
+}
+</style>

@@ -1,50 +1,704 @@
-<div class="container mt-5">
-    <h2>Guardian Links</h2>
-    <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container-fluid mt-4">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <a href="/admin/guardian-link/new" class="btn btn-success" data-modal="true">New Guardian Link</a>
+      <h2 class="mb-1">Guardian Links Management</h2>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+          <li class="breadcrumb-item active">Guardian Links</li>
+        </ol>
+      </nav>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-primary" id="refreshStats">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+      <a href="/admin/guardian-link/new" class="btn btn-success" data-modal="true">
+        <i class="fas fa-plus me-1"></i>Add Guardian Link
+      </a>
+      <div class="dropdown">
+        <button class="btn btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown">
+          <i class="fas fa-download me-1"></i>Export
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="#" onclick="exportAllLinks('csv')">
+            <i class="fas fa-file-csv me-1"></i>Export All (CSV)
+          </a></li>
+          <li><a class="dropdown-item" href="#" onclick="exportAllLinks('json')">
+            <i class="fas fa-file-code me-1"></i>Export All (JSON)
+          </a></li>
+        </ul>
+      </div>
       </div>
     </div>
 
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Guardian</th>
-          <th>Student</th>
-          <th>Actions</th>
+  <!-- Statistics Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0" id="totalLinks"><%= typeof statistics !== 'undefined' ? statistics.total : (links ? links.length : 0) %></h4>
+              <small>Total Links</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-link fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0" id="activeGuardians">
+                <i class="fas fa-spinner fa-spin"></i>
+              </h4>
+              <small>Active Guardians</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-user-shield fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0" id="studentsWithGuardians">
+                <i class="fas fa-spinner fa-spin"></i>
+              </h4>
+              <small>Students with Guardians</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-graduation-cap fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+      <div>
+              <h4 class="mb-0" id="orphanedStudents">
+                <i class="fas fa-spinner fa-spin"></i>
+              </h4>
+              <small>Orphaned Students</small>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-user-times fa-2x opacity-75"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Advanced Filters -->
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">
+        <i class="fas fa-filter me-2"></i>Advanced Filters
+      </h5>
+      <div class="filter-toggle">
+        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters" aria-expanded="true">
+          <i class="fas fa-chevron-up" id="filterToggleIcon"></i>
+        </button>
+      </div>
+    </div>
+    <div class="collapse show" id="advancedFilters">
+      <div class="card-body">
+        <form method="GET" id="filterForm">
+          <!-- Primary Filters Row -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">
+                <i class="fas fa-search me-1"></i>Search
+              </label>
+              <input type="text" name="search" class="form-control" 
+                     placeholder="Guardian or student name, email, ID..." 
+                     value="<%= typeof filters !== 'undefined' && filters.search ? filters.search : '' %>"
+                     id="searchInput">
+              <div class="form-text">Search across names, emails, and IDs</div>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">
+                <i class="fas fa-building me-1"></i>Department
+              </label>
+              <select name="department" class="form-select" id="departmentFilter">
+                <option value="">All Departments</option>
+                <!-- Will be populated dynamically -->
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">
+                <i class="fas fa-user-tag me-1"></i>Guardian Role
+              </label>
+              <select name="guardianRole" class="form-select">
+                <option value="">All Roles</option>
+                <option value="guardian" <%= typeof filters !== 'undefined' && filters.guardianRole === 'guardian' ? 'selected' : '' %>>Guardian</option>
+                <option value="parent" <%= typeof filters !== 'undefined' && filters.guardianRole === 'parent' ? 'selected' : '' %>>Parent</option>
+                <option value="grandparent" <%= typeof filters !== 'undefined' && filters.guardianRole === 'grandparent' ? 'selected' : '' %>>Grandparent</option>
+                <option value="sibling" <%= typeof filters !== 'undefined' && filters.guardianRole === 'sibling' ? 'selected' : '' %>>Sibling</option>
+                <option value="other" <%= typeof filters !== 'undefined' && filters.guardianRole === 'other' ? 'selected' : '' %>>Other</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">
+                <i class="fas fa-heart me-1"></i>Relationship
+              </label>
+              <select name="relationshipType" class="form-select">
+                <option value="">All Types</option>
+                <option value="parent" <%= typeof filters !== 'undefined' && filters.relationshipType === 'parent' ? 'selected' : '' %>>Parent</option>
+                <option value="guardian" <%= typeof filters !== 'undefined' && filters.relationshipType === 'guardian' ? 'selected' : '' %>>Guardian</option>
+                <option value="grandparent" <%= typeof filters !== 'undefined' && filters.relationshipType === 'grandparent' ? 'selected' : '' %>>Grandparent</option>
+                <option value="sibling" <%= typeof filters !== 'undefined' && filters.relationshipType === 'sibling' ? 'selected' : '' %>>Sibling</option>
+                <option value="other" <%= typeof filters !== 'undefined' && filters.relationshipType === 'other' ? 'selected' : '' %>>Other</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">
+                <i class="fas fa-graduation-cap me-1"></i>Student Year
+              </label>
+              <select name="studentYear" class="form-select">
+                <option value="">All Years</option>
+                <option value="1" <%= typeof filters !== 'undefined' && filters.studentYear === '1' ? 'selected' : '' %>>Year 1</option>
+                <option value="2" <%= typeof filters !== 'undefined' && filters.studentYear === '2' ? 'selected' : '' %>>Year 2</option>
+                <option value="3" <%= typeof filters !== 'undefined' && filters.studentYear === '3' ? 'selected' : '' %>>Year 3</option>
+                <option value="4" <%= typeof filters !== 'undefined' && filters.studentYear === '4' ? 'selected' : '' %>>Year 4</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Date Range Filters Row -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <label class="form-label">
+                <i class="fas fa-calendar-alt me-1"></i>Created From
+              </label>
+              <input type="date" name="dateFrom" class="form-control" 
+                     value="<%= typeof filters !== 'undefined' && filters.dateFrom ? filters.dateFrom : '' %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">
+                <i class="fas fa-calendar-alt me-1"></i>Created To
+              </label>
+              <input type="date" name="dateTo" class="form-control" 
+                     value="<%= typeof filters !== 'undefined' && filters.dateTo ? filters.dateTo : '' %>">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">
+                <i class="fas fa-sort me-1"></i>Sort By
+              </label>
+              <select name="sortBy" class="form-select">
+                <option value="id" <%= typeof filters !== 'undefined' && filters.sortBy === 'id' ? 'selected' : '' %>>Link ID</option>
+                <option value="guardian_name" <%= typeof filters !== 'undefined' && filters.sortBy === 'guardian_name' ? 'selected' : '' %>>Guardian Name</option>
+                <option value="student_name" <%= typeof filters !== 'undefined' && filters.sortBy === 'student_name' ? 'selected' : '' %>>Student Name</option>
+                <option value="created_at" <%= typeof filters !== 'undefined' && filters.sortBy === 'created_at' ? 'selected' : '' %>>Created Date</option>
+                <option value="updated_at" <%= typeof filters !== 'undefined' && filters.sortBy === 'updated_at' ? 'selected' : '' %>>Updated Date</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">
+                <i class="fas fa-sort-amount-down me-1"></i>Order
+              </label>
+              <select name="sortOrder" class="form-select">
+                <option value="ASC" <%= typeof filters !== 'undefined' && filters.sortOrder === 'ASC' ? 'selected' : '' %>>↑ Ascending</option>
+                <option value="DESC" <%= typeof filters !== 'undefined' && filters.sortOrder === 'DESC' ? 'selected' : '' %>>↓ Descending</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">
+                <i class="fas fa-list-ol me-1"></i>Results
+              </label>
+              <select name="limit" class="form-select" onchange="this.form.submit()">
+                <option value="10" <%= typeof pagination !== 'undefined' && pagination.limit === 10 ? 'selected' : '' %>>10 per page</option>
+                <option value="25" <%= typeof pagination !== 'undefined' && pagination.limit === 25 ? 'selected' : '' %>>25 per page</option>
+                <option value="50" <%= typeof pagination !== 'undefined' && pagination.limit === 50 ? 'selected' : '' %>>50 per page</option>
+                <option value="100" <%= typeof pagination !== 'undefined' && pagination.limit === 100 ? 'selected' : '' %>>100 per page</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Filter Actions Row -->
+          <div class="row">
+            <div class="col-12">
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-search me-1"></i>Apply Filters
+                </button>
+                <a href="/admin/guardian-link" class="btn btn-outline-secondary">
+                  <i class="fas fa-times me-1"></i>Clear All
+                </a>
+                <button type="button" class="btn btn-outline-info" onclick="saveFilterPreset()">
+                  <i class="fas fa-bookmark me-1"></i>Save Preset
+                </button>
+                <div class="dropdown">
+                  <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-download me-1"></i>Quick Export
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="quickExport('filtered', 'csv')">
+                      <i class="fas fa-file-csv me-1"></i>Filtered Results (CSV)
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="quickExport('filtered', 'json')">
+                      <i class="fas fa-file-code me-1"></i>Filtered Results (JSON)
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="quickExport('all', 'csv')">
+                      <i class="fas fa-database me-1"></i>All Links (CSV)
+                    </a></li>
+                  </ul>
+                </div>
+                <div class="ms-auto">
+                  <small class="text-muted" id="filterStatus">
+                    <i class="fas fa-info-circle me-1"></i>
+                    <span id="activeFiltersCount">0</span> filters active
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Actions -->
+  <div class="card mb-4" id="bulkActionsCard" style="display: none;">
+    <div class="card-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+          <i class="fas fa-tasks me-2"></i>Bulk Actions
+          <span id="selectedCount" class="badge bg-primary ms-2">0</span>
+        </h6>
+        <button type="button" class="btn-close" onclick="clearBulkSelection()"></button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-info" onclick="bulkExport()">
+          <i class="fas fa-download me-1"></i>Export Selected
+        </button>
+        <button type="button" class="btn btn-danger" onclick="bulkDelete()">
+          <i class="fas fa-trash me-1"></i>Delete Selected
+        </button>
+      </div>
+      </div>
+    </div>
+
+  <!-- View Mode Toggle -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="btn-group" role="group" aria-label="Choose view mode for guardian links">
+      <input type="radio" class="btn-check" name="viewMode" id="tableView" checked aria-describedby="tableViewDesc">
+      <label class="btn btn-outline-primary" for="tableView">
+        <i class="fas fa-table me-1" aria-hidden="true"></i>Table View
+      </label>
+      <input type="radio" class="btn-check" name="viewMode" id="cardView" aria-describedby="cardViewDesc">
+      <label class="btn btn-outline-primary" for="cardView">
+        <i class="fas fa-th-large me-1" aria-hidden="true"></i>Card View
+      </label>
+      <span id="tableViewDesc" class="sr-only">Display guardian links in a detailed table format</span>
+      <span id="cardViewDesc" class="sr-only">Display guardian links in a visual card format</span>
+    </div>
+    <div class="text-muted" role="status" aria-live="polite">
+      <span class="sr-only">Currently showing </span>
+      Showing <span id="filteredCount"><%= typeof totalLinks !== 'undefined' ? totalLinks : (links ? links.length : 0) %></span> 
+      of <%= typeof totalLinks !== 'undefined' ? totalLinks : (links ? links.length : 0) %> links
+    </div>
+  </div>
+
+  <!-- Guardian Links Table View -->
+  <div class="card" id="tableViewContainer">
+    <div class="card-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Guardian Links (<%= typeof totalLinks !== 'undefined' ? totalLinks : (links ? links.length : 0) %> total)</h5>
+        <div class="d-flex align-items-center gap-2">
+          <label class="form-label mb-0">Page Size:</label>
+          <select class="form-select form-select-sm" style="width: auto;" onchange="changePageSize(this.value)">
+            <option value="10" <%= typeof pagination !== 'undefined' && pagination.limit === 10 ? 'selected' : '' %>>10</option>
+            <option value="25" <%= typeof pagination !== 'undefined' && pagination.limit === 25 ? 'selected' : '' %>>25</option>
+            <option value="50" <%= typeof pagination !== 'undefined' && pagination.limit === 50 ? 'selected' : '' %>>50</option>
+            <option value="100" <%= typeof pagination !== 'undefined' && pagination.limit === 100 ? 'selected' : '' %>>100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" role="table" aria-label="Guardian Links Data Table">
+          <thead class="table-light">
+            <tr role="row">
+              <th width="40" scope="col">
+                <input type="checkbox" class="form-check-input" id="selectAll" 
+                       onchange="toggleSelectAll()" 
+                       aria-label="Select all guardian links on this page">
+              </th>
+              <th width="60" scope="col" aria-sort="none">
+                <span>ID</span>
+                <span class="sr-only">- Link ID, sortable</span>
+              </th>
+              <th width="80" scope="col">
+                <span>Guardian Profile</span>
+                <span class="sr-only">- Guardian profile picture</span>
+              </th>
+              <th scope="col" aria-sort="none">
+                <span>Guardian</span>
+                <span class="sr-only">- Guardian name and details, sortable</span>
+              </th>
+              <th width="80" scope="col">
+                <span>Student Profile</span>
+                <span class="sr-only">- Student profile picture</span>
+              </th>
+              <th scope="col" aria-sort="none">
+                <span>Student</span>
+                <span class="sr-only">- Student name and details, sortable</span>
+              </th>
+              <th width="120" scope="col">
+                <span>Department</span>
+                <span class="sr-only">- Academic department</span>
+              </th>
+              <th width="120" scope="col" aria-sort="none">
+                <span>Created Date</span>
+                <span class="sr-only">- Link creation date, sortable</span>
+              </th>
+              <th width="200" scope="col">
+                <span>Actions</span>
+                <span class="sr-only">- Available actions for each guardian link</span>
+              </th>
         </tr>
       </thead>
       <tbody>
+            <% if (typeof links !== 'undefined' && links.length > 0) { %>
         <% links.forEach(function(link) { %>
-          <tr>
+                <tr class="link-row" data-link-id="<%= link.id %>">
+                  <td>
+                    <input type="checkbox" class="form-check-input link-checkbox" value="<%= link.id %>" onchange="updateBulkActions()">
+                  </td>
             <td><%= link.id %></td>
             <td>
-              <%= link.guardian.first_name %> <%= link.guardian.last_name %><br>
-              (<%= link.guardian.email %>)
+                    <div class="profile-picture-container">
+                      <% if (link.guardian && link.guardian.profile_picture) { %>
+                        <img src="/<%= link.guardian.profile_picture.startsWith('/') ? link.guardian.profile_picture.substring(1) : link.guardian.profile_picture %>" 
+                             alt="Profile" class="profile-thumbnail" 
+                             data-bs-toggle="tooltip" 
+                             title="<%= link.guardian.first_name %> <%= link.guardian.last_name %>">
+                      <% } else if (link.guardian) { %>
+                        <div class="profile-initials" 
+                             data-bs-toggle="tooltip" 
+                             title="<%= link.guardian.first_name %> <%= link.guardian.last_name %>">
+                          <%= link.guardian.first_name.charAt(0).toUpperCase() %><%= link.guardian.last_name.charAt(0).toUpperCase() %>
+                        </div>
+                      <% } else { %>
+                        <span class="text-muted">-</span>
+                      <% } %>
+                    </div>
             </td>
             <td>
-              <%= link.student.first_name %> <%= link.student.last_name %><br>
-              (<%= link.student.email %>)
+                    <% if (link.guardian) { %>
+                      <div class="d-flex flex-column">
+                        <strong><%= link.guardian.first_name %> <%= link.guardian.last_name %></strong>
+                        <small class="text-muted"><%= link.guardian.email %></small>
+                        <% if (link.guardian.role) { %>
+                          <span class="badge bg-info mt-1">
+                            <%= link.guardian.role.charAt(0).toUpperCase() + link.guardian.role.slice(1) %>
+                          </span>
+                        <% } %>
+                      </div>
+                    <% } else { %>
+                      <span class="text-muted">No guardian</span>
+                    <% } %>
             </td>
             <td>
-              <a href="/admin/guardian-link/<%= link.id %>/edit" class="btn btn-warning btn-sm" data-modal="true">Edit</a>
-              <form action="/admin/guardian-link/<%= link.id %>?_method=DELETE" method="POST" style="display:inline;">
-                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
-              </form>
+                    <div class="profile-picture-container">
+                      <% if (link.student && link.student.profile_picture) { %>
+                        <img src="/<%= link.student.profile_picture.startsWith('/') ? link.student.profile_picture.substring(1) : link.student.profile_picture %>" 
+                             alt="Profile" class="profile-thumbnail" 
+                             data-bs-toggle="tooltip" 
+                             title="<%= link.student.first_name %> <%= link.student.last_name %>">
+                      <% } else if (link.student) { %>
+                        <div class="profile-initials" 
+                             data-bs-toggle="tooltip" 
+                             title="<%= link.student.first_name %> <%= link.student.last_name %>">
+                          <%= link.student.first_name.charAt(0).toUpperCase() %><%= link.student.last_name.charAt(0).toUpperCase() %>
+                        </div>
+                      <% } else { %>
+                        <span class="text-muted">-</span>
+                      <% } %>
+                    </div>
+                  </td>
+                  <td>
+                    <% if (link.student) { %>
+                      <div class="d-flex flex-column">
+                        <strong><%= link.student.first_name %> <%= link.student.last_name %></strong>
+                        <small class="text-muted"><%= link.student.email %></small>
+                        <% if (link.student.school_id) { %>
+                          <small class="text-muted">ID: <%= link.student.school_id %></small>
+                        <% } %>
+                      </div>
+                    <% } else { %>
+                      <span class="text-muted">No student</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (link.student && link.student.department) { %>
+                      <span class="badge bg-secondary"><%= link.student.department %></span>
+                    <% } else { %>
+                      <span class="text-muted">-</span>
+                    <% } %>
+            </td>
+            <td>
+                    <% if (link.created_at) { %>
+                      <%= new Date(link.created_at).toLocaleDateString() %>
+                      <br><small class="text-muted">
+                        <%= new Date(link.created_at).toLocaleTimeString() %>
+                      </small>
+                    <% } else { %>
+                      <span class="text-muted">-</span>
+                    <% } %>
+            </td>
+            <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                      <a href="/admin/guardian-link/<%= link.id %>" class="btn btn-outline-info"
+                         data-modal="true" data-bs-toggle="tooltip" title="View Details">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <a href="/admin/guardian-link/<%= link.id %>/edit" class="btn btn-outline-warning"
+                         data-modal="true" data-bs-toggle="tooltip" title="Edit">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                      <button type="button" class="btn btn-outline-success" 
+                              onclick="quickEdit(<%= link.id %>)"
+                              data-bs-toggle="tooltip" title="Quick Edit">
+                        <i class="fas fa-bolt"></i>
+                      </button>
+                      <button type="button" class="btn btn-outline-danger delete-link-btn" 
+                              data-link-id="<%= link.id %>" 
+                              data-guardian-name="<%= link.guardian ? link.guardian.first_name + ' ' + link.guardian.last_name : 'Unknown' %>"
+                              data-student-name="<%= link.student ? link.student.first_name + ' ' + link.student.last_name : 'Unknown' %>"
+                              data-bs-toggle="tooltip" title="Delete">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
             </td>
           </tr>
         <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="9" class="text-center text-muted py-4">
+                  <i class="fas fa-link fa-3x mb-3 opacity-25"></i>
+                  <p class="mb-0">No guardian links found</p>
+                  <a href="/admin/guardian-link/new" class="btn btn-primary mt-2" data-modal="true">
+                    <i class="fas fa-plus me-1"></i>Create First Link
+                  </a>
+                </td>
+              </tr>
+            <% } %>
       </tbody>
     </table>
+      </div>
+    </div>
+  </div>
 
-    <% if (totalPages > 1) { %>
-      <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/guardian-link?page=<%= currentPage - 1 %>" <%= currentPage === 1 ? 'tabindex="-1" aria-disabled="true"' : '' %>>Previous</a>
+  <!-- Guardian Links Card View -->
+  <div id="cardViewContainer" class="view-container" style="display: none;">
+    <div class="row">
+      <% if (typeof links !== 'undefined' && links.length > 0) { %>
+        <% links.forEach(function(link) { %>
+          <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card guardian-link-card h-100 shadow-sm" data-link-id="<%= link.id %>">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                  <input type="checkbox" class="form-check-input me-2 link-checkbox" value="<%= link.id %>">
+                  <small class="text-muted">Link #<%= link.id %></small>
+                </div>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Actions">
+                    <i class="fas fa-ellipsis-v"></i>
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="/admin/guardian-link/<%= link.id %>" data-modal="true">
+                      <i class="fas fa-eye me-1"></i>View Details
+                    </a></li>
+                    <li><a class="dropdown-item" href="/admin/guardian-link/<%= link.id %>/edit" data-modal="true">
+                      <i class="fas fa-edit me-1"></i>Edit Link
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-success" href="#" onclick="quickEdit(<%= link.id %>)">
+                      <i class="fas fa-bolt me-1"></i>Quick Edit
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteGuardianLink(<%= link.id %>, '<%= link.guardian ? link.guardian.first_name + ' ' + link.guardian.last_name : 'Unknown' %>', '<%= link.student ? link.student.first_name + ' ' + link.student.last_name : 'Unknown' %>')">
+                      <i class="fas fa-trash me-1"></i>Delete
+                    </a></li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div class="card-body">
+                <!-- Guardian Section -->
+                <div class="guardian-section mb-3">
+                  <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-user-shield text-success me-2"></i>
+                    <h6 class="mb-0 text-success">Guardian</h6>
+                  </div>
+                  <div class="d-flex align-items-center">
+                    <div class="guardian-avatar me-3">
+                      <% if (link.guardian && link.guardian.profile_picture) { %>
+                        <img src="/<%= link.guardian.profile_picture.startsWith('/') ? link.guardian.profile_picture.substring(1) : link.guardian.profile_picture %>" 
+                             alt="Guardian" class="card-profile-picture">
+                      <% } else if (link.guardian) { %>
+                        <div class="card-profile-initials">
+                          <%= link.guardian.first_name.charAt(0).toUpperCase() %><%= link.guardian.last_name.charAt(0).toUpperCase() %>
+                        </div>
+                      <% } else { %>
+                        <div class="card-profile-placeholder">
+                          <i class="fas fa-user-times"></i>
+                        </div>
+                      <% } %>
+                    </div>
+                    <div class="guardian-info flex-grow-1">
+                      <% if (link.guardian) { %>
+                        <div class="fw-bold text-dark"><%= link.guardian.first_name %> <%= link.guardian.last_name %></div>
+                        <small class="text-muted d-block"><%= link.guardian.email %></small>
+                        <% if (link.guardian.role) { %>
+                          <span class="badge bg-<%= link.guardian.role === 'admin' ? 'danger' : link.guardian.role === 'professor' ? 'warning' : 'info' %> mt-1">
+                            <%= link.guardian.role.charAt(0).toUpperCase() + link.guardian.role.slice(1) %>
+                          </span>
+                        <% } %>
+                      <% } else { %>
+                        <div class="text-muted">No guardian assigned</div>
+                      <% } %>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Relationship Arrow -->
+                <div class="relationship-connector text-center mb-3">
+                  <div class="connector-line"></div>
+                  <div class="connector-badge">
+                    <% if (link.relationship_type) { %>
+                      <span class="badge bg-primary"><%= link.relationship_type %></span>
+                    <% } else { %>
+                      <span class="badge bg-secondary">Guardian</span>
+                    <% } %>
+                  </div>
+                </div>
+
+                <!-- Student Section -->
+                <div class="student-section">
+                  <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-graduation-cap text-primary me-2"></i>
+                    <h6 class="mb-0 text-primary">Student</h6>
+                  </div>
+                  <div class="d-flex align-items-center">
+                    <div class="student-avatar me-3">
+                      <% if (link.student && link.student.profile_picture) { %>
+                        <img src="/<%= link.student.profile_picture.startsWith('/') ? link.student.profile_picture.substring(1) : link.student.profile_picture %>" 
+                             alt="Student" class="card-profile-picture">
+                      <% } else if (link.student) { %>
+                        <div class="card-profile-initials">
+                          <%= link.student.first_name.charAt(0).toUpperCase() %><%= link.student.last_name.charAt(0).toUpperCase() %>
+                        </div>
+                      <% } else { %>
+                        <div class="card-profile-placeholder">
+                          <i class="fas fa-user-times"></i>
+                        </div>
+                      <% } %>
+                    </div>
+                    <div class="student-info flex-grow-1">
+                      <% if (link.student) { %>
+                        <div class="fw-bold text-dark"><%= link.student.first_name %> <%= link.student.last_name %></div>
+                        <small class="text-muted d-block"><%= link.student.email %></small>
+                        <div class="mt-1">
+                          <% if (link.student.school_id) { %>
+                            <small class="text-muted me-2">ID: <%= link.student.school_id %></small>
+                          <% } %>
+                          <% if (link.student.department) { %>
+                            <span class="badge bg-secondary"><%= link.student.department %></span>
+                          <% } %>
+                        </div>
+                      <% } else { %>
+                        <div class="text-muted">No student assigned</div>
+                      <% } %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between align-items-center">
+                  <small class="text-muted">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    <% if (link.created_at) { %>
+                      Created <%= new Date(link.created_at).toLocaleDateString() %>
+                    <% } else { %>
+                      Date unknown
+                    <% } %>
+                  </small>
+                  <div class="btn-group btn-group-sm">
+                    <a href="/admin/guardian-link/<%= link.id %>" class="btn btn-outline-info" data-modal="true" data-bs-toggle="tooltip" title="View Details">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="/admin/guardian-link/<%= link.id %>/edit" class="btn btn-outline-warning" data-modal="true" data-bs-toggle="tooltip" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <div class="col-12">
+          <div class="card text-center py-5">
+            <div class="card-body">
+              <i class="fas fa-link fa-4x text-muted opacity-25 mb-3"></i>
+              <h4 class="text-muted">No Guardian Links Found</h4>
+              <p class="text-muted mb-4">No guardian-student relationships match your current filters.</p>
+              <a href="/admin/guardian-link/new" class="btn btn-primary" data-modal="true">
+                <i class="fas fa-plus me-1"></i>Create First Guardian Link
+              </a>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <% if (typeof totalPages !== 'undefined' && totalPages > 1) { %>
+    <div class="d-flex justify-content-between align-items-center mt-4">
+      <div class="text-muted">
+        Showing <%= typeof currentPage !== 'undefined' && typeof pagination !== 'undefined' ? ((currentPage - 1) * pagination.limit) + 1 : 1 %> 
+        to <%= typeof currentPage !== 'undefined' && typeof pagination !== 'undefined' && typeof totalLinks !== 'undefined' ? Math.min(currentPage * pagination.limit, totalLinks) : (links ? links.length : 0) %> 
+        of <%= typeof totalLinks !== 'undefined' ? totalLinks : (links ? links.length : 0) %> links
+      </div>
+      <nav aria-label="Page navigation">
+        <ul class="pagination mb-0">
+          <!-- First page -->
+          <li class="page-item <%= typeof currentPage !== 'undefined' && currentPage === 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=1<%= typeof filters !== 'undefined' ? Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') : '' %>" aria-label="First">
+              <i class="fas fa-angle-double-left"></i>
+            </a>
+          </li>
+          <!-- Previous page -->
+          <li class="page-item <%= typeof currentPage !== 'undefined' && currentPage === 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= typeof currentPage !== 'undefined' ? currentPage - 1 : 1 %><%= typeof filters !== 'undefined' ? Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') : '' %>" aria-label="Previous">
+              <i class="fas fa-angle-left"></i>
+            </a>
           </li>
           
+          <% if (typeof currentPage !== 'undefined' && typeof totalPages !== 'undefined') { %>
           <% 
             let startPage = Math.max(1, currentPage - 2);
             let endPage = Math.min(totalPages, startPage + 4);
@@ -55,7 +709,7 @@
 
             if (startPage > 1) { %>
               <li class="page-item">
-                <a class="page-link" href="/admin/guardian-link?page=1">1</a>
+                  <a class="page-link" href="?page=1<%= typeof filters !== 'undefined' ? Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') : '' %>">1</a>
               </li>
               <% if (startPage > 2) { %>
                 <li class="page-item disabled">
@@ -66,7 +720,7 @@
 
             <% for(let i = startPage; i <= endPage; i++) { %>
               <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-                <a class="page-link" href="/admin/guardian-link?page=<%= i %>"><%= i %></a>
+                  <a class="page-link" href="?page=<%= i %><%= typeof filters !== 'undefined' ? Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') : '' %>"><%= i %></a>
               </li>
             <% } %>
 
@@ -77,14 +731,1217 @@
                 </li>
               <% } %>
               <li class="page-item">
-                <a class="page-link" href="/admin/guardian-link?page=<%= totalPages %>"><%= totalPages %></a>
+                  <a class="page-link" href="?page=<%= totalPages %><%= typeof filters !== 'undefined' ? Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') : '' %>"><%= totalPages %></a>
               </li>
+              <% } %>
             <% } %>
           
-          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="/admin/guardian-link?page=<%= currentPage + 1 %>" <%= currentPage === totalPages ? 'tabindex="-1" aria-disabled="true"' : '' %>>Next</a>
+          <!-- Next page -->
+          <li class="page-item <%= typeof currentPage !== 'undefined' && typeof totalPages !== 'undefined' && currentPage === totalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= typeof currentPage !== 'undefined' ? currentPage + 1 : 2 %><%= typeof filters !== 'undefined' ? Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') : '' %>" aria-label="Next">
+              <i class="fas fa-angle-right"></i>
+            </a>
+          </li>
+          <!-- Last page -->
+          <li class="page-item <%= typeof currentPage !== 'undefined' && typeof totalPages !== 'undefined' && currentPage === totalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= typeof totalPages !== 'undefined' ? totalPages : 1 %><%= typeof filters !== 'undefined' ? Object.keys(filters).filter(key => filters[key] && filters[key] !== '').map(key => `&${key}=${encodeURIComponent(filters[key])}`).join('') : '' %>" aria-label="Last">
+              <i class="fas fa-angle-double-right"></i>
+            </a>
           </li>
         </ul>
       </nav>
+    </div>
     <% } %>
   </div>
+
+<!-- Keyboard Shortcuts Help -->
+<div class="keyboard-shortcuts" id="keyboardShortcuts">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <strong>Keyboard Shortcuts</strong>
+    <button type="button" class="btn-close btn-close-white" onclick="hideKeyboardShortcuts()"></button>
+  </div>
+  <div class="shortcut-list">
+    <div><kbd>Ctrl</kbd> + <kbd>K</kbd> Focus search</div>
+    <div><kbd>Ctrl</kbd> + <kbd>N</kbd> New guardian link</div>
+    <div><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> Refresh data</div>
+    <div><kbd>T</kbd> Table view</div>
+    <div><kbd>C</kbd> Card view</div>
+    <div><kbd>?</kbd> Show/hide shortcuts</div>
+  </div>
+</div>
+
+<!-- Accessibility Skip Links -->
+<div class="skip-links">
+  <a href="#searchInput" class="skip-link">Skip to search</a>
+  <a href="#tableViewContainer" class="skip-link">Skip to content</a>
+  <a href="#bulkActionsCard" class="skip-link">Skip to actions</a>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay" style="display: none;">
+  <div class="loading-content">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Loading guardian links...</p>
+  </div>
+</div>
+
+<script>
+// Guardian Links Management JavaScript
+$(document).ready(function() {
+  // Initialize guardian links management features
+  initializeGuardianLinksManagement();
+  loadGuardianLinksStatistics();
+  loadDepartmentFilter();
+});
+
+function initializeGuardianLinksManagement() {
+  // View mode toggle functionality
+  $('input[name="viewMode"]').on('change', function() {
+    if (this.id === 'tableView') {
+      $('#tableViewContainer').show();
+      $('#cardViewContainer').hide();
+      localStorage.setItem('guardianLinksViewMode', 'table');
+    } else if (this.id === 'cardView') {
+      $('#tableViewContainer').hide();
+      $('#cardViewContainer').show();
+      localStorage.setItem('guardianLinksViewMode', 'card');
+    }
+    
+    // Re-initialize tooltips for new view
+    initializeTooltips();
+  });
+
+  // Restore saved view mode
+  const savedViewMode = localStorage.getItem('guardianLinksViewMode');
+  if (savedViewMode === 'card') {
+    $('#cardView').prop('checked', true).trigger('change');
+  }
+
+  // Advanced search functionality with real-time filtering
+  $('#searchInput').on('input', debounce(function() {
+    updateActiveFiltersCount();
+    // Could implement real-time search here if needed
+  }, 300));
+
+  // Filter collapse toggle
+  $('#advancedFilters').on('show.bs.collapse', function() {
+    $('#filterToggleIcon').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+  });
+  
+  $('#advancedFilters').on('hide.bs.collapse', function() {
+    $('#filterToggleIcon').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+  });
+
+  // Filter change tracking
+  $('#filterForm select, #filterForm input[type="date"]').on('change', function() {
+    updateActiveFiltersCount();
+  });
+
+  // Select all functionality
+  $('#selectAll').on('change', function() {
+    const isChecked = $(this).is(':checked');
+    $('.link-checkbox').prop('checked', isChecked);
+    updateBulkActions();
+  });
+
+  // Individual checkbox functionality
+  $(document).on('change', '.link-checkbox', function() {
+    updateBulkActions();
+    
+    // Update select all checkbox
+    const totalCheckboxes = $('.link-checkbox').length;
+    const checkedCheckboxes = $('.link-checkbox:checked').length;
+    
+    $('#selectAll').prop('indeterminate', checkedCheckboxes > 0 && checkedCheckboxes < totalCheckboxes);
+    $('#selectAll').prop('checked', checkedCheckboxes === totalCheckboxes);
+  });
+
+  // Refresh stats button with real-time updates
+  $('#refreshStats').on('click', function() {
+    $(this).find('i').addClass('fa-spin');
+    loadGuardianLinksStatistics();
+    refreshCurrentView();
+    setTimeout(() => {
+      $(this).find('i').removeClass('fa-spin');
+      showToast('success', 'Statistics updated successfully.');
+    }, 1000);
+  });
+
+  // Initialize tooltips
+  initializeTooltips();
+
+  // Delete link event listeners
+  document.querySelectorAll('.delete-link-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const linkId = this.dataset.linkId;
+      const guardianName = this.dataset.guardianName;
+      const studentName = this.dataset.studentName;
+      deleteGuardianLink(linkId, guardianName, studentName);
+    });
+  });
+
+  // Initialize filter count
+  updateActiveFiltersCount();
+
+  // Initialize real-time updates
+  initializeRealTimeUpdates();
+
+  // Keyboard shortcuts
+  initializeKeyboardShortcuts();
+}
+
+function initializeTooltips() {
+  // Dispose existing tooltips
+  $('[data-bs-toggle="tooltip"]').tooltip('dispose');
+  
+  // Initialize new tooltips
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+}
+
+function initializeRealTimeUpdates() {
+  // Check for real-time updates every 30 seconds
+  setInterval(function() {
+    if (document.visibilityState === 'visible') {
+      loadGuardianLinksStatistics();
+    }
+  }, 30000);
+
+  // Update when page becomes visible
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      loadGuardianLinksStatistics();
+    }
+  });
+}
+
+function initializeKeyboardShortcuts() {
+  document.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + K for search focus
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      $('#searchInput').focus();
+      showToast('info', 'Search focused');
+    }
+    
+    // Ctrl/Cmd + N for new link
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      e.preventDefault();
+      window.location.href = '/admin/guardian-link/new';
+    }
+    
+    // Ctrl/Cmd + Shift + R for refresh
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r' && e.shiftKey) {
+      e.preventDefault();
+      $('#refreshStats').click();
+    }
+    
+    // ? for keyboard shortcuts help
+    if (e.key === '?' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      toggleKeyboardShortcuts();
+    }
+    
+    // Escape to hide shortcuts
+    if (e.key === 'Escape') {
+      hideKeyboardShortcuts();
+    }
+    
+    // T for table view, C for card view
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && !e.ctrlKey && !e.metaKey) {
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        $('#tableView').prop('checked', true).trigger('change');
+        showToast('info', 'Switched to table view');
+      } else if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        $('#cardView').prop('checked', true).trigger('change');
+        showToast('info', 'Switched to card view');
+      }
+    }
+    
+    // Arrow keys for navigation (when not in input fields)
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT') {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        navigateItems(e.key === 'ArrowUp' ? -1 : 1);
+      }
+    }
+  });
+  
+  // Show keyboard shortcuts hint on first visit
+  if (!localStorage.getItem('keyboardShortcutsShown')) {
+    setTimeout(() => {
+      showKeyboardShortcuts();
+      setTimeout(hideKeyboardShortcuts, 5000);
+      localStorage.setItem('keyboardShortcutsShown', 'true');
+    }, 2000);
+  }
+}
+
+function toggleKeyboardShortcuts() {
+  const shortcuts = $('#keyboardShortcuts');
+  if (shortcuts.hasClass('show')) {
+    hideKeyboardShortcuts();
+  } else {
+    showKeyboardShortcuts();
+  }
+}
+
+function showKeyboardShortcuts() {
+  $('#keyboardShortcuts').addClass('show');
+}
+
+function hideKeyboardShortcuts() {
+  $('#keyboardShortcuts').removeClass('show');
+}
+
+function navigateItems(direction) {
+  const currentView = $('input[name="viewMode"]:checked').attr('id');
+  let items;
+  
+  if (currentView === 'cardView') {
+    items = $('.guardian-link-card');
+  } else {
+    items = $('.link-row');
+  }
+  
+  if (items.length === 0) return;
+  
+  let currentIndex = -1;
+  const focused = document.activeElement;
+  
+  // Find currently focused item
+  items.each(function(index) {
+    if ($(this).is(':focus') || $(this).find(':focus').length > 0) {
+      currentIndex = index;
+      return false;
+    }
+  });
+  
+  // Calculate new index
+  let newIndex = currentIndex + direction;
+  if (newIndex < 0) newIndex = items.length - 1;
+  if (newIndex >= items.length) newIndex = 0;
+  
+  // Focus new item
+  const newItem = items.eq(newIndex);
+  if (currentView === 'cardView') {
+    newItem.find('a, button').first().focus();
+  } else {
+    newItem.find('a, button').first().focus();
+  }
+  
+  // Scroll into view
+  newItem[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function refreshCurrentView() {
+  // Refresh the current view with updated data
+  // This would typically make an AJAX call to get fresh data
+  // For now, we'll simulate it with a visual refresh
+  const currentView = $('input[name="viewMode"]:checked').attr('id');
+  
+  if (currentView === 'cardView') {
+    $('.guardian-link-card').addClass('refreshing');
+    setTimeout(() => {
+      $('.guardian-link-card').removeClass('refreshing');
+    }, 1000);
+  } else {
+    $('.link-row').addClass('refreshing');
+    setTimeout(() => {
+      $('.link-row').removeClass('refreshing');
+    }, 1000);
+  }
+}
+
+function loadGuardianLinksStatistics() {
+  // Load real guardian links statistics
+  $.ajax({
+    url: '/admin/guardian-links/statistics',
+    method: 'GET',
+    success: function(response) {
+      if (response.success) {
+        const stats = response.data;
+        $('#activeGuardians').html(stats.activeGuardians || 0);
+        $('#studentsWithGuardians').html(stats.studentsWithGuardians || 0);
+        $('#orphanedStudents').html(stats.orphanedStudents || 0);
+      }
+    },
+    error: function(xhr) {
+      console.error('Failed to load guardian links statistics:', xhr);
+      $('#activeGuardians, #studentsWithGuardians, #orphanedStudents').html('N/A');
+    }
+  });
+}
+
+function loadDepartmentFilter() {
+  // Load departments for filter dropdown
+  $.ajax({
+    url: '/admin/departments',
+    method: 'GET',
+    data: { format: 'json' },
+    success: function(response) {
+      if (response.success && response.data) {
+        const departmentSelect = $('select[name="department"]');
+        response.data.forEach(dept => {
+          departmentSelect.append(`<option value="${dept.code}">${dept.name} (${dept.code})</option>`);
+        });
+      }
+    },
+    error: function(xhr) {
+      console.error('Failed to load departments:', xhr);
+    }
+  });
+}
+
+// Helper function to build pagination URLs with current filters
+function buildPaginationUrl(page) {
+  const url = new URL(window.location);
+  url.searchParams.set('page', page);
+  return url.toString();
+}
+
+// Change page size
+function changePageSize(size) {
+  const url = new URL(window.location);
+  url.searchParams.set('limit', size);
+  url.searchParams.set('page', '1');
+  window.location.href = url.toString();
+}
+
+// Bulk actions
+let selectedLinks = [];
+
+function toggleSelectAll() {
+  const selectAll = document.getElementById('selectAll');
+  const checkboxes = document.querySelectorAll('.link-checkbox');
+  
+  checkboxes.forEach(checkbox => {
+    checkbox.checked = selectAll.checked;
+  });
+  
+  updateBulkActions();
+}
+
+function updateBulkActions() {
+  const checkboxes = document.querySelectorAll('.link-checkbox:checked');
+  selectedLinks = Array.from(checkboxes).map(cb => cb.value);
+  
+  const bulkCard = document.getElementById('bulkActionsCard');
+  const selectedCount = document.getElementById('selectedCount');
+  
+  if (selectedLinks.length > 0) {
+    bulkCard.style.display = 'block';
+    selectedCount.textContent = selectedLinks.length;
+  } else {
+    bulkCard.style.display = 'none';
+  }
+}
+
+function clearBulkSelection() {
+  document.getElementById('selectAll').checked = false;
+  document.querySelectorAll('.link-checkbox').forEach(cb => cb.checked = false);
+  updateBulkActions();
+}
+
+// Bulk export
+function bulkExport() {
+  if (selectedLinks.length === 0) return;
+  
+  fetch('/admin/guardian-links/bulk-export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ linkIds: selectedLinks, format: 'csv' })
+  })
+  .then(response => response.blob())
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `guardian-links-selected-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showToast('error', 'Failed to export guardian links');
+  });
+}
+
+// Bulk delete
+function bulkDelete() {
+  if (selectedLinks.length === 0) return;
+  
+  if (confirm(`Are you sure you want to delete ${selectedLinks.length} selected guardian links? This action cannot be undone.`)) {
+    fetch('/admin/guardian-links/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ linkIds: selectedLinks })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast('success', data.message);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('error', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', 'Failed to delete guardian links');
+    });
+  }
+}
+
+// Export all links
+function exportAllLinks(format) {
+  const url = `/admin/guardian-links/bulk-export?format=${format}&all=true`;
+  window.location.href = url;
+  showToast('info', `Exporting all guardian links as ${format.toUpperCase()}...`);
+}
+
+// Update active filters count
+function updateActiveFiltersCount() {
+  let count = 0;
+  
+  // Check search input
+  if ($('#searchInput').val().trim()) count++;
+  
+  // Check select filters
+  $('#filterForm select').each(function() {
+    if ($(this).val() && $(this).val() !== '') count++;
+  });
+  
+  // Check date inputs
+  $('#filterForm input[type="date"]').each(function() {
+    if ($(this).val()) count++;
+  });
+  
+  $('#activeFiltersCount').text(count);
+  
+  // Update filter status color
+  const statusElement = $('#filterStatus');
+  if (count > 0) {
+    statusElement.removeClass('text-muted').addClass('text-primary');
+  } else {
+    statusElement.removeClass('text-primary').addClass('text-muted');
+  }
+}
+
+// Save filter preset
+function saveFilterPreset() {
+  const presetName = prompt('Enter a name for this filter preset:');
+  if (!presetName) return;
+  
+  const formData = new FormData(document.getElementById('filterForm'));
+  const filters = Object.fromEntries(formData.entries());
+  
+  // Save to localStorage for now (could be enhanced to save server-side)
+  const presets = JSON.parse(localStorage.getItem('guardianLinkFilterPresets') || '{}');
+  presets[presetName] = filters;
+  localStorage.setItem('guardianLinkFilterPresets', JSON.stringify(presets));
+  
+  showToast('success', `Filter preset "${presetName}" saved successfully`);
+}
+
+// Quick export functionality
+function quickExport(scope, format) {
+  let url;
+  
+  if (scope === 'filtered') {
+    // Build URL with current filters
+    const formData = new FormData(document.getElementById('filterForm'));
+    const params = new URLSearchParams(formData);
+    params.set('format', format);
+    url = `/admin/guardian-links/bulk-export?${params.toString()}`;
+  } else {
+    url = `/admin/guardian-links/bulk-export?format=${format}&all=true`;
+  }
+  
+  window.location.href = url;
+  showToast('info', `Exporting guardian links as ${format.toUpperCase()}...`);
+}
+
+// Quick edit functionality
+function quickEdit(linkId) {
+  // Create quick edit modal
+  const modalHtml = `
+    <div class="modal fade" id="quickEditModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="fas fa-bolt me-2"></i>Quick Edit Link #${linkId}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="quickEditForm">
+              <div class="mb-3">
+                <label class="form-label">Relationship Type</label>
+                <select name="relationship_type" class="form-select">
+                  <option value="">Select relationship type</option>
+                  <option value="parent">Parent</option>
+                  <option value="guardian">Guardian</option>
+                  <option value="grandparent">Grandparent</option>
+                  <option value="sibling">Sibling</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="3" 
+                          placeholder="Add or update notes..."></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveQuickEdit(${linkId})">
+              <i class="fas fa-save me-1"></i>Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Remove existing modal if present
+  $('#quickEditModal').remove();
+  
+  // Add modal to page
+  $('body').append(modalHtml);
+  
+  // Show modal
+  const modal = new bootstrap.Modal(document.getElementById('quickEditModal'));
+  modal.show();
+  
+  // Clean up on hide
+  $('#quickEditModal').on('hidden.bs.modal', function() {
+    $(this).remove();
+  });
+}
+
+// Save quick edit
+function saveQuickEdit(linkId) {
+  const formData = new FormData(document.getElementById('quickEditForm'));
+  const data = Object.fromEntries(formData.entries());
+  data.linkId = linkId;
+  
+  fetch('/admin/guardian-links/quick-edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast('success', data.message);
+      bootstrap.Modal.getInstance(document.getElementById('quickEditModal')).hide();
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      showToast('error', data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showToast('error', 'Failed to update guardian link');
+  });
+}
+
+// Delete single guardian link
+function deleteGuardianLink(linkId, guardianName, studentName) {
+  if (confirm(`Are you sure you want to delete the guardian link between "${guardianName}" and "${studentName}"? This action cannot be undone.`)) {
+    fetch('/admin/guardian-links/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ linkIds: [linkId] })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast('success', data.message);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('error', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showToast('error', 'Failed to delete guardian link');
+    });
+  }
+}
+
+// Debounce function for search
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+</script>
+
+<style>
+.profile-picture-container {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-thumbnail {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #dee2e6;
+  transition: all 0.3s ease;
+}
+
+.profile-thumbnail:hover {
+  transform: scale(1.1);
+  border-color: #007bff;
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.profile-initials {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  border: 2px solid #dee2e6;
+  transition: all 0.3s ease;
+}
+
+.profile-initials:hover {
+  transform: scale(1.1);
+  border-color: #007bff;
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.link-row:hover {
+  background-color: rgba(0,123,255,0.05);
+}
+
+.btn-group-sm .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.table th {
+  border-top: none;
+  font-weight: 600;
+  color: #495057;
+}
+
+.card-header {
+  background-color: var(--primary-color) !important;
+  color: var(--text-light) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125) !important;
+}
+
+.badge {
+  font-size: 0.75em;
+}
+
+.text-break {
+  word-break: break-word;
+}
+
+/* Fix page layout issues */
+.container-fluid {
+  max-width: 100%;
+  padding-right: 15px;
+  padding-left: 15px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* Ensure proper card styling */
+.card {
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Force CSS variables to load properly */
+:root {
+  --primary-color: #8a2be2;
+  --text-light: #ffffff;
+}
+
+/* Card View Styles */
+.guardian-link-card {
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.guardian-link-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.guardian-link-card.refreshing {
+  opacity: 0.7;
+  transform: scale(0.98);
+}
+
+.card-profile-picture {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--bs-border-color);
+  transition: all 0.3s ease;
+}
+
+.card-profile-initials {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  border: 2px solid var(--bs-border-color);
+  transition: all 0.3s ease;
+}
+
+.card-profile-placeholder {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: var(--bs-secondary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  border: 2px solid var(--bs-border-color);
+}
+
+/* Relationship Connector */
+.relationship-connector {
+  position: relative;
+  margin: 1rem 0;
+}
+
+.connector-line {
+  height: 2px;
+  background: linear-gradient(90deg, var(--bs-success) 0%, var(--bs-primary) 100%);
+  margin: 0 auto;
+  width: 80%;
+  position: relative;
+}
+
+.connector-line::after {
+  content: '→';
+  position: absolute;
+  right: -10px;
+  top: -8px;
+  font-size: 16px;
+  color: var(--bs-primary);
+  font-weight: bold;
+}
+
+.connector-badge {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bs-body-bg);
+  padding: 0 8px;
+}
+
+/* Guardian and Student Sections */
+.guardian-section, .student-section {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color-translucent);
+}
+
+.guardian-section {
+  background: var(--bs-success-bg-subtle);
+  border-color: var(--bs-success-border-subtle);
+}
+
+.student-section {
+  background: var(--bs-primary-bg-subtle);
+  border-color: var(--bs-primary-border-subtle);
+}
+
+/* View Mode Toggle */
+.btn-check:checked + .btn-outline-primary {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: white;
+}
+
+/* Animation for refreshing */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.refreshing {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* Keyboard shortcuts indicator */
+.keyboard-shortcuts {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--bs-dark);
+  color: var(--bs-light);
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+  max-width: 300px;
+}
+
+.keyboard-shortcuts.show {
+  opacity: 0.9;
+}
+
+.keyboard-shortcuts kbd {
+  background: var(--bs-secondary);
+  color: var(--bs-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  margin: 0 2px;
+}
+
+/* Enhanced tooltips */
+.tooltip .tooltip-inner {
+  max-width: 300px;
+  text-align: left;
+}
+
+/* Dark mode enhancements */
+[data-bs-theme="dark"] .guardian-link-card {
+  background: var(--bs-dark);
+  border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .guardian-section {
+  background: rgba(25, 135, 84, 0.1);
+  border-color: rgba(25, 135, 84, 0.3);
+}
+
+[data-bs-theme="dark"] .student-section {
+  background: rgba(13, 110, 253, 0.1);
+  border-color: rgba(13, 110, 253, 0.3);
+}
+
+[data-bs-theme="dark"] .connector-badge {
+  background: var(--bs-dark);
+}
+
+/* Mobile responsive enhancements */
+@media (max-width: 768px) {
+  .guardian-link-card {
+    margin-bottom: 1rem;
+  }
+  
+  .relationship-connector {
+    margin: 0.5rem 0;
+  }
+  
+  .connector-line {
+    width: 60%;
+  }
+  
+  .card-profile-picture,
+  .card-profile-initials,
+  .card-profile-placeholder {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .card-profile-initials {
+    font-size: 14px;
+  }
+  
+  .keyboard-shortcuts {
+    display: none;
+  }
+  
+  .btn-group[role="group"] {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .btn-group[role="group"] .btn {
+    border-radius: 0.375rem !important;
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  .guardian-link-card {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+  
+  .card-header .dropdown {
+    display: none;
+  }
+  
+  .btn-group {
+    display: none;
+  }
+}
+
+/* Accessibility improvements */
+.guardian-link-card:focus-within {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+}
+
+.card-profile-picture:hover,
+.card-profile-initials:hover {
+  transform: scale(1.1);
+  border-color: var(--bs-primary);
+}
+
+/* Performance optimizations */
+.guardian-link-card {
+  will-change: transform;
+}
+
+.card-profile-picture,
+.card-profile-initials {
+  will-change: transform;
+}
+
+/* Skip Links for Accessibility */
+.skip-links {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  z-index: 1000;
+}
+
+.skip-link {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  background: var(--bs-primary);
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 0 0 4px 4px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.skip-link:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  left: auto;
+  top: auto;
+  overflow: visible;
+  z-index: 1001;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  backdrop-filter: blur(2px);
+}
+
+.loading-content {
+  background: var(--bs-body-bg);
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--bs-border-color);
+}
+
+.loading-content .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* Enhanced keyboard shortcuts */
+.keyboard-shortcuts .shortcut-list div {
+  margin-bottom: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.keyboard-shortcuts .shortcut-list div:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+/* Focus indicators for better accessibility */
+.guardian-link-card:focus-within,
+.link-row:focus-within {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .guardian-link-card {
+    border: 2px solid var(--bs-border-color);
+  }
+  
+  .badge {
+    border: 1px solid currentColor;
+  }
+  
+  .btn-outline-primary,
+  .btn-outline-secondary,
+  .btn-outline-success,
+  .btn-outline-warning,
+  .btn-outline-danger {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .guardian-link-card,
+  .card-profile-picture,
+  .card-profile-initials,
+  .refreshing {
+    transition: none;
+    animation: none;
+  }
+  
+  .guardian-link-card:hover {
+    transform: none;
+  }
+}
+
+/* Large text support */
+@media (min-resolution: 2dppx) {
+  .card-profile-picture,
+  .card-profile-initials {
+    border-width: 1px;
+  }
+}
+
+/* Color blind friendly indicators */
+.status-indicator {
+  position: relative;
+}
+
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .guardian-link-card {
+    transition: none;
+  }
+  
+  .guardian-link-card:hover {
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .btn-group-sm .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  .card-profile-picture,
+  .card-profile-initials {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+/* Performance optimizations for animations */
+@supports (will-change: transform) {
+  .guardian-link-card:hover {
+    will-change: transform;
+  }
+}
+
+/* Fallback for older browsers */
+@supports not (backdrop-filter: blur(2px)) {
+  .loading-overlay {
+    background: rgba(0, 0, 0, 0.7);
+  }
+}
+</style>

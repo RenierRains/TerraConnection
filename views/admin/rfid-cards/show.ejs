@@ -4,42 +4,861 @@
   <meta charset="UTF-8">
   <title>RFID Card Details</title>
   <link rel="stylesheet" href="/css/app.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <%- include('../../partials/modal-styles') %>
 
   <div class="modal-content-wrapper">
-    <h2>RFID Card Details</h2>
-    
-    <div class="details-group">
-      <div class="details-label">ID</div>
-      <div class="details-value"><%= card.id %></div>
+    <!-- Enhanced Header -->
+    <div class="details-header mb-4">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center">
+          <div class="card-icon-large me-3">
+            <i class="fas fa-id-card"></i>
+          </div>
+          <div>
+            <h2 class="mb-0">RFID Card Details</h2>
+            <small class="text-muted">Card ID: #<%= card.id %> • UID: <code><%= card.card_uid %></code></small>
+          </div>
+        </div>
+        <div class="card-status">
+          <span class="badge badge-large bg-<%= card.is_active ? 'success' : 'secondary' %>">
+            <i class="fas fa-<%= card.is_active ? 'check-circle' : 'times-circle' %> me-1"></i>
+            <%= card.is_active ? 'Active' : 'Inactive' %>
+          </span>
+        </div>
+      </div>
     </div>
     
-    <div class="details-group">
-      <div class="details-label">Card UID</div>
-      <div class="details-value"><%= card.card_uid %></div>
+    <!-- Quick Stats Row -->
+    <div class="quick-stats mb-4">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="stat-card text-center">
+            <div class="stat-icon">
+              <i class="fas fa-key text-primary"></i>
+            </div>
+            <div class="stat-value"><%= cardStats.totalAccess || 0 %></div>
+            <div class="stat-label">Total Access</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card text-center">
+            <div class="stat-icon">
+              <i class="fas fa-clock text-info"></i>
+            </div>
+            <div class="stat-value">
+              <% if (cardStats.lastAccess) { %>
+                <%= new Date(cardStats.lastAccess).toLocaleDateString() %>
+              <% } else { %>
+                Never
+              <% } %>
+            </div>
+            <div class="stat-label">Last Access</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card text-center">
+            <div class="stat-icon">
+              <i class="fas fa-map-marker-alt text-warning"></i>
+            </div>
+            <div class="stat-value"><%= cardStats.mostFrequentLocation || 'N/A' %></div>
+            <div class="stat-label">Top Location</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card text-center">
+            <div class="stat-icon">
+              <i class="fas fa-chart-line text-success"></i>
+            </div>
+            <div class="stat-value"><%= cardStats.avgAccessPerDay || '0' %></div>
+            <div class="stat-label">Avg/Day</div>
+          </div>
+        </div>
+      </div>
     </div>
     
-    <div class="details-group">
-      <div class="details-label">User ID</div>
-      <div class="details-value"><%= card.user_id %></div>
+    <div class="row">
+      <!-- Left Column: Card & User Information -->
+      <div class="col-md-6">
+        <!-- Card Information -->
+        <div class="info-section mb-4">
+          <div class="section-header">
+            <h5><i class="fas fa-credit-card me-2"></i>Card Information</h5>
+          </div>
+          <div class="section-content">
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">Card UID</div>
+                <div class="info-value">
+                  <code class="uid-display"><%= card.card_uid %></code>
+                  <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('<%= card.card_uid %>')">
+                    <i class="fas fa-copy"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Status</div>
+                <div class="info-value">
+                  <div class="status-toggle-display">
+                    <span class="badge bg-<%= card.is_active ? 'success' : 'secondary' %>">
+                      <i class="fas fa-<%= card.is_active ? 'check-circle' : 'times-circle' %> me-1"></i>
+                      <%= card.is_active ? 'Active' : 'Inactive' %>
+                    </span>
+                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="toggleCardStatus(<%= card.id %>, <%= card.is_active %>)">
+                      <i class="fas fa-toggle-<%= card.is_active ? 'off' : 'on' %>"></i>
+                      <%= card.is_active ? 'Deactivate' : 'Activate' %>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Issued Date</div>
+                <div class="info-value">
+                  <% if (card.issued_at) { %>
+                    <%= new Date(card.issued_at).toLocaleDateString() %>
+                    <small class="text-muted">(<%= Math.floor((new Date() - new Date(card.issued_at)) / (1000 * 60 * 60 * 24)) %> days ago)</small>
+                  <% } else { %>
+                    <span class="text-muted">Not set</span>
+                  <% } %>
+                </div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Last Modified</div>
+                <div class="info-value">
+                  <%= new Date(card.updated_at || card.created_at).toLocaleString() %>
+                </div>
+              </div>
+              <% if (card.notes) { %>
+                <div class="info-item">
+                  <div class="info-label">Notes</div>
+                  <div class="info-value">
+                    <div class="notes-display">
+                      <%= card.notes %>
+                    </div>
+                  </div>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Information -->
+        <div class="info-section mb-4">
+          <div class="section-header">
+            <h5><i class="fas fa-user me-2"></i>Assignment Information</h5>
+          </div>
+          <div class="section-content">
+            <% if (userData) { %>
+              <div class="user-card">
+                <div class="d-flex align-items-center">
+                  <div class="user-avatar me-3">
+                    <% if (userData.profile_picture) { %>
+                      <img src="/<%= userData.profile_picture %>" alt="Profile" class="profile-img">
+                    <% } else { %>
+                      <div class="profile-initials">
+                        <%= (userData.first_name.charAt(0) + userData.last_name.charAt(0)).toUpperCase() %>
+                      </div>
+                    <% } %>
+                  </div>
+                  <div class="flex-grow-1">
+                    <h6 class="mb-1"><%= userData.first_name %> <%= userData.last_name %></h6>
+                    <div class="user-details">
+                      <div class="detail-row">
+                        <i class="fas fa-envelope me-1"></i>
+                        <span><%= userData.email %></span>
+                      </div>
+                      <% if (userData.role) { %>
+                        <div class="detail-row">
+                          <i class="fas fa-user-tag me-1"></i>
+                          <span class="badge bg-<%= userData.role === 'admin' ? 'danger' : userData.role === 'professor' ? 'warning' : userData.role === 'student' ? 'success' : 'info' %>">
+                            <%= userData.role.charAt(0).toUpperCase() + userData.role.slice(1) %>
+                          </span>
+                        </div>
+                      <% } %>
+                      <% if (userData.department_name) { %>
+                        <div class="detail-row">
+                          <i class="fas fa-building me-1"></i>
+                          <span><%= userData.department_name %></span>
+                        </div>
+                      <% } %>
+                      <% if (userData.school_id) { %>
+                        <div class="detail-row">
+                          <i class="fas fa-id-card me-1"></i>
+                          <span><%= userData.school_id %></span>
+                        </div>
+                      <% } %>
+                    </div>
+                  </div>
+                  <div class="user-actions">
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewUserDetails(<%= userData.id %>)">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            <% } else { %>
+              <div class="unassigned-card">
+                <div class="text-center py-4">
+                  <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+                  <h6 class="text-muted">Card Not Assigned</h6>
+                  <p class="text-muted mb-3">This card is not currently assigned to any user</p>
+                  <button class="btn btn-primary btn-sm" onclick="assignCard(<%= card.id %>)">
+                    <i class="fas fa-user-plus me-1"></i>Assign User
+                  </button>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Other Cards (if user has multiple) -->
+        <% if (otherCards && otherCards.length > 0) { %>
+          <div class="info-section mb-4">
+            <div class="section-header">
+              <h5><i class="fas fa-id-card-alt me-2"></i>Other Cards</h5>
+              <small class="text-muted">Other cards assigned to this user</small>
+            </div>
+            <div class="section-content">
+              <div class="other-cards-list">
+                <% otherCards.forEach(function(otherCard) { %>
+                  <div class="other-card-item">
+                    <div class="d-flex align-items-center">
+                      <div class="card-mini-icon me-2">
+                        <i class="fas fa-id-card text-<%= otherCard.is_active ? 'success' : 'secondary' %>"></i>
+                      </div>
+                      <div class="flex-grow-1">
+                        <div class="card-uid"><code><%= otherCard.card_uid %></code></div>
+                        <small class="text-muted">
+                          <%= otherCard.is_active ? 'Active' : 'Inactive' %> • 
+                          ID: #<%= otherCard.id %>
+                        </small>
+                      </div>
+                      <button class="btn btn-sm btn-outline-secondary" onclick="viewCard(<%= otherCard.id %>)">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Right Column: Access History & Analytics -->
+      <div class="col-md-6">
+        <!-- Access History -->
+        <div class="info-section mb-4">
+          <div class="section-header">
+            <h5><i class="fas fa-history me-2"></i>Recent Access History</h5>
+            <div class="section-actions">
+              <button class="btn btn-sm btn-outline-primary" onclick="exportAccessHistory(<%= card.id %>)">
+                <i class="fas fa-download me-1"></i>Export
+              </button>
+            </div>
+          </div>
+          <div class="section-content">
+            <% if (accessHistory && accessHistory.length > 0) { %>
+              <div class="access-timeline">
+                <% accessHistory.slice(0, 10).forEach(function(log, index) { %>
+                  <div class="timeline-item">
+                    <div class="timeline-marker">
+                      <i class="fas fa-<%= log.action === 'entry' ? 'sign-in-alt' : log.action === 'exit' ? 'sign-out-alt' : 'key' %>"></i>
+                    </div>
+                    <div class="timeline-content">
+                      <div class="timeline-header">
+                        <span class="access-action">
+                          <%= log.action ? log.action.charAt(0).toUpperCase() + log.action.slice(1) : 'Access' %>
+                        </span>
+                        <span class="access-time">
+                          <%= new Date(log.timestamp).toLocaleString() %>
+                        </span>
+                      </div>
+                      <div class="timeline-details">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        <%= log.gate ? log.gate.name : log.location || 'Unknown Location' %>
+                        <% if (log.status) { %>
+                          <span class="badge bg-<%= log.status === 'success' ? 'success' : 'danger' %> ms-2">
+                            <%= log.status %>
+                          </span>
+                        <% } %>
+                      </div>
+                    </div>
+                  </div>
+                <% }); %>
+                
+                <% if (accessHistory.length > 10) { %>
+                  <div class="timeline-more">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadMoreHistory(<%= card.id %>)">
+                      <i class="fas fa-chevron-down me-1"></i>
+                      Load More (<%= accessHistory.length - 10 %> more entries)
+                    </button>
+                  </div>
+                <% } %>
+              </div>
+            <% } else { %>
+              <div class="no-history">
+                <div class="text-center py-4">
+                  <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                  <h6 class="text-muted">No Access History</h6>
+                  <p class="text-muted">This card hasn't been used for access yet</p>
+                </div>
+              </div>
+            <% } %>
+          </div>
     </div>
     
-    <div class="details-group">
-      <div class="details-label">Active</div>
-      <div class="details-value"><%= card.is_active ? 'Yes' : 'No' %></div>
+        <!-- Usage Analytics -->
+        <% if (accessHistory && accessHistory.length > 0) { %>
+          <div class="info-section mb-4">
+            <div class="section-header">
+              <h5><i class="fas fa-chart-bar me-2"></i>Usage Analytics</h5>
+            </div>
+            <div class="section-content">
+              <div class="analytics-container">
+                <canvas id="usageChart" width="400" height="200"></canvas>
     </div>
     
-    <div class="details-group">
-      <div class="details-label">Issued At</div>
-      <div class="details-value"><%= card.issued_at %></div>
+              <!-- Usage Insights -->
+              <div class="usage-insights mt-3">
+                <div class="row g-2">
+                  <div class="col-6">
+                    <div class="insight-item">
+                      <div class="insight-value"><%= cardStats.avgAccessPerDay %></div>
+                      <div class="insight-label">Daily Average</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="insight-item">
+                      <div class="insight-value"><%= cardStats.totalAccess %></div>
+                      <div class="insight-label">Total Uses</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
     </div>
     
-    <div class="button-group">
-      <a href="/admin/rfid-cards/<%= card.id %>/edit" class="btn btn-warning" data-modal="true">Edit</a>
-      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    <!-- Action Buttons -->
+    <div class="action-bar mt-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="action-info">
+          <small class="text-muted">
+            <i class="fas fa-info-circle me-1"></i>
+            Card created on <%= new Date(card.created_at).toLocaleDateString() %>
+          </small>
+        </div>
+        <div class="action-buttons">
+          <button class="btn btn-outline-success" onclick="printCard(<%= card.id %>)">
+            <i class="fas fa-print me-1"></i>Print
+          </button>
+          <button class="btn btn-outline-info" onclick="exportCard(<%= card.id %>)">
+            <i class="fas fa-download me-1"></i>Export
+          </button>
+          <a href="/admin/rfid-cards/<%= card.id %>/replace" class="btn btn-outline-warning" data-modal="true">
+            <i class="fas fa-exchange-alt me-1"></i>Replace
+          </a>
+          <a href="/admin/rfid-cards/<%= card.id %>/edit" class="btn btn-warning" data-modal="true">
+            <i class="fas fa-edit me-1"></i>Edit
+          </a>
+          <% if (card.is_active) { %>
+            <button class="btn btn-outline-danger" onclick="deactivateCard(<%= card.id %>)">
+              <i class="fas fa-ban me-1"></i>Deactivate
+            </button>
+          <% } else { %>
+            <button class="btn btn-outline-success" onclick="activateCard(<%= card.id %>)">
+              <i class="fas fa-check me-1"></i>Activate
+            </button>
+          <% } %>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>Close
+          </button>
+        </div>
+      </div>
     </div>
   </div>
+
+  <script>
+    $(document).ready(function() {
+      initializeUsageChart();
+    });
+
+    function initializeUsageChart() {
+      <% if (accessHistory && accessHistory.length > 0) { %>
+        const ctx = document.getElementById('usageChart').getContext('2d');
+        
+        // Process access history for chart
+        const last7Days = [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          last7Days.push(date.toISOString().split('T')[0]);
+        }
+
+        const accessCounts = {};
+        last7Days.forEach(date => accessCounts[date] = 0);
+
+        <% accessHistory.forEach(function(log) { %>
+          const logDate = '<%= new Date(log.timestamp).toISOString().split("T")[0] %>';
+          if (accessCounts.hasOwnProperty(logDate)) {
+            accessCounts[logDate]++;
+          }
+        <% }); %>
+
+        const chartData = last7Days.map(date => accessCounts[date]);
+        const chartLabels = last7Days.map(date => new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: chartLabels,
+            datasets: [{
+              label: 'Daily Access',
+              data: chartData,
+              borderColor: 'rgb(75, 192, 192)',
+              backgroundColor: 'rgba(75, 192, 192, 0.1)',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: false
+              }
+            }
+          }
+        });
+      <% } %>
+    }
+
+    // Action Functions
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(function() {
+        if (window.showToast) {
+          window.showToast('Copied!', 'Card UID copied to clipboard', 'success');
+        }
+      });
+    }
+
+    function toggleCardStatus(cardId, currentStatus) {
+      const action = currentStatus ? 'deactivate' : 'activate';
+      const confirmMsg = `Are you sure you want to ${action} this card?`;
+      
+      if (confirm(confirmMsg)) {
+        $.ajax({
+          url: `/admin/rfid-cards/${cardId}/toggle-status`,
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          success: function(response) {
+            if (window.showToast) {
+              window.showToast('Success!', `Card ${action}d successfully.`, 'success');
+            }
+            setTimeout(() => location.reload(), 1000);
+          },
+          error: function(xhr) {
+            if (window.showToast) {
+              window.showToast('Error', `Failed to ${action} card.`, 'error');
+            }
+          }
+        });
+      }
+    }
+
+    function assignCard(cardId) {
+      // Open edit modal to assign user
+      window.location.href = `/admin/rfid-cards/${cardId}/edit`;
+    }
+
+    function viewUserDetails(userId) {
+      // This would open user details in a new modal
+      if (window.showToast) {
+        window.showToast('Info', 'User details feature coming soon!', 'info');
+      }
+    }
+
+    function viewCard(cardId) {
+      window.location.href = `/admin/rfid-cards/${cardId}`;
+    }
+
+    function exportAccessHistory(cardId) {
+      window.open(`/admin/rfid-cards/${cardId}/export-history`, '_blank');
+    }
+
+    function loadMoreHistory(cardId) {
+      if (window.showToast) {
+        window.showToast('Info', 'Load more history feature coming soon!', 'info');
+      }
+    }
+
+    function printCard(cardId) {
+      window.print();
+    }
+
+    function exportCard(cardId) {
+      window.open(`/admin/rfid-cards/${cardId}/export`, '_blank');
+    }
+
+    function activateCard(cardId) {
+      toggleCardStatus(cardId, false);
+    }
+
+    function deactivateCard(cardId) {
+      toggleCardStatus(cardId, true);
+    }
+  </script>
+
+  <style>
+    /* Enhanced Details View Styles */
+    .modal-content-wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .details-header {
+      background: linear-gradient(135deg, var(--bs-primary), var(--primary-light));
+      color: white;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .card-icon-large {
+      font-size: 2.5rem;
+      opacity: 0.9;
+    }
+
+    .badge-large {
+      font-size: 0.9rem;
+      padding: 0.5rem 1rem;
+    }
+
+    .quick-stats .stat-card {
+      background: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.5rem;
+      padding: 1.5rem 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .quick-stats .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--bs-body-color);
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--bs-secondary);
+    }
+
+    .info-section {
+      background: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+
+    .section-header {
+      background: var(--bs-light);
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--bs-border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .section-header h5 {
+      margin: 0;
+      color: var(--bs-primary);
+      font-weight: 600;
+    }
+
+    .section-content {
+      padding: 1.25rem;
+    }
+
+    .info-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .info-item {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: var(--bs-secondary);
+      font-size: 0.875rem;
+    }
+
+    .info-value {
+      color: var(--bs-body-color);
+    }
+
+    .uid-display {
+      font-size: 1.1rem;
+      background: var(--bs-light);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+    }
+
+    .status-toggle-display {
+      display: flex;
+      align-items: center;
+    }
+
+    .notes-display {
+      background: var(--bs-light);
+      padding: 0.75rem;
+      border-radius: 0.25rem;
+      font-style: italic;
+    }
+
+    .user-card {
+      background: var(--bs-light);
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+    }
+
+    .user-avatar {
+      width: 60px;
+      height: 60px;
+    }
+
+    .profile-img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .profile-initials {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.25rem;
+    }
+
+    .user-details .detail-row {
+      margin-bottom: 0.5rem;
+      color: var(--bs-secondary);
+      font-size: 0.9rem;
+    }
+
+    .unassigned-card {
+      background: var(--bs-light);
+      border: 2px dashed var(--bs-border-color);
+      border-radius: 0.5rem;
+    }
+
+    .other-cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .other-card-item {
+      background: var(--bs-light);
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+    }
+
+    .card-mini-icon {
+      font-size: 1.25rem;
+    }
+
+    .card-uid {
+      font-family: monospace;
+      font-weight: 600;
+    }
+
+    .access-timeline {
+      position: relative;
+    }
+
+    .timeline-item {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .timeline-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 32px;
+      width: 2px;
+      height: calc(100% + 0.5rem);
+      background: var(--bs-border-color);
+    }
+
+    .timeline-marker {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--bs-primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      margin-right: 1rem;
+      flex-shrink: 0;
+    }
+
+    .timeline-content {
+      flex: 1;
+      background: var(--bs-light);
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .access-action {
+      font-weight: 600;
+      color: var(--bs-primary);
+    }
+
+    .access-time {
+      font-size: 0.875rem;
+      color: var(--bs-secondary);
+    }
+
+    .timeline-details {
+      color: var(--bs-secondary);
+      font-size: 0.9rem;
+    }
+
+    .timeline-more {
+      text-align: center;
+      margin-top: 1rem;
+    }
+
+    .no-history {
+      background: var(--bs-light);
+      border-radius: 0.5rem;
+    }
+
+    .analytics-container {
+      height: 200px;
+      position: relative;
+    }
+
+    .usage-insights {
+      background: var(--bs-light);
+      border-radius: 0.375rem;
+      padding: 1rem;
+    }
+
+    .insight-item {
+      text-align: center;
+    }
+
+    .insight-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--bs-primary);
+    }
+
+    .insight-label {
+      font-size: 0.875rem;
+      color: var(--bs-secondary);
+    }
+
+    .action-bar {
+      background: var(--bs-light);
+      padding: 1rem 1.25rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--bs-border-color);
+    }
+
+    .action-buttons .btn + .btn {
+      margin-left: 0.5rem;
+    }
+
+    /* Dark mode support */
+    [data-bs-theme="dark"] .details-header {
+      background: linear-gradient(135deg, var(--bs-primary), var(--primary-light));
+    }
+
+    [data-bs-theme="dark"] .info-section {
+      background: var(--bs-dark);
+      border-color: var(--bs-border-color);
+    }
+
+    [data-bs-theme="dark"] .section-header {
+      background: var(--bs-secondary);
+    }
+
+    [data-bs-theme="dark"] .user-card,
+    [data-bs-theme="dark"] .other-card-item,
+    [data-bs-theme="dark"] .timeline-content,
+    [data-bs-theme="dark"] .usage-insights {
+      background: var(--bs-secondary);
+    }
+
+    /* Print styles */
+    @media print {
+      .action-bar,
+      .section-actions {
+        display: none !important;
+      }
+      
+      .modal-content-wrapper {
+        max-width: none;
+        margin: 0;
+      }
+    }
+  </style>
 </body>
 </html>

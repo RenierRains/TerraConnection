@@ -1,132 +1,753 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title><%= title %></title>
-  <link rel="stylesheet" href="/css/app.css">
-  <!-- Include jQuery -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <style>
-    .autocomplete-container {
-      position: relative;
-      margin-bottom: 1rem;
-    }
-    .suggestions {
-      position: absolute;
-      background: #fff;
-      border: 1px solid #ccc;
-      width: 100%;
-      z-index: 1000;
-      max-height: 150px;
-      overflow-y: auto;
-    }
-    .suggestion-item {
-      padding: 8px;
-      cursor: pointer;
-    }
-    .suggestion-item:hover {
-      background-color: #f0f0f0;
-    }
-  </style>
-</head>
-<body>
-  <%- include('../../partials/modal-styles') %>
-
-  <div class="modal-content-wrapper">
-    <h2><%= title %></h2>
-    <form action="<%= action %>" method="POST">
+<div class="modal-content-wrapper">
+  <div class="modal-header">
+    <h5 class="modal-title">
+      <i class="fas fa-link me-2"></i><%= title %>
+    </h5>
+  </div>
+  
+  <div class="modal-body">
+    <form action="<%= action %>" method="POST" id="guardianLinkForm">
       <% if (method === 'PUT') { %>
         <input type="hidden" name="_method" value="PUT">
       <% } %>
 
-      <div class="form-group">
-        <label for="guardian_search">Guardian</label>
+      <!-- Guardian Selection -->
+      <div class="mb-4">
+        <label for="guardian_search" class="form-label">
+          <i class="fas fa-user-shield me-1"></i>Guardian <span class="text-danger">*</span>
+        </label>
         <div class="autocomplete-container">
-          <input type="text" id="guardian_search" class="form-control" placeholder="Search guardian by name or email" value="<%= guardian ? guardian.first_name + ' ' + guardian.last_name + ' (' + guardian.email + ')' : '' %>">
-          <input type="hidden" id="guardianId" name="guardianId" value="<%= guardian ? guardian.id : '' %>">
+          <input type="text" id="guardian_search" class="form-control" 
+                 placeholder="Search guardian by name or email" 
+                 value="<%= guardian ? guardian.first_name + ' ' + guardian.last_name + ' (' + guardian.email + ')' : '' %>"
+                 required>
+          <input type="hidden" id="guardianId" name="guardianId" value="<%= guardian ? guardian.id : '' %>" required>
           <div id="guardian_suggestions" class="suggestions"></div>
+          <div class="invalid-feedback">
+            Please select a guardian.
+          </div>
+        </div>
+        
+        <!-- Guardian Preview -->
+        <div id="guardianPreview" class="mt-2" style="<%= guardian ? '' : 'display: none;' %>">
+          <div class="card border-success">
+            <div class="card-body p-2">
+              <div class="d-flex align-items-center">
+                <div class="guardian-profile-picture me-2">
+                  <% if (guardian && guardian.profile_picture) { %>
+                    <img src="/<%= guardian.profile_picture.startsWith('/') ? guardian.profile_picture.substring(1) : guardian.profile_picture %>" 
+                         alt="Profile" class="profile-thumbnail-small">
+                  <% } else if (guardian) { %>
+                    <div class="profile-initials-small">
+                      <%= guardian.first_name.charAt(0).toUpperCase() %><%= guardian.last_name.charAt(0).toUpperCase() %>
+                    </div>
+                  <% } %>
+                </div>
+                <div class="guardian-info">
+                  <strong class="guardian-name"><%= guardian ? guardian.first_name + ' ' + guardian.last_name : '' %></strong>
+                  <br><small class="text-muted guardian-email"><%= guardian ? guardian.email : '' %></small>
+                  <% if (guardian && guardian.role) { %>
+                    <br><span class="badge bg-info guardian-role"><%= guardian.role %></span>
+                  <% } %>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="clearGuardianSelection()">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="form-group">
-        <label for="student_search">Student</label>
+      <!-- Student Selection -->
+      <div class="mb-4">
+        <label for="student_search" class="form-label">
+          <i class="fas fa-graduation-cap me-1"></i>Student <span class="text-danger">*</span>
+        </label>
         <div class="autocomplete-container">
-          <input type="text" id="student_search" class="form-control" placeholder="Search student by name or email" value="<%= student ? student.first_name + ' ' + student.last_name + ' (' + student.email + ')' : '' %>">
-          <input type="hidden" id="studentId" name="studentId" value="<%= student ? student.id : '' %>">
+          <input type="text" id="student_search" class="form-control" 
+                 placeholder="Search student by name or email" 
+                 value="<%= student ? student.first_name + ' ' + student.last_name + ' (' + student.email + ')' : '' %>"
+                 required>
+          <input type="hidden" id="studentId" name="studentId" value="<%= student ? student.id : '' %>" required>
           <div id="student_suggestions" class="suggestions"></div>
+          <div class="invalid-feedback">
+            Please select a student.
+          </div>
+        </div>
+        
+        <!-- Student Preview -->
+        <div id="studentPreview" class="mt-2" style="<%= student ? '' : 'display: none;' %>">
+          <div class="card border-primary">
+            <div class="card-body p-2">
+              <div class="d-flex align-items-center">
+                <div class="student-profile-picture me-2">
+                  <% if (student && student.profile_picture) { %>
+                    <img src="/<%= student.profile_picture.startsWith('/') ? student.profile_picture.substring(1) : student.profile_picture %>" 
+                         alt="Profile" class="profile-thumbnail-small">
+                  <% } else if (student) { %>
+                    <div class="profile-initials-small">
+                      <%= student.first_name.charAt(0).toUpperCase() %><%= student.last_name.charAt(0).toUpperCase() %>
+                    </div>
+                  <% } %>
+                </div>
+                <div class="student-info">
+                  <strong class="student-name"><%= student ? student.first_name + ' ' + student.last_name : '' %></strong>
+                  <br><small class="text-muted student-email"><%= student ? student.email : '' %></small>
+                  <% if (student && student.school_id) { %>
+                    <br><small class="text-muted student-id">ID: <%= student.school_id %></small>
+                  <% } %>
+                  <% if (student && student.department) { %>
+                    <br><span class="badge bg-secondary student-department"><%= student.department %></span>
+                  <% } %>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="clearStudentSelection()">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="button-group">
-        <button type="submit" class="btn btn-primary"><%= submitLabel %></button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      <!-- Relationship Details (Optional) -->
+      <div class="mb-4">
+        <label for="relationship_type" class="form-label">
+          <i class="fas fa-heart me-1"></i>Relationship Type (Optional)
+        </label>
+        <select id="relationship_type" name="relationship_type" class="form-select">
+          <option value="">Select relationship type</option>
+          <option value="parent" <%= typeof link !== 'undefined' && link.relationship_type === 'parent' ? 'selected' : '' %>>Parent</option>
+          <option value="guardian" <%= typeof link !== 'undefined' && link.relationship_type === 'guardian' ? 'selected' : '' %>>Guardian</option>
+          <option value="grandparent" <%= typeof link !== 'undefined' && link.relationship_type === 'grandparent' ? 'selected' : '' %>>Grandparent</option>
+          <option value="sibling" <%= typeof link !== 'undefined' && link.relationship_type === 'sibling' ? 'selected' : '' %>>Sibling</option>
+          <option value="other" <%= typeof link !== 'undefined' && link.relationship_type === 'other' ? 'selected' : '' %>>Other</option>
+        </select>
+        <div class="form-text">Specify the type of relationship between the guardian and student</div>
+      </div>
+
+      <!-- Contact Preferences -->
+      <div class="mb-4">
+        <label class="form-label">
+          <i class="fas fa-bell me-1"></i>Contact Preferences (Optional)
+        </label>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="email_notifications" id="email_notifications" 
+                     <%= typeof link !== 'undefined' && link.email_notifications ? 'checked' : '' %>>
+              <label class="form-check-label" for="email_notifications">
+                <i class="fas fa-envelope me-1"></i>Email Notifications
+              </label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="emergency_contact" id="emergency_contact" 
+                     <%= typeof link !== 'undefined' && link.emergency_contact ? 'checked' : '' %>>
+              <label class="form-check-label" for="emergency_contact">
+                <i class="fas fa-exclamation-triangle me-1"></i>Emergency Contact
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-text">Configure how and when this guardian should be contacted</div>
+      </div>
+
+      <!-- Priority Level -->
+      <div class="mb-4">
+        <label for="priority_level" class="form-label">
+          <i class="fas fa-star me-1"></i>Priority Level (Optional)
+        </label>
+        <select id="priority_level" name="priority_level" class="form-select">
+          <option value="">Select priority level</option>
+          <option value="primary" <%= typeof link !== 'undefined' && link.priority_level === 'primary' ? 'selected' : '' %>>Primary Guardian</option>
+          <option value="secondary" <%= typeof link !== 'undefined' && link.priority_level === 'secondary' ? 'selected' : '' %>>Secondary Guardian</option>
+          <option value="emergency" <%= typeof link !== 'undefined' && link.priority_level === 'emergency' ? 'selected' : '' %>>Emergency Contact Only</option>
+        </select>
+        <div class="form-text">Set the priority level for this guardian relationship</div>
+      </div>
+
+      <!-- Notes (Optional) -->
+      <div class="mb-4">
+        <label for="notes" class="form-label">
+          <i class="fas fa-sticky-note me-1"></i>Notes (Optional)
+        </label>
+        <textarea id="notes" name="notes" class="form-control" rows="4" 
+                  placeholder="Add any additional notes about this guardian-student relationship..."
+                  maxlength="500"><%= typeof link !== 'undefined' && link.notes ? link.notes : '' %></textarea>
+        <div class="form-text">
+          <span id="notesCounter">0</span>/500 characters
+        </div>
+      </div>
+
+      <!-- Effective Date Range (Advanced) -->
+      <div class="mb-4">
+        <div class="card border-secondary">
+          <div class="card-header">
+            <h6 class="mb-0">
+              <i class="fas fa-calendar-alt me-2"></i>Effective Period (Optional)
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <label for="effective_from" class="form-label">Effective From</label>
+                <input type="date" id="effective_from" name="effective_from" class="form-control"
+                       value="<%= typeof link !== 'undefined' && link.effective_from ? new Date(link.effective_from).toISOString().split('T')[0] : '' %>">
+              </div>
+              <div class="col-md-6">
+                <label for="effective_to" class="form-label">Effective Until</label>
+                <input type="date" id="effective_to" name="effective_to" class="form-control"
+                       value="<%= typeof link !== 'undefined' && link.effective_to ? new Date(link.effective_to).toISOString().split('T')[0] : '' %>">
+              </div>
+            </div>
+            <div class="form-text mt-2">
+              Optionally set when this guardian relationship is active. Leave blank for permanent relationship.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Validation Summary -->
+      <div id="validationSummary" class="alert alert-danger d-none">
+        <h6><i class="fas fa-exclamation-triangle me-1"></i>Please fix the following errors:</h6>
+        <ul id="validationErrors"></ul>
       </div>
     </form>
   </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+      <i class="fas fa-times me-1"></i>Cancel
+    </button>
+    <button type="submit" form="guardianLinkForm" class="btn btn-primary" id="submitBtn">
+      <i class="fas fa-save me-1"></i><%= submitLabel %>
+    </button>
+  </div>
+</div>
   
-  <script>
-    $(document).ready(function(){
-      $('#guardian_search').on('input', function(){
-        var query = $(this).val().trim();
-        if(query.length < 2){
-          $('#guardian_suggestions').empty();
-          return;
-        }
-        $.ajax({
-          url: '/admin/guardians/search',
-          data: { q: query },
-          success: function(data){
-            var html = '';
-            data.guardians.forEach(function(guardian){
-              html += `<div class="suggestion-item" data-id="${guardian.id}">${guardian.first_name} ${guardian.last_name} (${guardian.email})</div>`;
-            });
-            $('#guardian_suggestions').html(html);
-          },
-          error: function(err){
-            console.error(err);
-          }
-        });
-      });
-      
-      $('#guardian_suggestions').on('click', '.suggestion-item', function(){
-        var id = $(this).data('id');
-        var text = $(this).text();
-        $('#guardianId').val(id);
-        $('#guardian_search').val(text);
-        $('#guardian_suggestions').empty();
-      });
-      
-      // Student autocomplete
-      $('#student_search').on('input', function(){
-        var query = $(this).val().trim();
-        if(query.length < 2){
-          $('#student_suggestions').empty();
-          return;
-        }
-        $.ajax({
-          url: '/admin/students/search',
-          data: { q: query },
-          success: function(data){
-            var html = '';
-            data.students.forEach(function(student){
-              html += `<div class="suggestion-item" data-id="${student.id}">${student.first_name} ${student.last_name} (${student.email})</div>`;
-            });
-            $('#student_suggestions').html(html);
-          },
-          error: function(err){
-            console.error(err);
-          }
-        });
-      });
-      
-      $('#student_suggestions').on('click', '.suggestion-item', function(){
-        var id = $(this).data('id');
-        var text = $(this).text();
-        $('#studentId').val(id);
-        $('#student_search').val(text);
-        $('#student_suggestions').empty();
-      });
+
+<script>
+$(document).ready(function() {
+  // Initialize guardian links form
+  initializeGuardianLinksForm();
+});
+
+function initializeGuardianLinksForm() {
+  // Guardian autocomplete
+  $('#guardian_search').on('input', debounce(function() {
+    const query = $(this).val().trim();
+    if (query.length < 2) {
+      $('#guardian_suggestions').empty().hide();
+      return;
+    }
+    
+    searchGuardians(query);
+  }, 300));
+  
+  // Student autocomplete  
+  $('#student_search').on('input', debounce(function() {
+    const query = $(this).val().trim();
+    if (query.length < 2) {
+      $('#student_suggestions').empty().hide();
+      return;
+    }
+    
+    searchStudents(query);
+  }, 300));
+  
+  // Guardian suggestion selection
+  $('#guardian_suggestions').on('click', '.suggestion-item', function() {
+    const guardianData = $(this).data('guardian');
+    selectGuardian(guardianData);
+    $('#guardian_suggestions').empty().hide();
+  });
+  
+  // Student suggestion selection
+  $('#student_suggestions').on('click', '.suggestion-item', function() {
+    const studentData = $(this).data('student');
+    selectStudent(studentData);
+    $('#student_suggestions').empty().hide();
+  });
+  
+  // Form validation
+  $('#guardianLinkForm').on('submit', function(e) {
+    if (!validateForm()) {
+      e.preventDefault();
+      return false;
+    }
+    
+    // Show loading state
+    const submitBtn = $('#submitBtn');
+    const originalText = submitBtn.html();
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Saving...');
+    
+    // Restore button state on error (success will redirect/close modal)
+    setTimeout(() => {
+      submitBtn.prop('disabled', false).html(originalText);
+    }, 5000);
+  });
+  
+  // Hide suggestions when clicking outside
+  $(document).on('click', function(e) {
+    if (!$(e.target).closest('.autocomplete-container').length) {
+      $('.suggestions').hide();
+    }
+  });
+
+  // Notes character counter
+  $('#notes').on('input', function() {
+    const length = $(this).val().length;
+    $('#notesCounter').text(length);
+    
+    if (length > 450) {
+      $('#notesCounter').addClass('text-warning');
+    } else {
+      $('#notesCounter').removeClass('text-warning');
+    }
+    
+    if (length >= 500) {
+      $('#notesCounter').addClass('text-danger').removeClass('text-warning');
+    } else {
+      $('#notesCounter').removeClass('text-danger');
+    }
+  });
+
+  // Date validation
+  $('#effective_from, #effective_to').on('change', function() {
+    validateDateRange();
+  });
+
+  // Initialize character counter
+  updateNotesCounter();
+}
+
+function validateDateRange() {
+  const fromDate = new Date($('#effective_from').val());
+  const toDate = new Date($('#effective_to').val());
+  
+  if ($('#effective_from').val() && $('#effective_to').val()) {
+    if (fromDate >= toDate) {
+      $('#effective_to').addClass('is-invalid');
+      showValidationError('effective_to', 'End date must be after start date');
+      return false;
+    } else {
+      $('#effective_to').removeClass('is-invalid');
+      clearValidationError('effective_to');
+    }
+  }
+  
+  return true;
+}
+
+function showValidationError(fieldId, message) {
+  const field = $(`#${fieldId}`);
+  let feedback = field.siblings('.invalid-feedback');
+  
+  if (feedback.length === 0) {
+    feedback = $(`<div class="invalid-feedback">${message}</div>`);
+    field.after(feedback);
+  } else {
+    feedback.text(message);
+  }
+  
+  field.addClass('is-invalid');
+}
+
+function clearValidationError(fieldId) {
+  const field = $(`#${fieldId}`);
+  field.removeClass('is-invalid');
+  field.siblings('.invalid-feedback').remove();
+}
+
+function updateNotesCounter() {
+  const length = $('#notes').val().length;
+  $('#notesCounter').text(length);
+}
+
+function searchGuardians(query) {
+  $.ajax({
+    url: '/admin/guardians/search',
+    data: { q: query },
+    success: function(response) {
+      if (response.success && response.guardians) {
+        displayGuardianSuggestions(response.guardians);
+      } else {
+        $('#guardian_suggestions').empty().hide();
+      }
+    },
+    error: function(xhr) {
+      console.error('Failed to search guardians:', xhr);
+      $('#guardian_suggestions').html('<div class="suggestion-item text-danger">Search failed. Please try again.</div>').show();
+    }
+  });
+}
+
+function searchStudents(query) {
+  $.ajax({
+    url: '/admin/students/search', 
+    data: { q: query },
+    success: function(response) {
+      if (response.success && response.students) {
+        displayStudentSuggestions(response.students);
+      } else {
+        $('#student_suggestions').empty().hide();
+      }
+    },
+    error: function(xhr) {
+      console.error('Failed to search students:', xhr);
+      $('#student_suggestions').html('<div class="suggestion-item text-danger">Search failed. Please try again.</div>').show();
+    }
+  });
+}
+
+function displayGuardianSuggestions(guardians) {
+  if (guardians.length === 0) {
+    $('#guardian_suggestions').html('<div class="suggestion-item text-muted">No guardians found</div>').show();
+    return;
+  }
+  
+  let html = '';
+  guardians.forEach(function(guardian) {
+    html += `
+      <div class="suggestion-item" data-guardian='${JSON.stringify(guardian)}'>
+        <div class="d-flex align-items-center">
+          <div class="suggestion-avatar me-2">
+            ${guardian.profile_picture ? 
+              `<img src="/${guardian.profile_picture}" alt="Profile" class="suggestion-thumbnail">` :
+              `<div class="suggestion-initials">${guardian.first_name.charAt(0)}${guardian.last_name.charAt(0)}</div>`
+            }
+          </div>
+          <div>
+            <div class="fw-bold">${guardian.first_name} ${guardian.last_name}</div>
+            <small class="text-muted">${guardian.email}</small>
+            ${guardian.role ? `<br><span class="badge bg-info">${guardian.role}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  $('#guardian_suggestions').html(html).show();
+}
+
+function displayStudentSuggestions(students) {
+  if (students.length === 0) {
+    $('#student_suggestions').html('<div class="suggestion-item text-muted">No students found</div>').show();
+    return;
+  }
+  
+  let html = '';
+  students.forEach(function(student) {
+    html += `
+      <div class="suggestion-item" data-student='${JSON.stringify(student)}'>
+        <div class="d-flex align-items-center">
+          <div class="suggestion-avatar me-2">
+            ${student.profile_picture ? 
+              `<img src="/${student.profile_picture}" alt="Profile" class="suggestion-thumbnail">` :
+              `<div class="suggestion-initials">${student.first_name.charAt(0)}${student.last_name.charAt(0)}</div>`
+            }
+          </div>
+          <div>
+            <div class="fw-bold">${student.first_name} ${student.last_name}</div>
+            <small class="text-muted">${student.email}</small>
+            ${student.school_id ? `<br><small class="text-muted">ID: ${student.school_id}</small>` : ''}
+            ${student.department ? `<br><span class="badge bg-secondary">${student.department}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  $('#student_suggestions').html(html).show();
+}
+
+function selectGuardian(guardian) {
+  $('#guardianId').val(guardian.id);
+  $('#guardian_search').val(`${guardian.first_name} ${guardian.last_name} (${guardian.email})`);
+  
+  // Update guardian preview
+  updateGuardianPreview(guardian);
+  $('#guardianPreview').show();
+  
+  // Clear validation errors
+  $('#guardian_search').removeClass('is-invalid');
+}
+
+function selectStudent(student) {
+  $('#studentId').val(student.id);
+  $('#student_search').val(`${student.first_name} ${student.last_name} (${student.email})`);
+  
+  // Update student preview
+  updateStudentPreview(student);
+  $('#studentPreview').show();
+  
+  // Clear validation errors
+  $('#student_search').removeClass('is-invalid');
+}
+
+function updateGuardianPreview(guardian) {
+  $('.guardian-name').text(`${guardian.first_name} ${guardian.last_name}`);
+  $('.guardian-email').text(guardian.email);
+  
+  if (guardian.profile_picture) {
+    $('.guardian-profile-picture').html(`<img src="/${guardian.profile_picture}" alt="Profile" class="profile-thumbnail-small">`);
+  } else {
+    $('.guardian-profile-picture').html(`<div class="profile-initials-small">${guardian.first_name.charAt(0)}${guardian.last_name.charAt(0)}</div>`);
+  }
+  
+  if (guardian.role) {
+    $('.guardian-role').text(guardian.role).show();
+  } else {
+    $('.guardian-role').hide();
+  }
+}
+
+function updateStudentPreview(student) {
+  $('.student-name').text(`${student.first_name} ${student.last_name}`);
+  $('.student-email').text(student.email);
+  
+  if (student.profile_picture) {
+    $('.student-profile-picture').html(`<img src="/${student.profile_picture}" alt="Profile" class="profile-thumbnail-small">`);
+  } else {
+    $('.student-profile-picture').html(`<div class="profile-initials-small">${student.first_name.charAt(0)}${student.last_name.charAt(0)}</div>`);
+  }
+  
+  if (student.school_id) {
+    $('.student-id').text(`ID: ${student.school_id}`).show();
+  } else {
+    $('.student-id').hide();
+  }
+  
+  if (student.department) {
+    $('.student-department').text(student.department).show();
+  } else {
+    $('.student-department').hide();
+  }
+}
+
+function clearGuardianSelection() {
+  $('#guardianId').val('');
+  $('#guardian_search').val('');
+  $('#guardianPreview').hide();
+  $('#guardian_search').focus();
+}
+
+function clearStudentSelection() {
+  $('#studentId').val('');
+  $('#student_search').val('');
+  $('#studentPreview').hide();
+  $('#student_search').focus();
+}
+
+function validateForm() {
+  let isValid = true;
+  const errors = [];
+  
+  // Clear previous validation
+  $('.is-invalid').removeClass('is-invalid');
+  $('#validationSummary').addClass('d-none');
+  
+  // Validate guardian selection
+  if (!$('#guardianId').val()) {
+    $('#guardian_search').addClass('is-invalid');
+    errors.push('Please select a guardian');
+    isValid = false;
+  }
+  
+  // Validate student selection
+  if (!$('#studentId').val()) {
+    $('#student_search').addClass('is-invalid');
+    errors.push('Please select a student');
+    isValid = false;
+  }
+  
+  // Check for duplicate relationship
+  if ($('#guardianId').val() && $('#studentId').val()) {
+    if ($('#guardianId').val() === $('#studentId').val()) {
+      errors.push('Guardian and student cannot be the same person');
+      $('#guardian_search, #student_search').addClass('is-invalid');
+      isValid = false;
+    }
+  }
+
+  // Validate date range
+  if (!validateDateRange()) {
+    errors.push('Effective end date must be after start date');
+    isValid = false;
+  }
+
+  // Validate notes length
+  const notesLength = $('#notes').val().length;
+  if (notesLength > 500) {
+    $('#notes').addClass('is-invalid');
+    errors.push('Notes must not exceed 500 characters');
+    isValid = false;
+  }
+  
+  // Display validation errors
+  if (!isValid) {
+    $('#validationErrors').empty();
+    errors.forEach(error => {
+      $('#validationErrors').append(`<li>${error}</li>`);
     });
-  </script>
-</body>
-</html>
+    $('#validationSummary').removeClass('d-none');
+    
+    // Scroll to validation summary
+    $('#validationSummary')[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  
+  return isValid;
+}
+
+// Debounce function for search
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+</script>
+
+<style>
+.autocomplete-container {
+  position: relative;
+}
+
+.suggestions {
+  position: absolute;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  width: 100%;
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: none;
+}
+
+.suggestion-item {
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--bs-border-color-translucent);
+  transition: background-color 0.2s;
+}
+
+.suggestion-item:hover {
+  background-color: var(--bs-primary-bg-subtle);
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.suggestion-thumbnail {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--bs-border-color);
+}
+
+.suggestion-initials {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+  border: 2px solid var(--bs-border-color);
+}
+
+.profile-thumbnail-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--bs-border-color);
+}
+
+.profile-initials-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+  border: 2px solid var(--bs-border-color);
+}
+
+/* Dark mode support */
+[data-bs-theme="dark"] .suggestions {
+  background: var(--bs-dark);
+  border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .suggestion-item:hover {
+  background-color: var(--bs-primary-bg-subtle);
+}
+
+/* Form validation styling */
+.is-invalid {
+  border-color: var(--bs-form-invalid-border-color);
+}
+
+.invalid-feedback {
+  display: block;
+}
+
+/* Preview cards styling */
+.card.border-success {
+  border-color: var(--bs-success) !important;
+}
+
+.card.border-primary {
+  border-color: var(--bs-primary) !important;
+}
+
+/* Loading state */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .modal-body {
+    padding: 1rem;
+  }
+  
+  .suggestion-item {
+    padding: 8px;
+  }
+  
+  .d-flex.align-items-center {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  
+  .suggestion-avatar {
+    margin-bottom: 0.5rem;
+  }
+}
+</style>
