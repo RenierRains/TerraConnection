@@ -1,11 +1,10 @@
 const { Resend } = require('resend');
-
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendOtpEmail = async (email, otp) => {
     try {
         const { data, error } = await resend.emails.send({
-            from: 'TerraConnection <terraconnection.online>', 
+            from: 'TerraConnection <noreply@terraconnection.online>', 
             to: email,
             subject: 'TerraConnection Login Verification Code',
             html: `
