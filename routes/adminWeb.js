@@ -72,13 +72,13 @@ router.post('/classes/import', upload.single('importFile'), adminWebController.i
 
 router.get('/classes', adminWebController.classesIndex);
 router.get('/classes/create', adminWebController.classesCreateForm);
-router.post('/classes', adminWebController.classesCreate);
+router.post('/classes', formUpload.none(), adminWebController.classesCreate);
 router.get('/classes/statistics', adminWebController.classesStatistics);
 router.get('/classes/status-capacity', adminWebController.classesStatusCapacity);
 router.get('/classes/schedule', adminWebController.classesSchedule);
 router.get('/classes/:id', adminWebController.classesShow);
 router.get('/classes/:id/edit', adminWebController.classesEditForm);
-router.put('/classes/:id', adminWebController.classesEdit);
+router.put('/classes/:id', formUpload.none(), adminWebController.classesEdit);
 router.delete('/classes/:id', adminWebController.classesDelete);
 
 router.get('/rfid-cards', adminWebController.rfidCardsIndex);
