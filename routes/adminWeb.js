@@ -83,10 +83,10 @@ router.delete('/classes/:id', adminWebController.classesDelete);
 
 router.get('/rfid-cards', adminWebController.rfidCardsIndex);
 router.get('/rfid-cards/create', adminWebController.rfidCardsCreateForm);
-router.post('/rfid-cards', adminWebController.rfidCardsCreate);
+router.post('/rfid-cards', formUpload.none(), adminWebController.rfidCardsCreate);
 router.get('/rfid-cards/:id', adminWebController.rfidCardsShow);
 router.get('/rfid-cards/:id/edit', adminWebController.rfidCardsEditForm);
-router.put('/rfid-cards/:id', adminWebController.rfidCardsEdit);
+router.put('/rfid-cards/:id', formUpload.none(), adminWebController.rfidCardsEdit);
 router.post('/rfid-cards/:id/toggle-status', adminWebController.rfidCardsToggleStatus);
 router.get('/rfid-cards/:id/replace', adminWebController.rfidCardsReplaceForm);
 router.post('/rfid-cards/:id/replace', adminWebController.rfidCardsReplace);
@@ -111,10 +111,10 @@ router.get('/audit-logs/export', exportController.exportAuditLogs);
 // Guardian Links Management
 router.get('/guardian-link', adminWebController.guardianLinksIndex);
 router.get('/guardian-link/new', adminWebController.guardianLinkNewForm);
-router.post('/guardian-link', adminWebController.guardianLinkCreate);
+router.post('/guardian-link', formUpload.none(), adminWebController.guardianLinkCreate);
 router.get('/guardian-link/:id', adminWebController.guardianLinkShow);
 router.get('/guardian-link/:id/edit', adminWebController.guardianLinkEditForm);
-router.put('/guardian-link/:id', adminWebController.guardianLinkUpdate);
+router.put('/guardian-link/:id', formUpload.none(), adminWebController.guardianLinkUpdate);
 router.delete('/guardian-link/:id', adminWebController.guardianLinkDelete);
 
 // Guardian Links API endpoints
