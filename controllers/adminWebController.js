@@ -136,10 +136,10 @@ exports.searchStudents = async (req, res) => {
       limit: 10,
       order: [['first_name', 'ASC']]
     });
-    res.json({ students, admin: req.session.admin });
+    res.json({ success: true, students });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error searching students' });
+    res.status(500).json({ success: false, error: 'Error searching students' });
   }
 };
 
@@ -159,10 +159,10 @@ exports.searchProfessors = async (req, res) => {
       limit: 10,
       order: [['first_name', 'ASC']]
     });
-    res.json({ professors, admin: req.session.admin });
+    res.json({ success: true, professors });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error searching professors' });
+    res.status(500).json({ success: false, error: 'Error searching professors' });
   }
 };
 
@@ -182,10 +182,10 @@ exports.searchGuardians = async (req, res) => {
       limit: 10,
       order: [['first_name', 'ASC']]
     });
-    res.json({ guardians, admin: req.session.admin });
+    res.json({ success: true, guardians });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error searching guardians' });
+    res.status(500).json({ success: false, error: 'Error searching guardians' });
   }
 };
 
@@ -2356,25 +2356,32 @@ exports.guardianLinksIndex = async (req, res) => {
     
     // Build where clause for filtering
     let whereClause = {};
-    const { search, department, guardianRole, relationshipType, studentYear, dateFrom, dateTo, sortBy, sortOrder } = req.query;
+    const { search, department, guardianRole, relationshipType, dateFrom, dateTo, sortBy, sortOrder } = req.query;
+    
+    // Build OR conditions for search and department
+    let orConditions = [];
     
     if (search) {
-      whereClause[Op.or] = [
+      orConditions.push(
         { '$guardian.first_name$': { [Op.like]: `%${search}%` } },
         { '$guardian.last_name$': { [Op.like]: `%${search}%` } },
         { '$guardian.email$': { [Op.like]: `%${search}%` } },
         { '$student.first_name$': { [Op.like]: `%${search}%` } },
         { '$student.last_name$': { [Op.like]: `%${search}%` } },
         { '$student.email$': { [Op.like]: `%${search}%` } }
-      ];
+      );
     }
     
     if (department) {
-      if (!whereClause[Op.or]) whereClause[Op.or] = [];
-      whereClause[Op.or].push(
+      orConditions.push(
         { '$guardian.department$': department },
         { '$student.department$': department }
       );
+    }
+    
+    // Add OR conditions to where clause if any exist
+    if (orConditions.length > 0) {
+      whereClause[Op.or] = orConditions;
     }
     
     if (guardianRole) {
@@ -2385,9 +2392,10 @@ exports.guardianLinksIndex = async (req, res) => {
       whereClause.relationship_type = relationshipType;
     }
     
-    if (studentYear) {
-      whereClause['$student.year$'] = studentYear;
-    }
+    // Note: student.year field doesn't exist in User model, so this filter is disabled
+    // if (studentYear) {
+    //   whereClause['$student.year$'] = studentYear;
+    // }
     
     if (dateFrom || dateTo) {
       whereClause.created_at = {};
@@ -2430,7 +2438,7 @@ exports.guardianLinksIndex = async (req, res) => {
         { 
           model: db.User, 
           as: 'student', 
-          attributes: ['id', 'first_name', 'last_name', 'email', 'department', 'school_id', 'year', 'profile_picture'],
+          attributes: ['id', 'first_name', 'last_name', 'email', 'department', 'school_id', 'profile_picture'],
           required: false
         }
       ],
@@ -2442,6 +2450,34 @@ exports.guardianLinksIndex = async (req, res) => {
 
     const totalPages = Math.ceil(count / limit);
 
+    // Load departments for filter
+    const departments = await db.Department.findAll({
+      where: { is_active: true },
+      order: [['name', 'ASC']],
+      attributes: ['code', 'name']
+    });
+
+    // Load statistics for the main view
+    const statistics = {
+      totalLinks: await db.Guardian_Student.count({
+        where: { status: 'active' }
+      }),
+      activeGuardians: await db.Guardian_Student.count({
+        distinct: true,
+        col: 'guardian_id',
+        where: { status: 'active' }
+      }),
+      studentsWithGuardians: await db.Guardian_Student.count({
+        distinct: true,
+        col: 'student_id',
+        where: { status: 'active' }
+      }),
+      totalStudents: await db.User.count({
+        where: { role: 'student' }
+      })
+    };
+    statistics.orphanedStudents = statistics.totalStudents - statistics.studentsWithGuardians;
+
     res.render('admin/guardian-links/index', {
       title: 'Guardian Links',
       links,
@@ -2450,7 +2486,9 @@ exports.guardianLinksIndex = async (req, res) => {
       totalLinks: count,
       admin: req.session.admin,
       filters: req.query,
-      pagination: { limit, page, totalPages, count }
+      pagination: { limit, page, totalPages, count },
+      departments,
+      statistics
     });
   } catch (err) {
     console.error(err);
@@ -2704,11 +2742,14 @@ exports.guardianLinksStatistics = async (req, res) => {
     const orphanedStudents = totalStudents - studentsWithGuardians;
 
     res.json({
-      totalLinks,
-      activeGuardians,
-      studentsWithGuardians,
-      orphanedStudents,
-      totalStudents
+      success: true,
+      data: {
+        totalLinks,
+        activeGuardians,
+        studentsWithGuardians,
+        orphanedStudents,
+        totalStudents
+      }
     });
   } catch (err) {
     console.error('Error fetching guardian links statistics:', err);
@@ -2767,24 +2808,36 @@ exports.guardianLinksBulkExport = async (req, res) => {
     
     // Apply filters if not exporting all
     if (!all) {
-      const { search, department, guardianRole, relationshipType, studentYear, dateFrom, dateTo } = req.query;
+      const { search, department, guardianRole, relationshipType, dateFrom, dateTo } = req.query;
+      
+      // Build OR conditions for search and department
+      let orConditions = [];
       
       if (search) {
-        whereClause[Op.or] = [
+        orConditions.push(
           { '$guardian.first_name$': { [Op.like]: `%${search}%` } },
           { '$guardian.last_name$': { [Op.like]: `%${search}%` } },
           { '$guardian.email$': { [Op.like]: `%${search}%` } },
           { '$student.first_name$': { [Op.like]: `%${search}%` } },
           { '$student.last_name$': { [Op.like]: `%${search}%` } },
           { '$student.email$': { [Op.like]: `%${search}%` } }
-        ];
+        );
       }
       
       if (department) {
-        whereClause[Op.or] = [
+        orConditions.push(
           { '$guardian.department$': department },
           { '$student.department$': department }
-        ];
+        );
+      }
+      
+      // Add OR conditions to where clause if any exist
+      if (orConditions.length > 0) {
+        whereClause[Op.or] = orConditions;
+      }
+      
+      if (guardianRole) {
+        whereClause['$guardian.role$'] = guardianRole;
       }
       
       if (relationshipType) {
@@ -2832,7 +2885,7 @@ exports.guardianLinksBulkExport = async (req, res) => {
       'Student Email': link.student ? link.student.email : 'N/A',
       'Student ID': link.student ? link.student.school_id || 'N/A' : 'N/A',
       'Student Department': link.student ? link.student.department || 'N/A' : 'N/A',
-      'Student Year': link.student ? link.student.year || 'N/A' : 'N/A',
+      // 'Student Year': link.student ? link.student.year || 'N/A' : 'N/A', // Field doesn't exist in User model
       'Relationship Type': link.relationship_type || 'N/A',
       'Priority Level': link.priority_level || 'N/A',
       'Email Notifications': link.email_notifications ? 'Yes' : 'No',
@@ -2960,7 +3013,8 @@ exports.guardianLinkNotify = async (req, res) => {
     );
 
     // Here you would implement actual email sending logic
-    // For now, we'll just simulate success
+    // TODO EMAIL 
+    // TODO NUM
     
     res.json({ 
       success: true, 

@@ -40,7 +40,7 @@
         <div class="card-body">
           <div class="d-flex justify-content-between">
             <div>
-              <h4 class="mb-0" id="totalLinks"><%= typeof statistics !== 'undefined' ? statistics.total : (links ? links.length : 0) %></h4>
+              <h4 class="mb-0" id="totalLinks"><%= typeof statistics !== 'undefined' ? statistics.totalLinks : (links ? links.length : 0) %></h4>
               <small>Total Links</small>
             </div>
             <div class="align-self-center">
@@ -55,9 +55,7 @@
         <div class="card-body">
           <div class="d-flex justify-content-between">
             <div>
-              <h4 class="mb-0" id="activeGuardians">
-                <i class="fas fa-spinner fa-spin"></i>
-              </h4>
+              <h4 class="mb-0" id="activeGuardians"><%= typeof statistics !== 'undefined' ? statistics.activeGuardians : 0 %></h4>
               <small>Active Guardians</small>
             </div>
             <div class="align-self-center">
@@ -72,9 +70,7 @@
         <div class="card-body">
           <div class="d-flex justify-content-between">
             <div>
-              <h4 class="mb-0" id="studentsWithGuardians">
-                <i class="fas fa-spinner fa-spin"></i>
-              </h4>
+              <h4 class="mb-0" id="studentsWithGuardians"><%= typeof statistics !== 'undefined' ? statistics.studentsWithGuardians : 0 %></h4>
               <small>Students with Guardians</small>
             </div>
             <div class="align-self-center">
@@ -89,9 +85,7 @@
         <div class="card-body">
           <div class="d-flex justify-content-between">
       <div>
-              <h4 class="mb-0" id="orphanedStudents">
-                <i class="fas fa-spinner fa-spin"></i>
-              </h4>
+              <h4 class="mb-0" id="orphanedStudents"><%= typeof statistics !== 'undefined' ? statistics.orphanedStudents : 0 %></h4>
               <small>Orphaned Students</small>
             </div>
             <div class="align-self-center">
@@ -136,7 +130,13 @@
               </label>
               <select name="department" class="form-select" id="departmentFilter">
                 <option value="">All Departments</option>
-                <!-- Will be populated dynamically -->
+                <% if (typeof departments !== 'undefined' && departments.length > 0) { %>
+                  <% departments.forEach(function(dept) { %>
+                    <option value="<%= dept.code %>" <%= typeof filters !== 'undefined' && filters.department === dept.code ? 'selected' : '' %>>
+                      <%= dept.name %> (<%= dept.code %>)
+                    </option>
+                  <% }) %>
+                <% } %>
               </select>
             </div>
             <div class="col-md-2">
@@ -147,9 +147,9 @@
                 <option value="">All Roles</option>
                 <option value="guardian" <%= typeof filters !== 'undefined' && filters.guardianRole === 'guardian' ? 'selected' : '' %>>Guardian</option>
                 <option value="parent" <%= typeof filters !== 'undefined' && filters.guardianRole === 'parent' ? 'selected' : '' %>>Parent</option>
-                <option value="grandparent" <%= typeof filters !== 'undefined' && filters.guardianRole === 'grandparent' ? 'selected' : '' %>>Grandparent</option>
-                <option value="sibling" <%= typeof filters !== 'undefined' && filters.guardianRole === 'sibling' ? 'selected' : '' %>>Sibling</option>
-                <option value="other" <%= typeof filters !== 'undefined' && filters.guardianRole === 'other' ? 'selected' : '' %>>Other</option>
+                <option value="professor" <%= typeof filters !== 'undefined' && filters.guardianRole === 'professor' ? 'selected' : '' %>>Professor</option>
+                <option value="admin" <%= typeof filters !== 'undefined' && filters.guardianRole === 'admin' ? 'selected' : '' %>>Admin</option>
+                <option value="student" <%= typeof filters !== 'undefined' && filters.guardianRole === 'student' ? 'selected' : '' %>>Student</option>
               </select>
             </div>
             <div class="col-md-2">
@@ -165,7 +165,8 @@
                 <option value="other" <%= typeof filters !== 'undefined' && filters.relationshipType === 'other' ? 'selected' : '' %>>Other</option>
               </select>
             </div>
-            <div class="col-md-2">
+            <!-- Student Year filter removed - field doesn't exist in User model -->
+            <!-- <div class="col-md-2">
               <label class="form-label">
                 <i class="fas fa-graduation-cap me-1"></i>Student Year
               </label>
@@ -176,7 +177,7 @@
                 <option value="3" <%= typeof filters !== 'undefined' && filters.studentYear === '3' ? 'selected' : '' %>>Year 3</option>
                 <option value="4" <%= typeof filters !== 'undefined' && filters.studentYear === '4' ? 'selected' : '' %>>Year 4</option>
               </select>
-            </div>
+            </div> -->
           </div>
 
           <!-- Date Range Filters Row -->
@@ -793,7 +794,6 @@ $(document).ready(function() {
   // Initialize guardian links management features
   initializeGuardianLinksManagement();
   loadGuardianLinksStatistics();
-  loadDepartmentFilter();
 });
 
 function initializeGuardianLinksManagement() {
@@ -862,10 +862,9 @@ function initializeGuardianLinksManagement() {
   $('#refreshStats').on('click', function() {
     $(this).find('i').addClass('fa-spin');
     loadGuardianLinksStatistics();
-    refreshCurrentView();
     setTimeout(() => {
       $(this).find('i').removeClass('fa-spin');
-      showToast('success', 'Statistics updated successfully.');
+      // Statistics updated successfully
     }, 1000);
   });
 
@@ -885,11 +884,9 @@ function initializeGuardianLinksManagement() {
   // Initialize filter count
   updateActiveFiltersCount();
 
-  // Initialize real-time updates
-  initializeRealTimeUpdates();
+  // Real-time updates removed - not needed for this functionality
 
-  // Keyboard shortcuts
-  initializeKeyboardShortcuts();
+  // Keyboard shortcuts removed - not essential
 }
 
 function initializeTooltips() {
@@ -903,161 +900,15 @@ function initializeTooltips() {
   });
 }
 
-function initializeRealTimeUpdates() {
-  // Check for real-time updates every 30 seconds
-  setInterval(function() {
-    if (document.visibilityState === 'visible') {
-      loadGuardianLinksStatistics();
-    }
-  }, 30000);
+// initializeRealTimeUpdates function removed - not needed
 
-  // Update when page becomes visible
-  document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') {
-      loadGuardianLinksStatistics();
-    }
-  });
-}
+// initializeKeyboardShortcuts function removed - not essential
 
-function initializeKeyboardShortcuts() {
-  document.addEventListener('keydown', function(e) {
-    // Ctrl/Cmd + K for search focus
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      $('#searchInput').focus();
-      showToast('info', 'Search focused');
-    }
-    
-    // Ctrl/Cmd + N for new link
-    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-      e.preventDefault();
-      window.location.href = '/admin/guardian-link/new';
-    }
-    
-    // Ctrl/Cmd + Shift + R for refresh
-    if ((e.ctrlKey || e.metaKey) && e.key === 'r' && e.shiftKey) {
-      e.preventDefault();
-      $('#refreshStats').click();
-    }
-    
-    // ? for keyboard shortcuts help
-    if (e.key === '?' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-      e.preventDefault();
-      toggleKeyboardShortcuts();
-    }
-    
-    // Escape to hide shortcuts
-    if (e.key === 'Escape') {
-      hideKeyboardShortcuts();
-    }
-    
-    // T for table view, C for card view
-    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && !e.ctrlKey && !e.metaKey) {
-      if (e.key === 't' || e.key === 'T') {
-        e.preventDefault();
-        $('#tableView').prop('checked', true).trigger('change');
-        showToast('info', 'Switched to table view');
-      } else if (e.key === 'c' || e.key === 'C') {
-        e.preventDefault();
-        $('#cardView').prop('checked', true).trigger('change');
-        showToast('info', 'Switched to card view');
-      }
-    }
-    
-    // Arrow keys for navigation (when not in input fields)
-    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT') {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        navigateItems(e.key === 'ArrowUp' ? -1 : 1);
-      }
-    }
-  });
-  
-  // Show keyboard shortcuts hint on first visit
-  if (!localStorage.getItem('keyboardShortcutsShown')) {
-    setTimeout(() => {
-      showKeyboardShortcuts();
-      setTimeout(hideKeyboardShortcuts, 5000);
-      localStorage.setItem('keyboardShortcutsShown', 'true');
-    }, 2000);
-  }
-}
+// Keyboard shortcut functions removed - not essential
 
-function toggleKeyboardShortcuts() {
-  const shortcuts = $('#keyboardShortcuts');
-  if (shortcuts.hasClass('show')) {
-    hideKeyboardShortcuts();
-  } else {
-    showKeyboardShortcuts();
-  }
-}
+// navigateItems function removed - was part of keyboard shortcuts
 
-function showKeyboardShortcuts() {
-  $('#keyboardShortcuts').addClass('show');
-}
-
-function hideKeyboardShortcuts() {
-  $('#keyboardShortcuts').removeClass('show');
-}
-
-function navigateItems(direction) {
-  const currentView = $('input[name="viewMode"]:checked').attr('id');
-  let items;
-  
-  if (currentView === 'cardView') {
-    items = $('.guardian-link-card');
-  } else {
-    items = $('.link-row');
-  }
-  
-  if (items.length === 0) return;
-  
-  let currentIndex = -1;
-  const focused = document.activeElement;
-  
-  // Find currently focused item
-  items.each(function(index) {
-    if ($(this).is(':focus') || $(this).find(':focus').length > 0) {
-      currentIndex = index;
-      return false;
-    }
-  });
-  
-  // Calculate new index
-  let newIndex = currentIndex + direction;
-  if (newIndex < 0) newIndex = items.length - 1;
-  if (newIndex >= items.length) newIndex = 0;
-  
-  // Focus new item
-  const newItem = items.eq(newIndex);
-  if (currentView === 'cardView') {
-    newItem.find('a, button').first().focus();
-  } else {
-    newItem.find('a, button').first().focus();
-  }
-  
-  // Scroll into view
-  newItem[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-function refreshCurrentView() {
-  // Refresh the current view with updated data
-  // This would typically make an AJAX call to get fresh data
-  // For now, we'll simulate it with a visual refresh
-  const currentView = $('input[name="viewMode"]:checked').attr('id');
-  
-  if (currentView === 'cardView') {
-    $('.guardian-link-card').addClass('refreshing');
-    setTimeout(() => {
-      $('.guardian-link-card').removeClass('refreshing');
-    }, 1000);
-  } else {
-    $('.link-row').addClass('refreshing');
-    setTimeout(() => {
-      $('.link-row').removeClass('refreshing');
-    }, 1000);
-  }
-}
+// refreshCurrentView function removed - was just a placeholder
 
 function loadGuardianLinksStatistics() {
   // Load real guardian links statistics
@@ -1079,25 +930,7 @@ function loadGuardianLinksStatistics() {
   });
 }
 
-function loadDepartmentFilter() {
-  // Load departments for filter dropdown
-  $.ajax({
-    url: '/admin/departments',
-    method: 'GET',
-    data: { format: 'json' },
-    success: function(response) {
-      if (response.success && response.data) {
-        const departmentSelect = $('select[name="department"]');
-        response.data.forEach(dept => {
-          departmentSelect.append(`<option value="${dept.code}">${dept.name} (${dept.code})</option>`);
-        });
-      }
-    },
-    error: function(xhr) {
-      console.error('Failed to load departments:', xhr);
-    }
-  });
-}
+// Department filter is now populated server-side
 
 // Helper function to build pagination URLs with current filters
 function buildPaginationUrl(page) {
@@ -1171,7 +1004,7 @@ function bulkExport() {
   })
   .catch(error => {
     console.error('Error:', error);
-    showToast('error', 'Failed to export guardian links');
+    alert('Failed to export guardian links');
   });
 }
 
@@ -1188,15 +1021,15 @@ function bulkDelete() {
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        showToast('success', data.message);
+        alert('Success: ' + data.message);
         setTimeout(() => window.location.reload(), 1500);
       } else {
-        showToast('error', data.error);
+        alert('Error: ' + data.error);
       }
     })
     .catch(error => {
       console.error('Error:', error);
-      showToast('error', 'Failed to delete guardian links');
+      alert('Failed to delete guardian links');
     });
   }
 }
@@ -1205,7 +1038,7 @@ function bulkDelete() {
 function exportAllLinks(format) {
   const url = `/admin/guardian-links/bulk-export?format=${format}&all=true`;
   window.location.href = url;
-  showToast('info', `Exporting all guardian links as ${format.toUpperCase()}...`);
+  // Exporting all guardian links as ${format.toUpperCase()}...
 }
 
 // Update active filters count
@@ -1249,7 +1082,7 @@ function saveFilterPreset() {
   presets[presetName] = filters;
   localStorage.setItem('guardianLinkFilterPresets', JSON.stringify(presets));
   
-  showToast('success', `Filter preset "${presetName}" saved successfully`);
+  alert(`Filter preset "${presetName}" saved successfully`);
 }
 
 // Quick export functionality
@@ -1267,7 +1100,7 @@ function quickExport(scope, format) {
   }
   
   window.location.href = url;
-  showToast('info', `Exporting guardian links as ${format.toUpperCase()}...`);
+  // Exporting guardian links as ${format.toUpperCase()}...
 }
 
 // Quick edit functionality
@@ -1344,16 +1177,16 @@ function saveQuickEdit(linkId) {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
-      showToast('success', data.message);
+      alert('Success: ' + data.message);
       bootstrap.Modal.getInstance(document.getElementById('quickEditModal')).hide();
       setTimeout(() => window.location.reload(), 1500);
     } else {
-      showToast('error', data.error);
+      alert('Error: ' + data.error);
     }
   })
   .catch(error => {
     console.error('Error:', error);
-    showToast('error', 'Failed to update guardian link');
+      alert('Failed to update guardian link');
   });
 }
 
@@ -1368,15 +1201,15 @@ function deleteGuardianLink(linkId, guardianName, studentName) {
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        showToast('success', data.message);
+        alert('Success: ' + data.message);
         setTimeout(() => window.location.reload(), 1500);
       } else {
-        showToast('error', data.error);
+        alert('Error: ' + data.error);
       }
     })
     .catch(error => {
       console.error('Error:', error);
-      showToast('error', 'Failed to delete guardian link');
+      alert('Failed to delete guardian link');
     });
   }
 }

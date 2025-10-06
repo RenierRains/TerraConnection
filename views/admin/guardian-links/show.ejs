@@ -195,12 +195,13 @@
                       <small class="text-muted">Department</small>
                       <p class="mb-2"><span class="badge bg-secondary"><%= link.student.department %></span></p>
                     </div>
-                    <% if (link.student.year) { %>
+                    <!-- Year level removed - field doesn't exist in User model -->
+                    <!-- <% if (link.student.year) { %>
                       <div class="col-sm-6">
                         <small class="text-muted">Year Level</small>
                         <p class="mb-2"><span class="badge bg-info">Year <%= link.student.year %></span></p>
                       </div>
-                    <% } %>
+                    <% } %> -->
                   </div>
                 <% } %>
                 <div class="row">
