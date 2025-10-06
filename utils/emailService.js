@@ -5,7 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const sendOtpEmail = async (email, otp) => {
     try {
         const { data, error } = await resend.emails.send({
-            from: 'TerraConnection <onboarding@resend.dev>', // Use your domain or resend.dev for testing
+            from: 'TerraConnection <terraconnection.online>', 
             to: email,
             subject: 'TerraConnection Login Verification Code',
             html: `
