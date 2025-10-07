@@ -1,123 +1,337 @@
 <style>
   .dashboard-container {
-    padding: 20px;
+    padding: 24px 28px 32px;
+    background: var(--bs-tertiary-bg, #f8f9fc);
+    min-height: 100%;
+    margin: 0;
+    max-width: none;
+    height: auto;
   }
-  .dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-  }
-  .dashboard-filters {
-    background: var(--bs-secondary-bg);
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    border: 1px solid var(--bs-border-color);
-  }
-  .quick-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-  .quick-action-btn {
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s ease;
-  }
-  .quick-action-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  }
-  .stats-grid {
+  .dashboard-hero {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-  }
-  .stat-card {
-    background: var(--bs-body-bg);
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border-left: 4px solid #007bff;
-    border: 1px solid var(--bs-border-color);
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: center;
+    gap: 24px;
+    padding: 24px 32px;
+    margin-bottom: 28px;
+    border-radius: 18px;
+    background: var(--primary-color);
+    color: #ffffff;
     position: relative;
     overflow: hidden;
   }
-  .stat-card.entries { border-left-color: #28a745; }
-  .stat-card.exits { border-left-color: #dc3545; }
-  .stat-card.anomalies { border-left-color: #ffc107; }
-  .stat-card.users { border-left-color: #6f42c1; }
-  
-  .stat-card::before {
+  .dashboard-hero::after {
     content: '';
     position: absolute;
-    top: 0;
-    right: 0;
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 100%);
-    border-radius: 0 0 0 60px;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(255,255,255,0.15), transparent 55%), radial-gradient(circle at bottom left, rgba(255,255,255,0.1), transparent 45%);
+    pointer-events: none;
   }
-  
-  .stat-header {
+  .dashboard-hero-content {
+    position: relative;
+    z-index: 1;
+  }
+  .dashboard-hero h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+    line-height: 1;
+  }
+  .dashboard-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 0.9rem;
+    opacity: 0.9;
+  }
+  .dashboard-hero-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(4px);
+  }
+  .quick-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+  .quick-action-btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    box-shadow: 0 10px 30px rgba(15,23,42,0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .quick-action-btn.btn-outline-primary {
+    border-color: rgba(255,255,255,0.6);
+    color: #ffffff;
+    background: rgba(255,255,255,0.08);
+  }
+  .quick-action-btn.btn-outline-primary:hover {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.8);
+  }
+  .quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 35px rgba(15,23,42,0.18);
+  }
+  .dashboard-filters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 18px;
+    margin-bottom: 28px;
+    padding: 20px 24px;
+    border-radius: 14px;
+    border: 1px solid rgba(15,23,42,0.08);
+    background: var(--bs-body-bg);
+    box-shadow: 0 12px 32px rgba(15,23,42,0.06);
+  }
+  .dashboard-filters .filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    flex: 1 1 auto;
+  }
+  .filter-item {
+    min-width: 220px;
+  }
+  .filter-label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--bs-secondary-color);
+  }
+  .input-with-icon {
+    position: relative;
+  }
+  .input-with-icon i {
+    position: absolute;
+    top: 50%;
+    left: 18px;
+    transform: translateY(-50%);
+    color: var(--bs-secondary-color);
+    font-size: 0.85rem;
+    pointer-events: none;
+  }
+  .input-with-icon select {
+    padding-left: 56px !important;
+    line-height: 1.3;
+  }
+  .dashboard-filters .form-select {
+    border-radius: 10px;
+    padding: 10px 14px;
+    border-color: rgba(15,23,42,0.12);
+    box-shadow: none;
+  }
+  .dashboard-filters .form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.15rem rgba(13,110,253,0.15);
+  }
+  .refresh-dashboard-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(15,23,42,0.14);
+    background: var(--bs-secondary-bg);
+    color: var(--bs-body-color);
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  .refresh-dashboard-btn:hover {
+    background: var(--bs-primary);
+    color: #ffffff;
+    border-color: var(--bs-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(13,110,253,0.18);
+  }
+  .dashboard-container .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 22px;
+    margin-bottom: 32px;
+  }
+  .dashboard-container .stat-card {
+    position: relative;
+    overflow: hidden;
+    background: var(--bs-body-bg);
+    border-radius: 18px;
+    padding: 24px 26px;
+    border: 1px solid rgba(15,23,42,0.08);
+    box-shadow: 0 18px 45px rgba(15,23,42,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .dashboard-container .stat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0));
+    opacity: 0.8;
+    pointer-events: none;
+  }
+  .dashboard-container .stat-card.entries .stat-icon-pill {
+    background: rgba(40,167,69,0.18);
+    color: #1f8a47;
+  }
+  .dashboard-container .stat-card.exits .stat-icon-pill {
+    background: rgba(220,53,69,0.18);
+    color: #b02a37;
+  }
+  .dashboard-container .stat-card.anomalies .stat-icon-pill {
+    background: rgba(255,193,7,0.2);
+    color: #c28100;
+  }
+  .dashboard-container .stat-card.users .stat-icon-pill {
+    background: rgba(111,66,193,0.2);
+    color: #5b2eb3;
+  }
+  .dashboard-container .stat-card.entries .stat-badge {
+    background: rgba(40,167,69,0.12);
+    color: #1f8a47;
+  }
+  .dashboard-container .stat-card.exits .stat-badge {
+    background: rgba(220,53,69,0.12);
+    color: #b02a37;
+  }
+  .dashboard-container .stat-card.anomalies .stat-badge {
+    background: rgba(255,193,7,0.18);
+    color: #c28100;
+  }
+  .dashboard-container .stat-card.users .stat-badge {
+    background: rgba(111,66,193,0.18);
+    color: #5b2eb3;
+  }
+  .dashboard-container .stat-header {
+    position: relative;
+    z-index: 1;
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
+    align-items: center;
+    margin-bottom: 12px;
   }
-  
-  .stat-icon {
-    font-size: 1.5rem;
-    opacity: 0.7;
+  .dashboard-container .stat-icon-pill {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
   }
-  
-  .stat-number {
-    font-size: 2rem;
-    font-weight: bold;
-    color: var(--bs-body-color);
-    margin-bottom: 5px;
-  }
-  .stat-label {
+  .dashboard-container .stat-badge {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bs-secondary-bg);
     color: var(--bs-secondary-color);
-    font-size: 0.9rem;
-    margin-bottom: 10px;
   }
-  
-  .stat-trend {
-    font-size: 0.8rem;
+  .dashboard-container .stat-number {
+    position: relative;
+    z-index: 1;
+    font-size: 2.35rem;
+    font-weight: 700;
+    color: var(--bs-body-color);
+    margin: 0;
+    line-height: 1.1;
+  }
+  .dashboard-container .stat-label {
+    position: relative;
+    z-index: 1;
+    color: var(--bs-secondary-color);
+    font-size: 0.95rem;
+    margin-bottom: 14px;
+  }
+  .dashboard-container .stat-trend {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: space-between;
+    font-size: 0.85rem;
   }
-  
-  .trend-up { color: #28a745; }
-  .trend-down { color: #dc3545; }
-  .trend-neutral { color: #6c757d; }
+  .dashboard-container .trend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    background: rgba(108,117,125,0.12);
+    color: #495057;
+  }
+  .dashboard-container .trend-label {
+    color: var(--bs-secondary-color);
+    font-size: 0.8rem;
+  }
+  .dashboard-container .trend-up {
+    color: #1f8a47;
+    background: rgba(40,167,69,0.18);
+  }
+  .dashboard-container .trend-down {
+    color: #b02a37;
+    background: rgba(220,53,69,0.18);
+  }
+  .dashboard-container .trend-neutral {
+    color: #566074;
+    background: rgba(108,117,125,0.15);
+  }
+  .dashboard-container .trend-chip i {
+    font-size: 0.85rem;
+  }
+  .text-purple {
+    color: #5b2eb3 !important;
+  }
   
   .charts-section {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    gap: 20px;
-    margin-bottom: 30px;
+    gap: 22px;
+    margin-bottom: 32px;
   }
   
   .chart-container {
     background: var(--bs-body-bg);
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border: 1px solid var(--bs-border-color);
+    padding: 24px;
+    border-radius: 18px;
+    box-shadow: 0 18px 45px rgba(15,23,42,0.08);
+    border: 1px solid rgba(15,23,42,0.08);
     display: flex;
     flex-direction: column;
     height: 400px;
     min-height: 400px;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top left, rgba(82,109,255,0.08), transparent 55%);
+    pointer-events: none;
   }
   
   .chart-canvas-wrapper {
@@ -146,6 +360,8 @@
   }
   
   .chart-header {
+    position: relative;
+    z-index: 1;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -156,271 +372,405 @@
     font-size: 1.1rem;
     font-weight: 600;
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .chart-title span {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--bs-secondary-color);
   }
   
   .chart-controls {
-    display: flex;
+    display: inline-flex;
     gap: 10px;
+    padding: 6px;
+    border-radius: 999px;
+    background: var(--bs-secondary-bg);
   }
   
   .chart-control-btn {
-    padding: 4px 12px;
-    border: 1px solid var(--bs-border-color);
-    background: var(--bs-body-bg);
-    color: var(--bs-body-color);
-    border-radius: 4px;
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    border-radius: 999px;
     font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.2s ease;
+    font-weight: 600;
   }
   
   .chart-control-btn.active {
     background: var(--bs-primary);
-    color: white;
-    border-color: var(--bs-primary);
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(13,110,253,0.25);
   }
   
   .chart-control-btn:hover:not(.active) {
-    background: var(--bs-secondary-bg);
+    background: rgba(13,110,253,0.12);
+    color: var(--bs-primary);
+  }
+  .chart-control-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
   }
   
   .activities-section {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 22px;
   }
   
-  .recent-activities {
+  .recent-activities,
+  .system-health {
     background: var(--bs-body-bg);
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border: 1px solid var(--bs-border-color);
+    padding: 24px;
+    border-radius: 18px;
+    border: 1px solid rgba(15,23,42,0.08);
+    box-shadow: 0 18px 45px rgba(15,23,42,0.08);
   }
-  
-  .activity-item {
-    padding: 12px 0;
-    border-bottom: 1px solid var(--bs-border-color);
+
+  .recent-activities h5,
+  .system-health h5 {
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+
+  #activitiesList {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
   }
-  .activity-item:last-child {
-    border-bottom: none;
+
+  .activity-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    background: var(--bs-secondary-bg);
+    border: 1px solid rgba(15,23,42,0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    align-items: center;
   }
-  
+  .activity-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(15,23,42,0.12);
+  }
+
+  .activity-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    background: rgba(13,110,253,0.12);
+    color: var(--bs-primary);
+  }
+
   .activity-content {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
-  
+
   .activity-title {
-    font-weight: 500;
-    margin-bottom: 4px;
+    font-weight: 600;
+    margin: 0;
     color: var(--bs-body-color);
-  }
-  
-  .activity-subtitle {
+    text-transform: uppercase;
     font-size: 0.85rem;
-    color: var(--bs-secondary-color);
-    margin-bottom: 4px;
+    letter-spacing: 0.04em;
   }
-  
-  .activity-time {
+
+  .activity-subtitle {
+    font-size: 0.9rem;
+    color: var(--bs-body-color);
+    font-weight: 500;
+  }
+
+  .activity-meta {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
     font-size: 0.75rem;
     color: var(--bs-secondary-color);
   }
-  
+  .activity-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .activity-meta .dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.6;
+  }
+
   .activity-status {
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.7rem;
-    font-weight: 500;
+    align-self: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.06em;
+    box-shadow: 0 6px 16px rgba(15,23,42,0.12);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-self: end;
+  }
+  .activity-status i {
+    font-size: 0.55rem;
   }
   
   .status-success {
-    background: rgba(40, 167, 69, 0.1);
-    color: #28a745;
+    background: rgba(40, 167, 69, 0.12);
+    color: #1f8a47;
   }
   
   .status-warning {
-    background: rgba(255, 193, 7, 0.1);
-    color: #ffc107;
+    background: rgba(255, 193, 7, 0.18);
+    color: #c28100;
   }
   
   .status-danger {
-    background: rgba(220, 53, 69, 0.1);
-    color: #dc3545;
+    background: rgba(220, 53, 69, 0.18);
+    color: #b02a37;
   }
   
   .status-info {
-    background: rgba(13, 110, 253, 0.1);
-    color: #0d6efd;
-  }
-  
-  .system-health {
-    background: var(--bs-body-bg);
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border: 1px solid var(--bs-border-color);
+    background: rgba(13, 110, 253, 0.12);
+    color: var(--bs-primary);
   }
   
   .health-item {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto;
     align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--bs-border-color);
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px dashed rgba(15,23,42,0.12);
+    background: rgba(13,110,253,0.04);
   }
   
-  .health-item:last-child {
-    border-bottom: none;
+  .health-item + .health-item {
+    margin-top: 12px;
   }
   
   .health-label {
-    font-size: 0.9rem;
-    color: var(--bs-secondary-color);
+    font-weight: 600;
+    font-size: 0.95rem;
   }
   
   .health-status {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
+    font-weight: 600;
     font-size: 0.85rem;
-    font-weight: 500;
   }
   
   .health-indicator {
-    width: 8px;
-    height: 8px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0 4px rgba(15,23,42,0.08);
   }
   
-  .indicator-good { background: #28a745; }
+  .indicator-good { background: #1f8a47; }
   .indicator-warning { background: #ffc107; }
   .indicator-critical { background: #dc3545; }
   
-  @media (max-width: 768px) {
-    .charts-section {
+  @media (max-width: 992px) {
+    .dashboard-hero {
       grid-template-columns: 1fr;
+      text-align: left;
     }
-    
+    .quick-actions {
+      justify-content: flex-start;
+    }
     .activities-section {
       grid-template-columns: 1fr;
     }
-    
-    .quick-actions {
+  }
+  @media (max-width: 768px) {
+    .dashboard-container {
+      padding: 18px;
+    }
+    .dashboard-hero {
+      padding: 24px;
+    }
+    .dashboard-filters {
+      padding: 18px;
+    }
+    .dashboard-filters .filter-group {
+      width: 100%;
+    }
+    .filter-item {
+      flex: 1 1 100%;
+      min-width: unset;
+    }
+    .charts-section {
+      grid-template-columns: 1fr;
+    }
+    .refresh-dashboard-btn {
+      width: 100%;
       justify-content: center;
+    }
+    .activity-item {
+      grid-template-columns: 1fr;
+    }
+    .activity-status {
+      justify-content: flex-start;
+      justify-self: flex-start;
+      grid-column: 1 / -1;
+    }
+    .activity-icon {
+      justify-self: flex-start;
     }
   }
 </style>
 
 <div class="dashboard-container">
-    <div class="dashboard-header">
-      <h1>Dashboard</h1>
-      <div class="d-flex flex-column align-items-end">
-        <span class="text-muted mb-2">Welcome back, <%= admin.first_name %></span>
-        <div class="quick-actions">
-          <a href="/admin/users/create" class="quick-action-btn btn btn-primary btn-sm" data-modal="true">
-            <i class="fas fa-user-plus"></i> Add User
-          </a>
-          <a href="/admin/classes/create" class="quick-action-btn btn btn-success btn-sm" data-modal="true">
-            <i class="fas fa-plus"></i> Add Class
-          </a>
-          <a href="/admin/rfid-cards/create" class="quick-action-btn btn btn-info btn-sm" data-modal="true">
-            <i class="fas fa-credit-card"></i> Add RFID
-          </a>
-          <a href="/admin/dashboard/export" class="quick-action-btn btn btn-outline-primary btn-sm">
-            <i class="fas fa-download"></i> Export
-          </a>
+    <div class="dashboard-hero">
+      <div class="dashboard-hero-content">
+        <h1>Dashboard</h1>
+        <div class="dashboard-hero-meta">
+          <span><i class="fas fa-user-shield"></i> Welcome back, <%= admin.first_name %></span>
+          <span><i class="fas fa-clock"></i> <span id="dashboardLastUpdated"><%= new Date().toLocaleString() %></span></span>
         </div>
+      </div>
+      <div class="quick-actions">
+        <a href="/admin/users/create" class="quick-action-btn btn btn-light btn-sm" data-modal="true">
+          <i class="fas fa-user-plus"></i> Add User
+        </a>
+        <a href="/admin/classes/create" class="quick-action-btn btn btn-success btn-sm" data-modal="true">
+          <i class="fas fa-plus"></i> Add Class
+        </a>
+        <a href="/admin/rfid-cards/create" class="quick-action-btn btn btn-info btn-sm" data-modal="true">
+          <i class="fas fa-credit-card"></i> Add RFID
+        </a>
+        <a href="/admin/dashboard/export" class="quick-action-btn btn btn-outline-primary btn-sm">
+          <i class="fas fa-download"></i> Export
+        </a>
       </div>
     </div>
 
     <!-- Department Filter -->
-    <div class="dashboard-filters">
-      <form method="GET" class="row g-3">
-        <div class="col-md-4">
-          <label for="department" class="form-label">Filter by Department</label>
-          <select name="department" id="department" class="form-control" onchange="this.form.submit()">
-            <option value="">All Departments</option>
-            <% if (typeof departments !== 'undefined') { %>
-              <% departments.forEach(function(dept) { %>
-                <option value="<%= dept.code %>" <%= selectedDepartment === dept.code ? 'selected' : '' %>><%= dept.name %></option>
-              <% }); %>
-            <% } %>
-          </select>
+    <form method="GET" class="dashboard-filters">
+      <div class="filter-group">
+        <div class="filter-item">
+          <label for="department" class="filter-label">Filter by Department</label>
+          <div class="input-with-icon">
+            <i class="fas fa-building" aria-hidden="true"></i>
+            <select name="department" id="department" class="form-select" onchange="this.form.submit()">
+              <option value="">All Departments</option>
+              <% if (typeof departments !== 'undefined') { %>
+                <% departments.forEach(function(dept) { %>
+                  <option value="<%= dept.code %>" <%= selectedDepartment === dept.code ? 'selected' : '' %>><%= dept.name %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
         </div>
-        <div class="col-md-4">
-          <label for="dateRange" class="form-label">Time Period</label>
-          <select name="dateRange" id="dateRange" class="form-control" onchange="this.form.submit()">
-            <option value="today" <%= selectedDateRange === 'today' ? 'selected' : '' %>>Today</option>
-            <option value="week" <%= selectedDateRange === 'week' ? 'selected' : '' %>>This Week</option>
-            <option value="month" <%= selectedDateRange === 'month' ? 'selected' : '' %>>This Month</option>
-          </select>
+        <div class="filter-item">
+          <label for="dateRange" class="filter-label">Time Period</label>
+          <div class="input-with-icon">
+            <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+            <select name="dateRange" id="dateRange" class="form-select" onchange="this.form.submit()">
+              <option value="today" <%= selectedDateRange === 'today' ? 'selected' : '' %>>Today</option>
+              <option value="week" <%= selectedDateRange === 'week' ? 'selected' : '' %>>This Week</option>
+              <option value="month" <%= selectedDateRange === 'month' ? 'selected' : '' %>>This Month</option>
+            </select>
+          </div>
         </div>
-        <div class="col-md-4 d-flex align-items-end">
-          <button type="button" class="btn btn-outline-secondary btn-sm" id="refreshDashboard">
-            <i class="fas fa-sync-alt"></i> Refresh
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+      <button type="button" class="refresh-dashboard-btn" id="refreshDashboard">
+        <i class="fas fa-sync-alt"></i>
+        <span>Refresh insights</span>
+      </button>
+    </form>
 
     <!-- Enhanced Statistics -->
     <div class="stats-grid">
       <div class="stat-card entries">
         <div class="stat-header">
-          <div class="stat-icon text-success">
+          <div class="stat-icon-pill">
             <i class="fas fa-sign-in-alt"></i>
           </div>
+          <span class="stat-badge">entries</span>
         </div>
         <div class="stat-number" id="entriesCount"><%= stats.totalEntries || 0 %></div>
         <div class="stat-label">Total Entries</div>
-        <div class="stat-trend <%= getTrendClass(stats.trends ? stats.trends.entriesTrend : 0) %>">
-          <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.entriesTrend : 0) %>"></i>
-          <span><%= formatTrend(stats.trends ? stats.trends.entriesTrend : 0) %>% from last period</span>
+        <div class="stat-trend">
+          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.entriesTrend : 0) %>">
+            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.entriesTrend : 0) %>"></i>
+            <span><%= formatTrend(stats.trends ? stats.trends.entriesTrend : 0) %>%</span>
+          </span>
+          <span class="trend-label">vs last period</span>
         </div>
       </div>
       <div class="stat-card exits">
         <div class="stat-header">
-          <div class="stat-icon text-danger">
+          <div class="stat-icon-pill">
             <i class="fas fa-sign-out-alt"></i>
           </div>
+          <span class="stat-badge">exits</span>
         </div>
         <div class="stat-number" id="exitsCount"><%= stats.totalExits || 0 %></div>
         <div class="stat-label">Total Exits</div>
-        <div class="stat-trend <%= getTrendClass(stats.trends ? stats.trends.exitsTrend : 0) %>">
-          <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.exitsTrend : 0) %>"></i>
-          <span><%= formatTrend(stats.trends ? stats.trends.exitsTrend : 0) %>% from last period</span>
+        <div class="stat-trend">
+          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.exitsTrend : 0) %>">
+            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.exitsTrend : 0) %>"></i>
+            <span><%= formatTrend(stats.trends ? stats.trends.exitsTrend : 0) %>%</span>
+          </span>
+          <span class="trend-label">vs last period</span>
         </div>
       </div>
       <div class="stat-card anomalies">
         <div class="stat-header">
-          <div class="stat-icon text-warning">
+          <div class="stat-icon-pill">
             <i class="fas fa-exclamation-triangle"></i>
           </div>
+          <span class="stat-badge">alerts</span>
         </div>
         <div class="stat-number" id="anomaliesCount"><%= stats.totalAnomalies || 0 %></div>
         <div class="stat-label">Security Anomalies</div>
-        <div class="stat-trend <%= getTrendClass(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>">
-          <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>"></i>
-          <span><%= formatTrend(stats.trends ? stats.trends.anomaliesTrend : 0) %>% from last period</span>
+        <div class="stat-trend">
+          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>">
+            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>"></i>
+            <span><%= formatTrend(stats.trends ? stats.trends.anomaliesTrend : 0) %>%</span>
+          </span>
+          <span class="trend-label">vs last period</span>
         </div>
       </div>
       <div class="stat-card users">
         <div class="stat-header">
-          <div class="stat-icon text-purple">
+          <div class="stat-icon-pill">
             <i class="fas fa-users"></i>
           </div>
+          <span class="stat-badge">active</span>
         </div>
         <div class="stat-number" id="usersCount"><%= stats.activeUsers || 0 %></div>
         <div class="stat-label">Active Users</div>
-        <div class="stat-trend <%= getTrendClass(stats.trends ? stats.trends.usersTrend : 0) %>">
-          <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.usersTrend : 0) %>"></i>
-          <span><%= formatTrend(stats.trends ? stats.trends.usersTrend : 0) %>% from last period</span>
+        <div class="stat-trend">
+          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.usersTrend : 0) %>">
+            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.usersTrend : 0) %>"></i>
+            <span><%= formatTrend(stats.trends ? stats.trends.usersTrend : 0) %>%</span>
+          </span>
+          <span class="trend-label">vs last period</span>
         </div>
       </div>
     </div>
@@ -429,7 +779,7 @@
     <div class="charts-section">
       <div class="chart-container">
         <div class="chart-header">
-          <h5 class="chart-title">Activity Trends</h5>
+          <h5 class="chart-title">Activity Trends<span>Entries, exits, and anomalies by selected range</span></h5>
           <div class="chart-controls">
             <button class="chart-control-btn active" data-range="24h">24H</button>
             <button class="chart-control-btn" data-range="week">Week</button>
@@ -446,7 +796,7 @@
       
       <div class="chart-container">
         <div class="chart-header">
-          <h5 class="chart-title">Department Breakdown</h5>
+          <h5 class="chart-title">Department Breakdown<span>Active users distributed by department</span></h5>
         </div>
         <div class="chart-canvas-wrapper">
           <div class="chart-canvas-container">
@@ -461,18 +811,30 @@
       <div class="recent-activities">
         <h5>Recent Activities</h5>
         <div id="activitiesList">
-          <% if (recentActivities && recentActivities.length > 0) { %>
-            <% recentActivities.forEach(function(activity) { %>
+          <% const filteredActivities = (recentActivities || [])
+              .filter(function(activity) {
+                return !(activity && activity.action_type && activity.action_type.startsWith('REQUEST_'));
+              })
+              .slice(0, 5);
+          %>
+          <% if (filteredActivities.length > 0) { %>
+            <% filteredActivities.forEach(function(activity) { %>
               <div class="activity-item">
+                <div class="activity-icon <%= getActivityStatusClass(activity.action_type) %>">
+                  <i class="<%= getActivityIcon(activity.action_type) %>"></i>
+                </div>
                 <div class="activity-content">
-                  <div class="activity-title"><%= activity.action_type %></div>
+                  <div class="activity-title"><%= formatActivityTitle(activity.action_type) %></div>
                   <% if (activity.User) { %>
                     <div class="activity-subtitle"><%= activity.User.first_name %> <%= activity.User.last_name %></div>
                   <% } %>
-                  <div class="activity-time"><%= new Date(activity.timestamp).toLocaleString() %></div>
+                  <div class="activity-meta">
+                    <span><i class="far fa-clock"></i> <%= new Date(activity.timestamp).toLocaleString() %></span>
+                  </div>
                 </div>
                 <div class="activity-status <%= getActivityStatusClass(activity.action_type) %>">
-                  <%= getActivityStatusText(activity.action_type) %>
+                  <i class="fas fa-circle"></i>
+                  <span><%= getActivityStatusText(activity.action_type) %></span>
                 </div>
               </div>
             <% }); %>
@@ -881,25 +1243,50 @@ class Dashboard {
       document.getElementById('exitsCount').textContent = stats.totalExits || 0;
       document.getElementById('anomaliesCount').textContent = stats.totalAnomalies || 0;
       document.getElementById('usersCount').textContent = stats.activeUsers || 0;
+
+      const lastUpdated = document.getElementById('dashboardLastUpdated');
+      if (lastUpdated) {
+        lastUpdated.textContent = new Date().toLocaleString();
+      }
     }
   }
 
   updateActivities(activities) {
-    if (activities && activities.length > 0) {
-      const activitiesList = document.getElementById('activitiesList');
-      activitiesList.innerHTML = activities.map(activity => `
+    const activitiesList = document.getElementById('activitiesList');
+    if (!activitiesList) return;
+
+    const visibleActivities = (activities || [])
+      .filter(activity => {
+        return !(activity && activity.action_type && activity.action_type.startsWith('REQUEST_'));
+      })
+      .slice(0, 5);
+
+    if (visibleActivities.length === 0) {
+      activitiesList.innerHTML = '<div class="text-muted text-center py-4">No recent activities found.</div>';
+      return;
+    }
+
+    activitiesList.innerHTML = visibleActivities.map(activity => {
+      const statusClass = this.getActivityStatusClass(activity.action_type);
+      return `
         <div class="activity-item">
-          <div class="activity-content">
-            <div class="activity-title">${activity.action_type}</div>
-            ${activity.User ? `<div class="activity-subtitle">${activity.User.first_name} ${activity.User.last_name}</div>` : ''}
-            <div class="activity-time">${new Date(activity.timestamp).toLocaleString()}</div>
+          <div class="activity-icon ${statusClass}">
+            <i class="${this.getActivityIcon(activity.action_type)}"></i>
           </div>
-          <div class="activity-status ${this.getActivityStatusClass(activity.action_type)}">
-            ${this.getActivityStatusText(activity.action_type)}
+          <div class="activity-content">
+            <div class="activity-title">${this.formatActivityTitle(activity.action_type)}</div>
+            ${activity.User ? `<div class="activity-subtitle">${activity.User.first_name} ${activity.User.last_name}</div>` : ''}
+            <div class="activity-meta">
+              <span><i class="far fa-clock"></i> ${new Date(activity.timestamp).toLocaleString()}</span>
+            </div>
+          </div>
+          <div class="activity-status ${statusClass}">
+            <i class="fas fa-circle"></i>
+            <span>${this.getActivityStatusText(activity.action_type)}</span>
           </div>
         </div>
-      `).join('');
-    }
+      `;
+    }).join('');
   }
 
   updateSystemHealth(healthData) {
@@ -951,6 +1338,27 @@ class Dashboard {
     if (actionType.includes('ANOMALY')) return 'Alert';
     if (actionType.includes('WARNING')) return 'Warning';
     return 'Info';
+  }
+
+  getActivityIcon(actionType = '') {
+    const type = actionType.toUpperCase();
+    if (type.includes('ANOMALY') || type.includes('FAILED')) return 'fas fa-exclamation-triangle';
+    if (type.includes('LOGIN')) return 'fas fa-user-shield';
+    if (type.includes('OTP')) return 'fas fa-shield-alt';
+    if (type.includes('ENTRY')) return 'fas fa-door-open';
+    if (type.includes('EXIT')) return 'fas fa-door-closed';
+    if (type.includes('LOCATION')) return 'fas fa-map-marker-alt';
+    return 'fas fa-info-circle';
+  }
+
+  formatActivityTitle(actionType = '') {
+    return actionType
+      ? actionType.split('_').map(part => {
+          if (part.length <= 3) return part.toUpperCase();
+          const lower = part.toLowerCase();
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        }).join(' ')
+      : '';
   }
 
   refreshData() {
@@ -1017,6 +1425,26 @@ function getActivityStatusText(actionType) {
   if (actionType.includes('ANOMALY')) return 'Alert';
   if (actionType.includes('WARNING')) return 'Warning';
   return 'Info';
+}
+
+function getActivityIcon(actionType = '') {
+  const type = actionType.toUpperCase();
+  if (type.includes('ANOMALY') || type.includes('FAILED')) return 'fas fa-exclamation-triangle';
+  if (type.includes('LOGIN')) return 'fas fa-user-shield';
+  if (type.includes('OTP')) return 'fas fa-shield-alt';
+  if (type.includes('ENTRY')) return 'fas fa-door-open';
+  if (type.includes('EXIT')) return 'fas fa-door-closed';
+  if (type.includes('LOCATION')) return 'fas fa-map-marker-alt';
+  return 'fas fa-info-circle';
+}
+
+function formatActivityTitle(actionType = '') {
+  if (!actionType) return '';
+  return actionType.split('_').map(part => {
+    if (part.length <= 3) return part.toUpperCase();
+    const lower = part.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }).join(' ');
 }
 
 // Helper functions for trend display
