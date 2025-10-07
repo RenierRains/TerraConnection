@@ -2258,7 +2258,7 @@ exports.rfidCardsStatistics = async (req, res) => {
 exports.auditLogs = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = 20; // Fixed limit for simplicity
+    const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
     const {
@@ -2309,7 +2309,7 @@ exports.auditLogs = async (req, res) => {
     // Build include array for User model with department filtering
     const includeOptions = [{
       model: db.User,
-      attributes: ['first_name', 'last_name', 'email', 'department'],
+      attributes: ['first_name', 'last_name', 'email', 'department', 'profile_picture'],
       required: false
     }];
 
@@ -2322,8 +2322,8 @@ exports.auditLogs = async (req, res) => {
     const { count, rows: logs } = await db.Audit_Log.findAndCountAll({
       where,
       order: [['timestamp', 'DESC']],
-      limit: limit,
-      offset: offset,
+      limit,
+      offset,
       include: includeOptions
     });
 
@@ -2335,9 +2335,13 @@ exports.auditLogs = async (req, res) => {
       title: 'Audit Logs',
       admin: req.session.admin,
       currentPage: page,
-      totalPages: totalPages,
+      totalPages,
       totalLogs: count,
-      filters
+      filters,
+      pagination: {
+        limit,
+        pageSizeOptions: [5, 10, 25, 50, 100]
+      }
     });
   } catch (err) {
     console.error('Error retrieving audit logs:', err);

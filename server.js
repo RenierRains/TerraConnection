@@ -16,7 +16,7 @@ db.sequelize
   .then(() => {
     console.log('Database connected!');
     //dev only:
-    return db.sequelize.sync({ alter: true });
+    return db.sequelize.sync({ alter: false });
   })
   .then(() => {
     server.listen(PORT, "0.0.0.0", () => {

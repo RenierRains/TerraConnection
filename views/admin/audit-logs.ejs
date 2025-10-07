@@ -1,207 +1,682 @@
 <style>
-  .audit-container {
-    padding: 20px;
+  .audit-page {
+    font-size: 0.95rem;
   }
-  .audit-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
+  .audit-page .breadcrumb {
+    background: transparent;
+    padding: 0;
+    margin-bottom: 0;
   }
-  .filters {
-    background: var(--bs-secondary-bg);
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+  .audit-page .card {
+    margin-bottom: 1.25rem;
     border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    background-color: var(--bs-body-bg);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
   }
-  .logs-table {
+  .audit-page .card-header {
+    background: var(--primary-color);
+    color: var(--text-light);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px 12px 0 0;
+    padding: 1rem 1.25rem;
+  }
+  .audit-page .card-header h5,
+  .audit-page .card-header .form-label,
+  .audit-page .card-header label {
+    color: var(--text-light);
+    margin-bottom: 0;
+  }
+  .audit-page .card-header .form-select {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-light);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+  .audit-page .card-header .form-select option {
+    color: #000;
+  }
+  .audit-page .card-body {
+    padding: 1.25rem;
+  }
+  .audit-page .filters-card .card-body {
     background: var(--bs-body-bg);
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    overflow: hidden;
-    border: 1px solid var(--bs-border-color);
+    border-radius: 0 0 12px 12px;
   }
-  .table {
-    margin: 0;
-  }
-  .table th {
-    background: var(--bs-secondary-bg);
-    border-top: none;
+  .audit-page .filters-card .form-label {
+    font-size: 0.82rem;
     font-weight: 600;
+    color: var(--bs-secondary-color);
   }
-  .action-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.85em;
-    font-weight: 500;
+  .audit-page .filters-card .form-control,
+  .audit-page .filters-card .form-select {
+    font-size: 0.9rem;
+    padding: 0.45rem 0.65rem;
+  }
+  .audit-page .filters-card .form-text {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+  }
+  .audit-page .header-actions .btn {
+    min-width: 120px;
+  }
+  .audit-page .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--bs-secondary-bg);
+    border-radius: 10px;
+    margin-bottom: 1rem;
+  }
+  .audit-page .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--bs-secondary-color);
+    font-size: 0.8rem;
+  }
+  .audit-page .legend .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .audit-page .profile-picture-container {
+    position: relative;
+    flex: 0 0 auto;
+  }
+  .audit-page .profile-thumbnail {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #dee2e6;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .audit-page .profile-thumbnail:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(15, 23, 42, 0.18);
+  }
+  .audit-page .profile-initials {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: 2px solid #dee2e6;
+    text-transform: uppercase;
+  }
+  .audit-page .table {
+    margin-bottom: 0;
+  }
+  .audit-page .table thead {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.72rem;
+    background: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
+  }
+  .audit-page .table thead th {
+    border-top: none;
+    padding: 0.65rem 0.75rem;
+  }
+  .audit-page .table tbody td {
+    vertical-align: middle;
+    padding: 0.75rem 0.75rem;
+  }
+  .audit-page .timestamp-col {
+    min-width: 170px;
+  }
+  .audit-page .participant-col {
+    min-width: 200px;
+  }
+  .audit-page .action-col {
+    min-width: 220px;
+  }
+  .audit-page .details-col {
+    min-width: 300px;
+  }
+  .audit-page .action-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
     white-space: nowrap;
   }
-  .action-security { background: #dc3545; color: white; }
-  .action-rfid { background: #17a2b8; color: white; }
-  .action-location { background: #28a745; color: white; }
-  .action-user { background: #fd7e14; color: white; }
-  .action-anomaly { background: #ffc107; color: black; }
-  .action-admin { background: #6f42c1; color: white; }
-  .action-default { background: #6c757d; color: white; }
-  .details-cell {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .audit-page .action-pill i {
+    font-size: 0.95rem;
   }
-  .details-cell:hover {
-    overflow: visible;
-    white-space: normal;
-    word-break: break-word;
+  .audit-page .action-pill.security {
+    background: rgba(var(--bs-danger-rgb), 0.12);
+    color: var(--bs-danger);
+  }
+  .audit-page .action-pill.rfid {
+    background: rgba(var(--bs-info-rgb), 0.12);
+    color: var(--bs-info);
+  }
+  .audit-page .action-pill.location {
+    background: rgba(var(--bs-success-rgb), 0.12);
+    color: var(--bs-success);
+  }
+  .audit-page .action-pill.user {
+    background: rgba(var(--bs-primary-rgb), 0.12);
+    color: var(--primary-color);
+  }
+  .audit-page .action-pill.anomaly {
+    background: rgba(var(--bs-warning-rgb), 0.16);
+    color: var(--bs-warning);
+  }
+  .audit-page .action-pill.admin {
+    background: rgba(var(--bs-primary-rgb), 0.16);
+    color: var(--primary-dark, var(--primary-color));
+  }
+  .audit-page .action-pill.neutral {
+    background: rgba(var(--bs-secondary-rgb), 0.12);
+    color: var(--bs-secondary-color);
+  }
+  .audit-page .specific-action {
+    font-size: 0.7rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    margin-top: 0.35rem;
+  }
+  .audit-page .audit-detail-list {
+    margin: 0.5rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .audit-page .audit-detail-list li {
+    display: flex;
+    gap: 0.45rem;
+    align-items: baseline;
+    margin-bottom: 0.25rem;
+  }
+  .audit-page .audit-detail-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    flex: 0 0 auto;
+  }
+  .audit-page .audit-detail-value {
+    font-size: 0.82rem;
+    color: var(--bs-body-color);
+    flex: 1 1 auto;
+  }
+  .audit-page .details-summary {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+  }
+  .audit-page .inline-meta {
+    color: var(--bs-secondary-color);
+    font-size: 0.72rem;
+  }
+  .audit-page .popover {
+    max-width: 320px;
+  }
+  .audit-page .no-logs {
+    padding: 2.5rem 0;
+  }
+  .audit-page .last-updated {
+    font-size: 0.78rem;
+    color: var(--bs-secondary-color);
+  }
+  @media (max-width: 992px) {
+    .audit-page .header-actions .btn {
+      width: 100%;
+    }
+    .audit-page .card-body {
+      padding: 1rem;
+    }
+    .audit-page .legend {
+      padding: 0.75rem;
+    }
+  }
+  @media (max-width: 768px) {
+    .audit-page .table thead {
+      display: none;
+    }
+    .audit-page .table tbody tr {
+      display: block;
+      border-bottom: 1px solid var(--bs-border-color);
+      padding: 0.75rem 0.25rem;
+    }
+    .audit-page .table tbody td {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      width: 100%;
+      padding: 0.35rem 0;
+    }
+    .audit-page .table tbody td::before {
+      content: attr(data-label);
+      font-size: 0.68rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--bs-secondary-color);
+      flex: 0 0 40%;
+    }
+    .audit-page .details-col {
+      display: block;
+    }
+    .audit-page .inline-meta {
+      margin-top: 0.2rem;
+    }
   }
 </style>
 
-<div class="audit-container">
-    <div class="audit-header">
-      <h1>Audit Logs</h1>
-      <div>
-        <a href="/admin/audit-logs/export" class="btn btn-primary">
-          <i class="bi bi-download"></i> Export Logs
-        </a>
-      </div>
-    </div>
+<%
+  const filterValues = (typeof filters !== 'undefined' && filters) ? filters : {};
+  const hasActiveFilters = Object.values(filterValues).some((value) => value && String(value).trim().length > 0);
+  const filterQueryString = Object.keys(filterValues)
+    .filter((key) => filterValues[key] !== undefined && filterValues[key] !== null && String(filterValues[key]).trim() !== '')
+    .map((key) => `&${encodeURIComponent(key)}=${encodeURIComponent(filterValues[key])}`)
+    .join('');
+  const paginationLimit = pagination && typeof pagination.limit === 'number' ? pagination.limit : null;
+  const querySuffix = `${filterQueryString}${paginationLimit ? `&limit=${paginationLimit}` : ''}`;
+  const logCount = Array.isArray(logs) ? logs.length : 0;
+  const safeCurrentPage = typeof currentPage === 'number' && currentPage > 0 ? currentPage : 1;
+  const safeTotalPages = typeof totalPages === 'number' && totalPages >= 0 ? totalPages : 0;
+  const totalLogCount = typeof totalLogs === 'number' && totalLogs >= 0 ? totalLogs : logCount;
+  const pageSizeValue = paginationLimit || (logCount || 10);
+  const fromEntry = totalLogCount > 0 ? ((safeCurrentPage - 1) * pageSizeValue) + 1 : 0;
+  const toEntry = totalLogCount > 0 ? Math.min(safeCurrentPage * pageSizeValue, totalLogCount) : 0;
+  const toTitle = (value) => {
+    if (value === undefined || value === null) return '';
+    return String(value)
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/[_\-]+/g, ' ')
+      .trim()
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+  const formatValue = (value) => {
+    if (value === undefined || value === null || value === '') return 'Not provided';
+    const stringValue = String(value).trim();
+    if (stringValue.length > 80) {
+      return stringValue.slice(0, 77) + '...';
+    }
+    return stringValue;
+  };
+  const htmlEscape = (value) => {
+    if (value === undefined || value === null) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+  const firstLog = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
+  const latestTimestamp = firstLog && firstLog.timestamp ? new Date(firstLog.timestamp) : null;
+  const latestDisplay = latestTimestamp && !isNaN(latestTimestamp.getTime())
+    ? latestTimestamp.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : null;
+%>
 
-    <!-- Filters -->
-    <div class="filters">
+<div class="container-fluid mt-4 audit-page">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+      <h2 class="mb-1">Audit Logs</h2>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+          <li class="breadcrumb-item active">Audit Logs</li>
+        </ol>
+      </nav>
+    </div>
+    <div class="d-flex flex-wrap gap-2 header-actions justify-content-end">
+      <button type="button" class="btn btn-outline-primary" onclick="window.location.reload()">
+        <i class="fas fa-sync-alt me-1"></i> Refresh
+      </button>
+      <% if (hasActiveFilters) { %>
+        <a href="/admin/audit-logs" class="btn btn-outline-secondary">
+          <i class="fas fa-times me-1"></i> Clear Filters
+        </a>
+      <% } %>
+      <a href="/admin/audit-logs/export" class="btn btn-primary">
+        <i class="fas fa-download me-1"></i> Export Logs
+      </a>
+    </div>
+  </div>
+
+  <p class="text-muted mb-4">
+    Track system-wide activity with the same look and feel as the rest of the admin suite. Use the filters below to focus on recent changes.
+  </p>
+
+  <div class="card filters-card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">
+        <i class="fas fa-filter me-2"></i>Filter Activity
+      </h5>
+      <% if (hasActiveFilters) { %>
+        <span class="badge bg-light text-dark">Filters active</span>
+      <% } %>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">Combine filters to highlight specific departments, action groups, or date ranges.</p>
       <form method="GET" class="row g-3">
-        <div class="col-md-3">
+        <div class="col-12 col-md-6 col-lg-3">
           <label for="department" class="form-label">Department</label>
-          <select name="department" id="department" class="form-control">
+          <select name="department" id="department" class="form-select">
             <option value="">All Departments</option>
-            <% if (typeof departments !== 'undefined') { %>
+            <% if (Array.isArray(departments)) { %>
               <% departments.forEach(function(dept) { %>
-                <option value="<%= dept.code %>" <%= filters.department === dept.code ? 'selected' : '' %>><%= dept.name %></option>
+                <option value="<%= dept.code %>" <%= filterValues.department === dept.code ? 'selected' : '' %>>
+                  <%= dept.name %>
+                </option>
               <% }); %>
             <% } %>
           </select>
+          <div class="form-text">Choose where the activity originated (optional).</div>
         </div>
-        <div class="col-md-3">
+        <div class="col-12 col-md-6 col-lg-3">
           <label for="actionType" class="form-label">Action Type</label>
-          <select name="actionType" id="actionType" class="form-control">
+          <select name="actionType" id="actionType" class="form-select">
             <option value="">All Actions</option>
-            <option value="SECURITY_" <%= filters.actionType === 'SECURITY_' ? 'selected' : '' %>>Security Events</option>
-            <option value="RFID_" <%= filters.actionType === 'RFID_' ? 'selected' : '' %>>RFID Events</option>
-            <option value="LOCATION_" <%= filters.actionType === 'LOCATION_' ? 'selected' : '' %>>Location Events</option>
-            <option value="USER_" <%= filters.actionType === 'USER_' ? 'selected' : '' %>>User Actions</option>
-            <option value="ANOMALY_" <%= filters.actionType === 'ANOMALY_' ? 'selected' : '' %>>Anomalies</option>
-            <option value="ADMIN_" <%= filters.actionType === 'ADMIN_' ? 'selected' : '' %>>Admin Actions</option>
+            <option value="SECURITY_" <%= filterValues.actionType === 'SECURITY_' ? 'selected' : '' %>>Security Events</option>
+            <option value="RFID_" <%= filterValues.actionType === 'RFID_' ? 'selected' : '' %>>RFID Events</option>
+            <option value="LOCATION_" <%= filterValues.actionType === 'LOCATION_' ? 'selected' : '' %>>Location Events</option>
+            <option value="USER_" <%= filterValues.actionType === 'USER_' ? 'selected' : '' %>>User Actions</option>
+            <option value="ANOMALY_" <%= filterValues.actionType === 'ANOMALY_' ? 'selected' : '' %>>Anomalies</option>
+            <option value="ADMIN_" <%= filterValues.actionType === 'ADMIN_' ? 'selected' : '' %>>Admin Actions</option>
           </select>
+          <div class="form-text">Group actions into meaningful categories.</div>
         </div>
-        <div class="col-md-2">
+        <div class="col-12 col-sm-6 col-lg-2">
           <label for="startDate" class="form-label">Start Date</label>
-          <input type="date" name="startDate" id="startDate" class="form-control" value="<%= filters.startDate || '' %>">
+          <input type="date" name="startDate" id="startDate" class="form-control" value="<%= filterValues.startDate || '' %>">
+          <div class="form-text">Show entries starting with this day.</div>
         </div>
-        <div class="col-md-2">
+        <div class="col-12 col-sm-6 col-lg-2">
           <label for="endDate" class="form-label">End Date</label>
-          <input type="date" name="endDate" id="endDate" class="form-control" value="<%= filters.endDate || '' %>">
+          <input type="date" name="endDate" id="endDate" class="form-control" value="<%= filterValues.endDate || '' %>">
+          <div class="form-text">Only include entries up to this day.</div>
         </div>
-        <div class="col-md-2">
-          <div class="d-flex flex-column">
-            <label class="form-label">&nbsp;</label>
-            <button type="submit" class="btn btn-primary">Filter</button>
+        <div class="col-12 col-lg-2 d-flex align-items-end">
+          <div class="w-100">
+            <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+            <% if (hasActiveFilters) { %>
+              <a href="/admin/audit-logs" class="btn btn-link btn-sm w-100 mt-2 px-0">Reset to all activity</a>
+            <% } %>
           </div>
         </div>
       </form>
     </div>
+  </div>
 
-    <!-- Logs Table -->
-    <div class="logs-table">
-      <table class="table table-hover">
-        <thead>
-          <tr>
-            <th>Timestamp</th>
-            <th>User</th>
-            <th>Action</th>
-            <th>Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (logs && logs.length > 0) { %>
-            <% logs.forEach(function(log) { %>
+  <div class="card">
+    <div class="card-header">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <h5 class="mb-0">Audit Log Results (<%= totalLogCount %> total)</h5>
+        <div class="d-flex align-items-center gap-2">
+          <label class="form-label mb-0 small">Page Size:</label>
+          <select class="form-select form-select-sm" style="width: auto;" onchange="changePageSize(this.value)">
+            <% if (pagination && Array.isArray(pagination.pageSizeOptions)) { %>
+              <% pagination.pageSizeOptions.forEach(function(size) { %>
+                <option value="<%= size %>" <%= pagination.limit === size ? 'selected' : '' %>><%= size %></option>
+              <% }); %>
+            <% } else { %>
+              <option value="<%= pageSizeValue %>" selected><%= pageSizeValue %></option>
+            <% } %>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="px-3 pt-3 pb-1">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+          <div class="text-muted small">
+            <% if (totalLogCount > 0 && logCount > 0) { %>
+              Showing <%= fromEntry %> to <%= toEntry %> of <%= totalLogCount %> logs
+            <% } else { %>
+              No logs to display
+            <% } %>
+          </div>
+          <div class="last-updated">
+            <i class="fas fa-clock me-1"></i>
+            <% if (latestDisplay) { %>
+              Last update captured: <span class="fw-semibold"><%= latestDisplay %></span>
+            <% } else { %>
+              Latest update time unavailable
+            <% } %>
+          </div>
+        </div>
+        <div class="legend">
+          <span><span class="dot bg-danger"></span> Security</span>
+          <span><span class="dot bg-info"></span> RFID</span>
+          <span><span class="dot bg-success"></span> Location</span>
+          <span><span class="dot bg-primary"></span> User/Admin</span>
+          <span><span class="dot bg-warning"></span> Anomaly</span>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="timestamp-col">When</th>
+              <th class="participant-col">Who</th>
+              <th class="action-col">What Happened</th>
+              <th class="details-col">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (logCount > 0) { %>
+              <% logs.forEach(function(log, index) { %>
+                <%
+                  const actionType = typeof log.action_type === 'string' ? log.action_type : '';
+                  const actionParts = actionType ? actionType.split('_') : [];
+                  const actionPrefix = actionParts.length > 1 ? actionParts[0] : (actionParts[0] || '');
+                  const specificRaw = actionParts.length > 1 ? actionParts.slice(1).join(' ') : actionType;
+                  const actionMeta = (() => {
+                    switch (actionPrefix) {
+                      case 'SECURITY':
+                        return { group: 'Security Event', css: 'security', icon: 'fas fa-shield-alt' };
+                      case 'RFID':
+                        return { group: 'RFID Activity', css: 'rfid', icon: 'fas fa-broadcast-tower' };
+                      case 'LOCATION':
+                        return { group: 'Location Update', css: 'location', icon: 'fas fa-map-marker-alt' };
+                      case 'USER':
+                        return { group: 'User Account', css: 'user', icon: 'fas fa-user-check' };
+                      case 'ANOMALY':
+                        return { group: 'Anomaly Detected', css: 'anomaly', icon: 'fas fa-exclamation-triangle' };
+                      case 'ADMIN':
+                        return { group: 'Admin Action', css: 'admin', icon: 'fas fa-cog' };
+                      default:
+                        return { group: toTitle(actionType || 'Activity'), css: 'neutral', icon: 'fas fa-clipboard-list' };
+                    }
+                  })();
+                  const specificLabel = toTitle(specificRaw);
+                  const rawTimestamp = log.timestamp ? new Date(log.timestamp) : null;
+                  const timestampValid = rawTimestamp && !isNaN(rawTimestamp.getTime());
+                  const displayDate = timestampValid
+                    ? rawTimestamp.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                    : 'Unknown date';
+                  const displayTime = timestampValid
+                    ? rawTimestamp.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+                    : '';
+                  const skipKeys = ['id', 'createdAt', 'updatedAt', 'timestamp', 'action_type', 'actionType', 'user_id', 'userId', 'departmentId', 'department_id'];
+              let detailSummary = '';
+              let detailEntries = [];
+              if (log.details) {
+                try {
+                  const parsed = JSON.parse(log.details);
+                  if (parsed && typeof parsed === 'object') {
+                    const summaryCandidates = ['summary', 'message', 'description', 'note', 'reason', 'status'];
+                    detailSummary = summaryCandidates
+                      .map((key) => parsed[key])
+                      .find((value) => typeof value === 'string' && value.trim().length > 0) || '';
+                    const dataSource = (parsed.data && typeof parsed.data === 'object') ? parsed.data : parsed;
+                    if (dataSource && typeof dataSource === 'object') {
+                      detailEntries = Object.entries(dataSource).filter(([key, value]) => {
+                        const isSkippableKey = skipKeys.includes(key) || ['summary', 'message', 'description', 'note', 'reason', 'status'].includes(key);
+                        return !isSkippableKey && typeof value !== 'object';
+                      });
+                    }
+                  } else if (typeof parsed === 'string') {
+                    detailSummary = parsed;
+                  }
+                } catch (err) {
+                  detailSummary = log.details;
+                }
+              }
+              const displayedEntries = detailEntries.slice(0, 2);
+              const remainingCount = Math.max(detailEntries.length - displayedEntries.length, 0);
+              if (!detailSummary && specificLabel) {
+                detailSummary = specificLabel;
+              }
+              const hasRawDetails = typeof log.details === 'string' && log.details.trim().length > 0;
+              const showRawDetails = hasRawDetails && (log.details.length > 160 || remainingCount > 0 || displayedEntries.length === 0);
+              const rawSnippet = showRawDetails ? htmlEscape(log.details.length > 400 ? log.details.slice(0, 400) + '...' : log.details) : '';
+              const popoverId = `auditDetails${index}`;
+            %>
               <tr>
-                <td style="min-width: 150px">
-                  <%= new Date(log.timestamp).toLocaleString() %>
+                <td class="timestamp-col" data-label="When">
+                  <div class="fw-semibold"><%= displayDate %></div>
+                  <% if (displayTime) { %>
+                    <div class="inline-meta"><%= displayTime %></div>
+                  <% } %>
                 </td>
-                <td style="min-width: 120px">
-                  <% if (log.User) { %>
-                    <%= log.User.first_name %> <%= log.User.last_name %>
+                <td class="participant-col" data-label="Who">
+                  <% if (log.User) { 
+                      const firstName = log.User.first_name || '';
+                      const lastName = log.User.last_name || '';
+                      const displayName = [firstName, lastName].filter(Boolean).join(' ') || log.User.email || 'User';
+                      const initialsBase = ((firstName.charAt(0) || '') + (lastName.charAt(0) || '')).toUpperCase();
+                      const initials = initialsBase || (displayName.charAt(0) || 'U');
+                      const hasPicture = log.User.profile_picture && log.User.profile_picture.trim().length > 0;
+                      const picturePath = hasPicture
+                        ? (log.User.profile_picture.startsWith('/') ? log.User.profile_picture.substring(1) : log.User.profile_picture)
+                        : '';
+                    %>
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="profile-picture-container">
+                        <% if (hasPicture) { %>
+                          <img
+                            src="/<%= picturePath %>"
+                            alt="Profile picture for <%= displayName %>"
+                            class="profile-thumbnail">
+                        <% } else { %>
+                          <div class="profile-initials" aria-hidden="true"><%= initials %></div>
+                        <% } %>
+                      </div>
+                      <div>
+                        <div class="fw-semibold"><%= displayName %></div>
+                        <% if (log.User.email) { %>
+                          <div class="inline-meta"><%= log.User.email %></div>
+                        <% } else if (log.User.department) { %>
+                          <div class="inline-meta"><%= log.User.department %></div>
+                        <% } %>
+                      </div>
+                    </div>
                   <% } else { %>
-                    <span class="text-muted">System</span>
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="profile-picture-container">
+                        <div class="profile-initials" aria-hidden="true">SYS</div>
+                      </div>
+                      <div>
+                        <div class="fw-semibold">System</div>
+                        <div class="inline-meta">Automated task</div>
+                      </div>
+                    </div>
                   <% } %>
                 </td>
-                <td style="min-width: 150px">
-                  <%
-                    let actionClass = 'action-default';
-                    if (log.action_type.startsWith('SECURITY_')) actionClass = 'action-security';
-                    else if (log.action_type.startsWith('RFID_')) actionClass = 'action-rfid';
-                    else if (log.action_type.startsWith('LOCATION_')) actionClass = 'action-location';
-                    else if (log.action_type.startsWith('USER_')) actionClass = 'action-user';
-                    else if (log.action_type.startsWith('ANOMALY_')) actionClass = 'action-anomaly';
-                    else if (log.action_type.startsWith('ADMIN_')) actionClass = 'action-admin';
-                  %>
-                  <span class="action-badge <%= actionClass %>">
-                    <%= log.action_type %>
+                <td class="action-col" data-label="What">
+                  <span class="action-pill <%= actionMeta.css %>">
+                    <i class="<%= actionMeta.icon %>"></i>
+                    <span><%= actionMeta.group %></span>
                   </span>
-                </td>
-                <td class="details-cell">
-                  <% try { %>
-                    <% const details = JSON.parse(log.details); %>
-                    <% if (details.data) { %>
-                      <% Object.keys(details.data).slice(0, 3).forEach(function(key) { %>
-                        <small><strong><%= key %>:</strong> <%= details.data[key] %></small><br>
-                      <% }); %>
-                    <% } else { %>
-                      <%= JSON.stringify(details).substring(0, 100) %>...
-                    <% } %>
-                  <% } catch(e) { %>
-                    <%= log.details.substring(0, 100) %>...
+                  <% if (specificLabel && specificLabel !== actionMeta.group) { %>
+                    <div class="specific-action mt-2"><%= specificLabel %></div>
                   <% } %>
+                </td>
+                <td class="details-col" data-label="Details">
+                  <% if (detailSummary) { %>
+                    <div class="details-summary"><%= detailSummary %></div>
+                  <% } else { %>
+                      <div class="inline-meta">No short summary available.</div>
+                    <% } %>
+                  <% if (displayedEntries.length > 0) { %>
+                    <ul class="audit-detail-list">
+                      <% displayedEntries.forEach(function(entry) { %>
+                        <li>
+                          <span class="audit-detail-label"><%= toTitle(entry[0]) %></span>
+                            <span class="audit-detail-value"><%= formatValue(entry[1]) %></span>
+                          </li>
+                        <% }); %>
+                      </ul>
+                    <% } %>
+                    <% if (remainingCount > 0) { %>
+                      <div class="inline-meta mb-1">+ <%= remainingCount %> more detail<%= remainingCount === 1 ? '' : 's' %></div>
+                    <% } %>
+                    <% if (showRawDetails) { %>
+                      <button
+                        class="btn btn-link btn-sm px-0"
+                        type="button"
+                        data-bs-toggle="popover"
+                        data-bs-trigger="focus"
+                        data-bs-html="true"
+                        data-bs-placement="left"
+                        id="<%= popoverId %>"
+                        title="Technical Details"
+                        data-bs-content="<code style='font-size:0.75rem; white-space: pre-wrap; display:block; max-height: 220px; overflow:auto;'><%= rawSnippet %></code>"
+                      >
+                        View technical details
+                      </button>
+                    <% } %>
                 </td>
               </tr>
             <% }); %>
           <% } else { %>
             <tr>
-              <td colspan="4" class="text-center text-muted py-4">
-                No audit logs found for the selected criteria.
-              </td>
-            </tr>
-          <% } %>
-        </tbody>
-      </table>
+                <td colspan="4" class="text-center text-muted no-logs">
+                  No audit logs match the selected filters yet.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
     </div>
+  </div>
 
-    <!-- Pagination -->
-    <% if (totalPages > 1) { %>
-      <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="?page=1&<%= new URLSearchParams(filters).toString() %>" aria-label="First">
-              <i class="bi bi-chevron-double-left"></i>
+  <% if (safeTotalPages > 1) { %>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mt-4">
+      <div class="text-muted">
+        Showing <%= fromEntry %> to <%= toEntry %> of <%= totalLogCount %> logs
+      </div>
+      <nav aria-label="Audit log pagination">
+        <ul class="pagination mb-0">
+          <li class="page-item <%= safeCurrentPage === 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=1<%= querySuffix %>" aria-label="First">
+              <i class="fas fa-angle-double-left"></i>
             </a>
           </li>
-          <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-            <a class="page-link" href="?page=<%= currentPage - 1 %>&<%= new URLSearchParams(filters).toString() %>" aria-label="Previous">
-              <i class="bi bi-chevron-left"></i>
+          <li class="page-item <%= safeCurrentPage === 1 ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= safeCurrentPage - 1 %><%= querySuffix %>" aria-label="Previous">
+              <i class="fas fa-angle-left"></i>
             </a>
           </li>
-          
-          <% 
-            let startPage = Math.max(1, currentPage - 2);
-            let endPage = Math.min(totalPages, startPage + 4);
+          <%
+            let startPage = Math.max(1, safeCurrentPage - 2);
+            let endPage = Math.min(safeTotalPages, startPage + 4);
             if (endPage - startPage < 4) {
               startPage = Math.max(1, endPage - 4);
             }
           %>
-
           <% if (startPage > 1) { %>
             <li class="page-item">
-              <a class="page-link" href="?page=1&<%= new URLSearchParams(filters).toString() %>">1</a>
+              <a class="page-link" href="?page=1<%= querySuffix %>">1</a>
             </li>
             <% if (startPage > 2) { %>
               <li class="page-item disabled">
@@ -209,35 +684,54 @@
               </li>
             <% } %>
           <% } %>
-
-          <% for(let i = startPage; i <= endPage; i++) { %>
-            <li class="page-item <%= currentPage === i ? 'active' : '' %>">
-              <a class="page-link" href="?page=<%= i %>&<%= new URLSearchParams(filters).toString() %>"><%= i %></a>
+          <% for (let i = startPage; i <= endPage; i++) { %>
+            <li class="page-item <%= safeCurrentPage === i ? 'active' : '' %>">
+              <a class="page-link" href="?page=<%= i %><%= querySuffix %>"><%= i %></a>
             </li>
           <% } %>
-
-          <% if (endPage < totalPages) { %>
-            <% if (endPage < totalPages - 1) { %>
+          <% if (endPage < safeTotalPages) { %>
+            <% if (endPage < safeTotalPages - 1) { %>
               <li class="page-item disabled">
                 <span class="page-link">...</span>
               </li>
             <% } %>
             <li class="page-item">
-              <a class="page-link" href="?page=<%= totalPages %>&<%= new URLSearchParams(filters).toString() %>"><%= totalPages %></a>
+              <a class="page-link" href="?page=<%= safeTotalPages %><%= querySuffix %>"><%= safeTotalPages %></a>
             </li>
           <% } %>
-          
-          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="?page=<%= currentPage + 1 %>&<%= new URLSearchParams(filters).toString() %>" aria-label="Next">
-              <i class="bi bi-chevron-right"></i>
+          <li class="page-item <%= safeCurrentPage === safeTotalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= safeCurrentPage + 1 %><%= querySuffix %>" aria-label="Next">
+              <i class="fas fa-angle-right"></i>
             </a>
           </li>
-          <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-            <a class="page-link" href="?page=<%= totalPages %>&<%= new URLSearchParams(filters).toString() %>" aria-label="Last">
-              <i class="bi bi-chevron-double-right"></i>
+          <li class="page-item <%= safeCurrentPage === safeTotalPages ? 'disabled' : '' %>">
+            <a class="page-link" href="?page=<%= safeTotalPages %><%= querySuffix %>" aria-label="Last">
+              <i class="fas fa-angle-double-right"></i>
             </a>
           </li>
         </ul>
       </nav>
-    <% } %>
-  </div>
+    </div>
+  <% } %>
+</div>
+
+<script>
+  (function () {
+    if (window.bootstrap) {
+      var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+      popoverTriggerList.forEach(function (triggerEl) {
+        new window.bootstrap.Popover(triggerEl, {
+          sanitize: false,
+          container: 'body'
+        });
+      });
+    }
+  })();
+
+  function changePageSize(size) {
+    const url = new URL(window.location);
+    url.searchParams.set('limit', size);
+    url.searchParams.set('page', '1');
+    window.location.href = url.toString();
+  }
+</script>
