@@ -1,0 +1,347 @@
+<div class="container-fluid mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-0">IP Restrictions</h2>
+      <p class="text-muted mb-0">Manage the whitelist of IP addresses that can access secure kiosks and admin endpoints.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary" type="button" id="viewCacheDetails" data-bs-toggle="collapse" data-bs-target="#cacheDetails">
+        <i class="fas fa-database"></i> Cache Details
+      </button>
+      <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#addIpModal">
+        <i class="fas fa-plus"></i> Add Allowed IP
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-center gap-2" role="alert">
+    <i class="fas fa-network-wired"></i>
+    <div>
+      <strong>Current Session IP:</strong>
+      <code><%= currentClientIp || 'Unavailable' %></code>
+    </div>
+  </div>
+
+  <div class="collapse mb-4" id="cacheDetails">
+    <div class="card shadow-sm">
+      <div class="card-body row g-3">
+        <div class="col-md-3">
+          <div class="border rounded p-3 h-100">
+            <p class="text-muted mb-1">Cached Entries</p>
+            <h4 class="mb-0"><%= cacheMetadata.count %></h4>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="border rounded p-3 h-100">
+            <p class="text-muted mb-1">Last Refreshed</p>
+            <h6 class="mb-0">
+              <%= cacheMetadata.lastLoadedAt ? new Date(cacheMetadata.lastLoadedAt).toLocaleString() : 'Not yet loaded' %>
+            </h6>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="border rounded p-3 h-100">
+            <p class="text-muted mb-1">Cache Source</p>
+            <span class="badge <%= cacheMetadata.source === 'database' ? 'bg-success' : 'bg-warning text-dark' %>">
+              <%= cacheMetadata.source === 'database' ? 'Database' : 'Fallback' %>
+            </span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="border rounded p-3 h-100">
+            <p class="text-muted mb-1">Fallback Addresses</p>
+            <div class="small">
+              <% if (fallbackIps.length) { %>
+                <%= fallbackIps.join(', ') %>
+              <% } else { %>
+                <span class="text-muted">No fallback IPs configured.</span>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th scope="col">IP Address</th>
+            <th scope="col">Label</th>
+            <th scope="col">Notes</th>
+            <th scope="col">Status</th>
+            <th scope="col">Created / Updated</th>
+            <th scope="col" class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (allowedIps.length === 0) { %>
+            <tr>
+              <td colspan="6" class="text-center py-4 text-muted">
+                <i class="fas fa-info-circle me-2"></i>No IP addresses have been added yet.
+              </td>
+            </tr>
+          <% } %>
+
+          <% allowedIps.forEach(function(entry) { %>
+            <tr>
+              <td>
+                <span class="fw-bold"><%= entry.ip_address %></span>
+              </td>
+              <td>
+                <% if (entry.label) { %>
+                  <%= entry.label %>
+                <% } else { %>
+                  <span class="text-muted">—</span>
+                <% } %>
+              </td>
+              <td style="max-width: 260px;">
+                <% if (entry.notes) { %>
+                  <span class="text-muted"><%= entry.notes.length > 80 ? entry.notes.substring(0, 77) + '…' : entry.notes %></span>
+                <% } else { %>
+                  <span class="text-muted">—</span>
+                <% } %>
+              </td>
+              <td>
+                <span class="badge <%= entry.is_active ? 'bg-success' : 'bg-secondary' %>">
+                  <i class="fas <%= entry.is_active ? 'fa-check-circle' : 'fa-pause-circle' %>"></i>
+                  <%= entry.is_active ? 'Active' : 'Inactive' %>
+                </span>
+              </td>
+              <td>
+                <div class="small text-muted">
+                  Added <%= new Date(entry.created_at).toLocaleString() %>
+                  <% if (entry.creator) { %>
+                    <br>by <%= entry.creator.first_name %> <%= entry.creator.last_name %>
+                  <% } %>
+                  <% if (entry.updated_at && new Date(entry.updated_at).getTime() !== new Date(entry.created_at).getTime()) { %>
+                    <br>Updated <%= new Date(entry.updated_at).toLocaleString() %>
+                    <% if (entry.updater) { %>
+                      <br>by <%= entry.updater.first_name %> <%= entry.updater.last_name %>
+                    <% } %>
+                  <% } %>
+                </div>
+              </td>
+              <td class="text-end">
+                <div class="btn-group" role="group">
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    data-action="edit-ip"
+                    data-id="<%= entry.id %>"
+                    data-ip="<%= entry.ip_address %>"
+                    data-label="<%= entry.label || '' %>"
+                    data-notes="<%= entry.notes || '' %>"
+                    data-active="<%= entry.is_active %>"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editIpModal"
+                  >
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm"
+                    data-action="delete-ip"
+                    data-id="<%= entry.id %>"
+                    data-ip="<%= entry.ip_address %>"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteIpModal"
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="addIpModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="/admin/security/ip-restrictions" id="createIpForm" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title">Add Allowed IP</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="createIpAddress" class="form-label">IP Address <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="createIpAddress" name="ip_address" required placeholder="e.g. 192.168.1.100">
+              <div class="invalid-feedback">Please enter a valid IPv4 or IPv6 address.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="createLabel" class="form-label">Label</label>
+              <input type="text" class="form-control" id="createLabel" name="label" maxlength="255" placeholder="Office Kiosk, Main Gateway, etc.">
+            </div>
+            <div class="col-12">
+              <label for="createNotes" class="form-label">Notes</label>
+              <textarea class="form-control" id="createNotes" name="notes" rows="3" placeholder="Optional description or context for this IP."></textarea>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="true" id="createIsActive" name="is_active" checked>
+                <label class="form-check-label" for="createIsActive">
+                  Active immediately
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Save IP
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editIpModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" id="editIpForm" novalidate>
+        <input type="hidden" name="_method" value="PUT">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Allowed IP</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="editIpAddress" class="form-label">IP Address <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="editIpAddress" name="ip_address" required>
+              <div class="invalid-feedback">Please enter a valid IPv4 or IPv6 address.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="editLabel" class="form-label">Label</label>
+              <input type="text" class="form-control" id="editLabel" name="label" maxlength="255">
+            </div>
+            <div class="col-12">
+              <label for="editNotes" class="form-label">Notes</label>
+              <textarea class="form-control" id="editNotes" name="notes" rows="3"></textarea>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="true" id="editIsActive" name="is_active">
+                <label class="form-check-label" for="editIsActive">
+                  Entry is active
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Update IP
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteIpModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" id="deleteIpForm">
+        <input type="hidden" name="_method" value="DELETE">
+        <div class="modal-header">
+          <h5 class="modal-title">Remove IP Address</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0">Are you sure you want to remove <span class="fw-bold" id="deleteIpAddress"></span> from the whitelist?</p>
+          <p class="text-muted small mb-0">Clients from this IP will lose access immediately after removal.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Remove IP
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const ipv4Pattern = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+    const ipv6Pattern = /^(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:)|(([0-9a-fA-F]{1,4}:){1,7}:)|(([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})|(([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2})|(([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3})|(([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4})|(([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5})|([0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6}))|(:(:[0-9a-fA-F]{1,4}){1,7})|(fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,})|(::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}\d|)[0-9])\.){3}(25[0-5]|(2[0-4]|1{0,1}\d|)[0-9]))|(([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}\d|)[0-9])\.){3}(25[0-5]|(2[0-4]|1{0,1}\d|)[0-9]))$/;
+
+    function isValidIp(value) {
+      if (!value) {
+        return false;
+      }
+      const trimmed = value.trim();
+      return ipv4Pattern.test(trimmed) || ipv6Pattern.test(trimmed);
+    }
+
+    function attachValidation(form) {
+      if (!form) return;
+      form.addEventListener('submit', function(event) {
+        const ipField = form.querySelector('input[name="ip_address"]');
+        if (!ipField) return;
+        if (!isValidIp(ipField.value)) {
+          event.preventDefault();
+          event.stopPropagation();
+          ipField.classList.add('is-invalid');
+        } else {
+          ipField.classList.remove('is-invalid');
+        }
+      });
+    }
+
+    attachValidation(document.getElementById('createIpForm'));
+    attachValidation(document.getElementById('editIpForm'));
+
+    const editModal = document.getElementById('editIpModal');
+    if (editModal) {
+      editModal.addEventListener('show.bs.modal', function(event) {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+
+        const id = trigger.getAttribute('data-id');
+        const ip = trigger.getAttribute('data-ip') || '';
+        const label = trigger.getAttribute('data-label') || '';
+        const notes = trigger.getAttribute('data-notes') || '';
+        const isActive = trigger.getAttribute('data-active') === 'true';
+
+        const form = document.getElementById('editIpForm');
+        form.setAttribute('action', `/admin/security/ip-restrictions/${id}`);
+
+        document.getElementById('editIpAddress').value = ip;
+        document.getElementById('editLabel').value = label;
+        document.getElementById('editNotes').value = notes;
+        document.getElementById('editIsActive').checked = isActive;
+      });
+    }
+
+    const deleteModal = document.getElementById('deleteIpModal');
+    if (deleteModal) {
+      deleteModal.addEventListener('show.bs.modal', function(event) {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+
+        const id = trigger.getAttribute('data-id');
+        const ip = trigger.getAttribute('data-ip');
+
+        document.getElementById('deleteIpForm').setAttribute('action', `/admin/security/ip-restrictions/${id}`);
+        document.getElementById('deleteIpAddress').textContent = ip;
+      });
+    }
+  })();
+</script>

@@ -108,6 +108,11 @@ router.get('/rfid-cards/statistics', adminWebController.rfidCardsStatistics);
 router.get('/audit-logs', adminWebController.auditLogs);
 router.get('/audit-logs/export', exportController.exportAuditLogs);
 
+router.get('/security/ip-restrictions', adminWebController.ipRestrictionsIndex);
+router.post('/security/ip-restrictions', formUpload.none(), adminWebController.ipRestrictionsCreate);
+router.put('/security/ip-restrictions/:id', formUpload.none(), adminWebController.ipRestrictionsUpdate);
+router.delete('/security/ip-restrictions/:id', adminWebController.ipRestrictionsDelete);
+
 // Guardian Links Management
 router.get('/guardian-link', adminWebController.guardianLinksIndex);
 router.get('/guardian-link/new', adminWebController.guardianLinkNewForm);

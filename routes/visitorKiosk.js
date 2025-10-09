@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const visitorKioskController = require('../controllers/visitorKioskController');
-const ipRestriction = require('../middleware/ipRestriction');
+const { ipRestriction } = require('../middleware/ipRestriction');
 
 // Apply IP restriction to all visitor kiosk API routes (same as RFID scanner)
 router.use(ipRestriction);

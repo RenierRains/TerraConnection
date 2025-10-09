@@ -195,6 +195,15 @@ app.use(session({
     saveUninitialized: false
 }));
 
+app.use((req, res, next) => {
+  res.locals.admin = req.session?.admin || null;
+  res.locals.toasts = Array.isArray(req.session?.toasts) ? req.session.toasts : [];
+  if (req.session) {
+    req.session.toasts = [];
+  }
+  next();
+});
+
 // use mount
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);

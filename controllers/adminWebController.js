@@ -1,12 +1,18 @@
 const db = require('../models');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const net = require('net');
 const { logAnomalyAudit } = require('./auditLogger');
 const { logDataAudit } = require('./auditLogger');
 const { logUserAudit } = require('./auditLogger');
 const { logSecurityAudit } = require('./auditLogger');
 const axios = require('axios');
 const { deleteOldProfilePicture, getProfilePictureUrl } = require('../middleware/profileUpload');
+const {
+  refreshAllowedIpCache,
+  getAllowedIpCacheMetadata,
+  getFallbackIPs
+} = require('../middleware/ipRestriction');
 
 const fs = require('fs');
 const path = require('path');
@@ -14,6 +20,48 @@ const csv = require('csvtojson');
 const ExcelJS = require('exceljs');
 
 const loginFailures = {};
+
+function queueToast(req, { type = 'info', title = 'Notice', message = '' }) {
+  if (!req.session) {
+    return;
+  }
+
+  if (!Array.isArray(req.session.toasts)) {
+    req.session.toasts = [];
+  }
+
+  req.session.toasts.push({ type, title, message });
+}
+
+function parseBoolean(value) {
+  return value === true || value === 'true' || value === '1' || value === 1 || value === 'on';
+}
+
+function getClientIp(req) {
+  if (!req) {
+    return null;
+  }
+
+  const forwarded = req.headers?.['x-forwarded-for'];
+  let ip = null;
+
+  if (forwarded) {
+    const forwardedValue = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+    if (forwardedValue) {
+      ip = forwardedValue.trim();
+    }
+  }
+
+  if (!ip) {
+    ip = req.connection?.remoteAddress || req.socket?.remoteAddress || req.ip || null;
+  }
+
+  if (ip && ip.startsWith('::ffff:')) {
+    return ip.substring(7);
+  }
+
+  return ip;
+}
 
 exports.globalSearch = async (req, res) => {
   try {
@@ -2347,6 +2395,251 @@ exports.auditLogs = async (req, res) => {
     console.error('Error retrieving audit logs:', err);
     res.status(500).send('Error retrieving audit logs');
   }
+};
+
+// ========= Security Settings =========
+
+exports.ipRestrictionsIndex = async (req, res) => {
+  try {
+    const allowedIps = await db.Allowed_IP.findAll({
+      include: [
+        {
+          model: db.User,
+          as: 'creator',
+          attributes: ['id', 'first_name', 'last_name', 'email']
+        },
+        {
+          model: db.User,
+          as: 'updater',
+          attributes: ['id', 'first_name', 'last_name', 'email']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    const cacheMetadata = getAllowedIpCacheMetadata();
+
+    res.render('admin/security/ip-restrictions', {
+      title: 'IP Restrictions',
+      admin: req.session.admin,
+      allowedIps,
+      cacheMetadata,
+      fallbackIps: getFallbackIPs(),
+      currentClientIp: getClientIp(req)
+    });
+  } catch (error) {
+    console.error('Failed to load IP restrictions page:', error);
+    queueToast(req, {
+      type: 'error',
+      title: 'Error Loading Data',
+      message: 'Unable to load IP restrictions. Please try again later.'
+    });
+    res.redirect('/admin/dashboard');
+  }
+};
+
+exports.ipRestrictionsCreate = async (req, res) => {
+  const adminId = req.session?.admin?.id;
+  const ipAddress = req.body.ip_address?.trim();
+  const label = req.body.label?.trim() || null;
+  const notes = req.body.notes?.trim() || null;
+  const isActive = parseBoolean(req.body.is_active);
+
+  if (!ipAddress || net.isIP(ipAddress) === 0) {
+    queueToast(req, {
+      type: 'error',
+      title: 'Invalid IP Address',
+      message: 'Please provide a valid IPv4 or IPv6 address.'
+    });
+    return res.redirect('/admin/security/ip-restrictions');
+  }
+
+  try {
+    const existing = await db.Allowed_IP.findOne({ where: { ip_address: ipAddress } });
+    if (existing) {
+      queueToast(req, {
+        type: 'warning',
+        title: 'Duplicate IP',
+        message: 'That IP address is already in the whitelist.'
+      });
+      return res.redirect('/admin/security/ip-restrictions');
+    }
+
+    const entry = await db.Allowed_IP.create({
+      ip_address: ipAddress,
+      label,
+      notes,
+      is_active: isActive,
+      created_by: adminId || null,
+      updated_by: adminId || null
+    });
+
+    await logSecurityAudit(adminId, 'ALLOWED_IP_CREATED', {
+      ip_address: entry.ip_address,
+      label: entry.label,
+      notes: entry.notes,
+      is_active: entry.is_active
+    }, req);
+
+    await logUserAudit(adminId, 'SETTINGS_UPDATE', {
+      category: 'ip_restrictions',
+      action: 'create',
+      entityId: entry.id,
+      ip_address: entry.ip_address
+    }, req);
+
+    await refreshAllowedIpCache();
+
+    queueToast(req, {
+      type: 'success',
+      title: 'IP Added',
+      message: 'The IP address has been added to the whitelist.'
+    });
+  } catch (error) {
+    console.error('Failed to create allowed IP:', error);
+    queueToast(req, {
+      type: 'error',
+      title: 'Create Failed',
+      message: 'Unable to add the IP address. Please try again.'
+    });
+  }
+
+  res.redirect('/admin/security/ip-restrictions');
+};
+
+exports.ipRestrictionsUpdate = async (req, res) => {
+  const adminId = req.session?.admin?.id;
+  const { id } = req.params;
+  const ipAddress = req.body.ip_address?.trim();
+  const label = req.body.label?.trim() || null;
+  const notes = req.body.notes?.trim() || null;
+  const isActive = parseBoolean(req.body.is_active);
+
+  if (!ipAddress || net.isIP(ipAddress) === 0) {
+    queueToast(req, {
+      type: 'error',
+      title: 'Invalid IP Address',
+      message: 'Please provide a valid IPv4 or IPv6 address.'
+    });
+    return res.redirect('/admin/security/ip-restrictions');
+  }
+
+  try {
+    const entry = await db.Allowed_IP.findByPk(id);
+
+    if (!entry) {
+      queueToast(req, {
+        type: 'warning',
+        title: 'Entry Not Found',
+        message: 'The selected IP address could not be located.'
+      });
+      return res.redirect('/admin/security/ip-restrictions');
+    }
+
+    if (entry.ip_address !== ipAddress) {
+      const duplicate = await db.Allowed_IP.findOne({ where: { ip_address: ipAddress } });
+      if (duplicate) {
+        queueToast(req, {
+          type: 'warning',
+          title: 'Duplicate IP',
+          message: 'Another whitelist entry already uses that IP address.'
+        });
+        return res.redirect('/admin/security/ip-restrictions');
+      }
+    }
+
+    const previous = entry.toJSON();
+
+    entry.ip_address = ipAddress;
+    entry.label = label;
+    entry.notes = notes;
+    entry.is_active = isActive;
+    entry.updated_by = adminId || null;
+
+    await entry.save();
+
+    await logSecurityAudit(adminId, 'ALLOWED_IP_UPDATED', {
+      entityId: entry.id,
+      previous,
+      updated: entry.toJSON()
+    }, req);
+
+    await logUserAudit(adminId, 'SETTINGS_UPDATE', {
+      category: 'ip_restrictions',
+      action: 'update',
+      entityId: entry.id,
+      ip_address: entry.ip_address
+    }, req);
+
+    await refreshAllowedIpCache();
+
+    queueToast(req, {
+      type: 'success',
+      title: 'IP Updated',
+      message: 'The whitelist entry has been updated successfully.'
+    });
+  } catch (error) {
+    console.error('Failed to update allowed IP:', error);
+    queueToast(req, {
+      type: 'error',
+      title: 'Update Failed',
+      message: 'Unable to update the IP address. Please try again.'
+    });
+  }
+
+  res.redirect('/admin/security/ip-restrictions');
+};
+
+exports.ipRestrictionsDelete = async (req, res) => {
+  const adminId = req.session?.admin?.id;
+  const { id } = req.params;
+
+  try {
+    const entry = await db.Allowed_IP.findByPk(id);
+
+    if (!entry) {
+      queueToast(req, {
+        type: 'warning',
+        title: 'Entry Not Found',
+        message: 'The selected IP address could not be located.'
+      });
+      return res.redirect('/admin/security/ip-restrictions');
+    }
+
+    const snapshot = entry.toJSON();
+
+    await entry.destroy();
+
+    await logSecurityAudit(adminId, 'ALLOWED_IP_DELETED', {
+      entityId: snapshot.id,
+      ip_address: snapshot.ip_address,
+      label: snapshot.label
+    }, req);
+
+    await logUserAudit(adminId, 'SETTINGS_UPDATE', {
+      category: 'ip_restrictions',
+      action: 'delete',
+      entityId: snapshot.id,
+      ip_address: snapshot.ip_address
+    }, req);
+
+    await refreshAllowedIpCache();
+
+    queueToast(req, {
+      type: 'success',
+      title: 'IP Removed',
+      message: 'The IP address has been removed from the whitelist.'
+    });
+  } catch (error) {
+    console.error('Failed to delete allowed IP:', error);
+    queueToast(req, {
+      type: 'error',
+      title: 'Delete Failed',
+      message: 'Unable to delete the IP address. Please try again.'
+    });
+  }
+
+  res.redirect('/admin/security/ip-restrictions');
 };
 
 // ========= Guardian Linking =========
