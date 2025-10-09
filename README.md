@@ -60,6 +60,7 @@ rfid-backend/
      DB_NAME=your_db_name
      JWT_SECRET=your_jwt_secret
      RESEND_API_KEY=your_resend_api_key
+     EMAIL_TRANSPORT=resend   # options: resend | smtp | auto
 
      # Password reset tuning (defaults shown)
      PASSWORD_RESET_OTP_TTL_MINUTES=15
@@ -90,6 +91,11 @@ rfid-backend/
 - `POST /api/auth/forgot-password/request` - Request a password reset OTP
 - `POST /api/auth/forgot-password/verify` - Validate the OTP and issue a reset session token
 - `POST /api/auth/forgot-password/reset` - Set a new password with a valid reset session token
+
+### Email Delivery
+- `EMAIL_TRANSPORT=resend` when SMTP is blocked (e.g., Railway free tier) alongside `RESEND_API_KEY`.
+- `EMAIL_TRANSPORT=smtp` with `EMAIL_USER` / `EMAIL_PASSWORD` to use Gmail SMTP.
+- Leaving `EMAIL_TRANSPORT` unset defaults to `auto`, which prefers SMTP when credentials exist and falls back to Resend.
 
 ### RFID Operations
 - `POST /api/rfid/scan` - Process RFID scan
