@@ -52,14 +52,23 @@ rfid-backend/
    ```
 
 3. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Configure your environment variables:
+   - Create a `.env` file (or update the existing one) with the following baseline values:
      ```env
      DB_HOST=your_db_host
      DB_USER=your_db_user
-     DB_PASS=your_db_password
+     DB_PASSWORD=your_db_password
      DB_NAME=your_db_name
      JWT_SECRET=your_jwt_secret
+     RESEND_API_KEY=your_resend_api_key
+
+     # Password reset tuning (defaults shown)
+     PASSWORD_RESET_OTP_TTL_MINUTES=15
+     PASSWORD_RESET_SESSION_TTL_MINUTES=30
+     PASSWORD_RESET_MAX_ATTEMPTS=5
+     PASSWORD_RESET_REQUEST_COOLDOWN_MINUTES=5
+     PASSWORD_RESET_MIN_LENGTH=8
+     PASSWORD_RESET_REQUIRE_NUMBER=true
+     PASSWORD_RESET_REQUIRE_LETTER=true
      ```
 
 4. Run database migrations:
@@ -78,6 +87,9 @@ rfid-backend/
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - User login
 - `GET /api/auth/profile` - Get user profile
+- `POST /api/auth/forgot-password/request` - Request a password reset OTP
+- `POST /api/auth/forgot-password/verify` - Validate the OTP and issue a reset session token
+- `POST /api/auth/forgot-password/reset` - Set a new password with a valid reset session token
 
 ### RFID Operations
 - `POST /api/rfid/scan` - Process RFID scan

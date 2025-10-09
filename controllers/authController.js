@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const db = require('../models');
 const { logUserEvent, logUserAudit, logSecurityAudit, logAnomalyAudit } = require('./auditLogger');
 const { sendOtpEmail } = require('../utils/emailService');
+const passwordResetService = require('../services/passwordResetService');
 
 const loginFailures = {};
 const otpStore = new Map(); 
@@ -185,6 +186,88 @@ exports.verifyOtp = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'OTP verification failed' });
+  }
+};
+
+exports.requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const result = await passwordResetService.requestPasswordReset(email, req.ip);
+    return res.json({
+      message: 'If an account matches, a verification code has been sent to the registered email.',
+      emailMasked: result.emailMasked,
+      expiresAt: result.expiresAt
+    });
+  } catch (err) {
+    console.error('Password reset request failed:', err);
+    if (err.code === 'EMAIL_REQUIRED') {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+    if (err.code === 'COOLDOWN_ACTIVE') {
+      return res.status(429).json({
+        error: 'Please wait before requesting another password reset code.',
+        retryAfterMinutes: err.retryAfterMinutes
+      });
+    }
+    if (err.code === 'EMAIL_FAILED') {
+      return res.status(500).json({ error: 'Unable to send reset email. Please try again later.' });
+    }
+    return res.status(500).json({ error: 'Unable to process password reset request.' });
+  }
+};
+
+exports.verifyPasswordResetOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const result = await passwordResetService.verifyResetOtp(email, otp);
+    return res.json({
+      message: 'Verification code accepted.',
+      resetToken: result.resetToken,
+      expiresAt: result.expiresAt
+    });
+  } catch (err) {
+    console.error('Password reset OTP verification failed:', err);
+    if (err.code === 'MISSING_FIELDS') {
+      return res.status(400).json({ error: 'Email and verification code are required.' });
+    }
+    if (err.code === 'MAX_ATTEMPTS') {
+      return res.status(429).json({ error: 'Too many invalid attempts. Please request a new code.' });
+    }
+    if (err.code === 'OTP_EXPIRED') {
+      return res.status(410).json({ error: 'The verification code has expired. Please request a new code.' });
+    }
+    if (err.code === 'INVALID_OTP') {
+      return res.status(401).json({
+        error: 'Invalid verification code.',
+        attemptsRemaining: err.attemptsRemaining
+      });
+    }
+    return res.status(500).json({ error: 'Unable to verify the reset code at this time.' });
+  }
+};
+
+exports.completePasswordReset = async (req, res) => {
+  try {
+    const { email, resetToken, password } = req.body;
+    await passwordResetService.resetPassword(email, resetToken, password);
+    return res.json({
+      message: 'Password updated successfully. You can now sign in with your new password.'
+    });
+  } catch (err) {
+    console.error('Password reset completion failed:', err);
+    if (err.code === 'MISSING_FIELDS') {
+      return res.status(400).json({ error: 'Email, reset token, and password are required.' });
+    }
+    if (err.code === 'WEAK_PASSWORD') {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.code === 'SESSION_EXPIRED') {
+      return res.status(410).json({ error: 'Reset session expired. Please request a new code.' });
+    }
+    if (err.code === 'INVALID_TOKEN') {
+      return res.status(401).json({ error: 'Invalid reset token. Please request a new code.' });
+    }
+    return res.status(500).json({ error: 'Unable to reset password at this time.' });
   }
 };
 
