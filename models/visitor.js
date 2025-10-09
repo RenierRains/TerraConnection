@@ -59,6 +59,9 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'Visitor',
     tableName: 'visitors',
     timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       {
         fields: ['name']
@@ -73,7 +76,8 @@ module.exports = (sequelize, DataTypes) => {
         fields: ['exit_time']
       },
       {
-        fields: ['createdAt']
+        name: 'idx_visitors_created_at',
+        fields: ['created_at']
       }
     ]
   });
