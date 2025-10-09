@@ -109,6 +109,9 @@ router.get('/audit-logs', adminWebController.auditLogs);
 router.get('/audit-logs/export', exportController.exportAuditLogs);
 
 router.get('/security/ip-restrictions', adminWebController.ipRestrictionsIndex);
+router.get('/security/ip-restrictions/create', adminWebController.ipRestrictionsCreateForm);
+router.get('/security/ip-restrictions/:id/edit', adminWebController.ipRestrictionsEditForm);
+router.get('/security/ip-restrictions/:id/delete', adminWebController.ipRestrictionsDeleteConfirm);
 router.post('/security/ip-restrictions', formUpload.none(), adminWebController.ipRestrictionsCreate);
 router.put('/security/ip-restrictions/:id', formUpload.none(), adminWebController.ipRestrictionsUpdate);
 router.delete('/security/ip-restrictions/:id', adminWebController.ipRestrictionsDelete);

@@ -8,9 +8,9 @@
       <button class="btn btn-outline-secondary" type="button" id="viewCacheDetails" data-bs-toggle="collapse" data-bs-target="#cacheDetails">
         <i class="fas fa-database"></i> Cache Details
       </button>
-      <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#addIpModal">
+      <a href="/admin/security/ip-restrictions/create" class="btn btn-success" data-modal="true">
         <i class="fas fa-plus"></i> Add Allowed IP
-      </button>
+      </a>
     </div>
   </div>
 
@@ -126,31 +126,12 @@
               </td>
               <td class="text-end">
                 <div class="btn-group" role="group">
-                  <button
-                    type="button"
-                    class="btn btn-outline-primary btn-sm"
-                    data-action="edit-ip"
-                    data-id="<%= entry.id %>"
-                    data-ip="<%= entry.ip_address %>"
-                    data-label="<%= entry.label || '' %>"
-                    data-notes="<%= entry.notes || '' %>"
-                    data-active="<%= entry.is_active %>"
-                    data-bs-toggle="modal"
-                    data-bs-target="#editIpModal"
-                  >
+                  <a href="/admin/security/ip-restrictions/<%= entry.id %>/edit" class="btn btn-outline-primary btn-sm" data-modal="true" title="Edit">
                     <i class="fas fa-edit"></i>
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-outline-danger btn-sm"
-                    data-action="delete-ip"
-                    data-id="<%= entry.id %>"
-                    data-ip="<%= entry.ip_address %>"
-                    data-bs-toggle="modal"
-                    data-bs-target="#deleteIpModal"
-                  >
+                  </a>
+                  <a href="/admin/security/ip-restrictions/<%= entry.id %>/delete" class="btn btn-outline-danger btn-sm" data-modal="true" title="Delete">
                     <i class="fas fa-trash"></i>
-                  </button>
+                  </a>
                 </div>
               </td>
             </tr>
@@ -161,187 +142,3 @@
   </div>
 </div>
 
-<!-- Create Modal -->
-<div class="modal fade" id="addIpModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <form method="POST" action="/admin/security/ip-restrictions" id="createIpForm" novalidate>
-        <div class="modal-header">
-          <h5 class="modal-title">Add Allowed IP</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label for="createIpAddress" class="form-label">IP Address <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="createIpAddress" name="ip_address" required placeholder="e.g. 192.168.1.100">
-              <div class="invalid-feedback">Please enter a valid IPv4 or IPv6 address.</div>
-            </div>
-            <div class="col-md-6">
-              <label for="createLabel" class="form-label">Label</label>
-              <input type="text" class="form-control" id="createLabel" name="label" maxlength="255" placeholder="Office Kiosk, Main Gateway, etc.">
-            </div>
-            <div class="col-12">
-              <label for="createNotes" class="form-label">Notes</label>
-              <textarea class="form-control" id="createNotes" name="notes" rows="3" placeholder="Optional description or context for this IP."></textarea>
-            </div>
-            <div class="col-12">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" value="true" id="createIsActive" name="is_active" checked>
-                <label class="form-check-label" for="createIsActive">
-                  Active immediately
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save"></i> Save IP
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- Edit Modal -->
-<div class="modal fade" id="editIpModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <form method="POST" id="editIpForm" novalidate>
-        <input type="hidden" name="_method" value="PUT">
-        <div class="modal-header">
-          <h5 class="modal-title">Edit Allowed IP</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label for="editIpAddress" class="form-label">IP Address <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="editIpAddress" name="ip_address" required>
-              <div class="invalid-feedback">Please enter a valid IPv4 or IPv6 address.</div>
-            </div>
-            <div class="col-md-6">
-              <label for="editLabel" class="form-label">Label</label>
-              <input type="text" class="form-control" id="editLabel" name="label" maxlength="255">
-            </div>
-            <div class="col-12">
-              <label for="editNotes" class="form-label">Notes</label>
-              <textarea class="form-control" id="editNotes" name="notes" rows="3"></textarea>
-            </div>
-            <div class="col-12">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" value="true" id="editIsActive" name="is_active">
-                <label class="form-check-label" for="editIsActive">
-                  Entry is active
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save"></i> Update IP
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<!-- Delete Modal -->
-<div class="modal fade" id="deleteIpModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <form method="POST" id="deleteIpForm">
-        <input type="hidden" name="_method" value="DELETE">
-        <div class="modal-header">
-          <h5 class="modal-title">Remove IP Address</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p class="mb-0">Are you sure you want to remove <span class="fw-bold" id="deleteIpAddress"></span> from the whitelist?</p>
-          <p class="text-muted small mb-0">Clients from this IP will lose access immediately after removal.</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-danger">
-            <i class="fas fa-trash"></i> Remove IP
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-<script>
-  (function() {
-    const ipv4Pattern = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
-    const ipv6Pattern = /^(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:)|(([0-9a-fA-F]{1,4}:){1,7}:)|(([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})|(([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2})|(([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3})|(([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4})|(([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5})|([0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6}))|(:(:[0-9a-fA-F]{1,4}){1,7})|(fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,})|(::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}\d|)[0-9])\.){3}(25[0-5]|(2[0-4]|1{0,1}\d|)[0-9]))|(([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}\d|)[0-9])\.){3}(25[0-5]|(2[0-4]|1{0,1}\d|)[0-9]))$/;
-
-    function isValidIp(value) {
-      if (!value) {
-        return false;
-      }
-      const trimmed = value.trim();
-      return ipv4Pattern.test(trimmed) || ipv6Pattern.test(trimmed);
-    }
-
-    function attachValidation(form) {
-      if (!form) return;
-      form.addEventListener('submit', function(event) {
-        const ipField = form.querySelector('input[name="ip_address"]');
-        if (!ipField) return;
-        if (!isValidIp(ipField.value)) {
-          event.preventDefault();
-          event.stopPropagation();
-          ipField.classList.add('is-invalid');
-        } else {
-          ipField.classList.remove('is-invalid');
-        }
-      });
-    }
-
-    attachValidation(document.getElementById('createIpForm'));
-    attachValidation(document.getElementById('editIpForm'));
-
-    const editModal = document.getElementById('editIpModal');
-    if (editModal) {
-      editModal.addEventListener('show.bs.modal', function(event) {
-        const trigger = event.relatedTarget;
-        if (!trigger) return;
-
-        const id = trigger.getAttribute('data-id');
-        const ip = trigger.getAttribute('data-ip') || '';
-        const label = trigger.getAttribute('data-label') || '';
-        const notes = trigger.getAttribute('data-notes') || '';
-        const isActive = trigger.getAttribute('data-active') === 'true';
-
-        const form = document.getElementById('editIpForm');
-        form.setAttribute('action', `/admin/security/ip-restrictions/${id}`);
-
-        document.getElementById('editIpAddress').value = ip;
-        document.getElementById('editLabel').value = label;
-        document.getElementById('editNotes').value = notes;
-        document.getElementById('editIsActive').checked = isActive;
-      });
-    }
-
-    const deleteModal = document.getElementById('deleteIpModal');
-    if (deleteModal) {
-      deleteModal.addEventListener('show.bs.modal', function(event) {
-        const trigger = event.relatedTarget;
-        if (!trigger) return;
-
-        const id = trigger.getAttribute('data-id');
-        const ip = trigger.getAttribute('data-ip');
-
-        document.getElementById('deleteIpForm').setAttribute('action', `/admin/security/ip-restrictions/${id}`);
-        document.getElementById('deleteIpAddress').textContent = ip;
-      });
-    }
-  })();
-</script>

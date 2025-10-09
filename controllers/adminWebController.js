@@ -2438,6 +2438,57 @@ exports.ipRestrictionsIndex = async (req, res) => {
   }
 };
 
+// Render modal content: Create Allowed IP form
+exports.ipRestrictionsCreateForm = async (req, res) => {
+  try {
+    res.render('admin/security/ip-restrictions-create', {
+      title: 'Add Allowed IP',
+      admin: req.session.admin
+    });
+  } catch (error) {
+    console.error('Failed to render create IP form:', error);
+    res.status(500).send('Error loading form');
+  }
+};
+
+// Render modal content: Edit Allowed IP form
+exports.ipRestrictionsEditForm = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const entry = await db.Allowed_IP.findByPk(id);
+    if (!entry) {
+      return res.status(404).send('Entry not found');
+    }
+    res.render('admin/security/ip-restrictions-edit', {
+      title: 'Edit Allowed IP',
+      admin: req.session.admin,
+      entry
+    });
+  } catch (error) {
+    console.error('Failed to render edit IP form:', error);
+    res.status(500).send('Error loading form');
+  }
+};
+
+// Render modal content: Delete confirmation
+exports.ipRestrictionsDeleteConfirm = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const entry = await db.Allowed_IP.findByPk(id);
+    if (!entry) {
+      return res.status(404).send('Entry not found');
+    }
+    res.render('admin/security/ip-restrictions-delete', {
+      title: 'Remove IP Address',
+      admin: req.session.admin,
+      entry
+    });
+  } catch (error) {
+    console.error('Failed to render delete confirmation:', error);
+    res.status(500).send('Error loading form');
+  }
+};
+
 exports.ipRestrictionsCreate = async (req, res) => {
   const adminId = req.session?.admin?.id;
   const ipAddress = req.body.ip_address?.trim();

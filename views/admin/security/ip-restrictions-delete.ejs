@@ -1,0 +1,18 @@
+<%- include('../../partials/modal-styles') %>
+
+<div class="modal-content-wrapper">
+  <h2>Remove IP Address</h2>
+
+  <form method="POST" action="/admin/security/ip-restrictions/<%= entry.id %>?_method=DELETE" id="deleteIpForm">
+    <p class="mb-2">Are you sure you want to remove <span class="fw-bold"><%= entry.ip_address %></span> from the whitelist?</p>
+    <p class="text-muted small">Clients from this IP will lose access immediately after removal.</p>
+
+    <div class="d-flex justify-content-end gap-2 button-group">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      <button type="submit" class="btn btn-danger">
+        <i class="fas fa-trash"></i> Remove IP
+      </button>
+    </div>
+  </form>
+</div>
+
