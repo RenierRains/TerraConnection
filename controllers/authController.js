@@ -203,6 +203,9 @@ exports.requestPasswordReset = async (req, res) => {
     if (err.code === 'EMAIL_REQUIRED') {
       return res.status(400).json({ error: 'Email is required.' });
     }
+    if (err.code === 'ACCOUNT_NOT_FOUND') {
+      return res.status(404).json({ error: 'Account does not exist.' });
+    }
     if (err.code === 'COOLDOWN_ACTIVE') {
       return res.status(429).json({
         error: 'Please wait before requesting another password reset code.',

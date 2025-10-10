@@ -88,13 +88,14 @@ async function requestPasswordReset(email, clientIp) {
 
   const user = await db.User.findOne({ where: { email: normalizedEmail } });
   if (!user) {
-    // Respond as success to avoid leaking account existence
     await logSecurityAudit(null, 'PASSWORD_RESET_REQUEST', {
       email: normalizedEmail,
       ip: clientIp,
       reason: 'unknown_email'
     });
-    return { emailMasked: maskEmail(normalizedEmail), emailSent: false };
+    const error = new Error('Account does not exist.');
+    error.code = 'ACCOUNT_NOT_FOUND';
+    throw error;
   }
 
   await enforceCooldown(user.id);
