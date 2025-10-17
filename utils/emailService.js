@@ -1,38 +1,9 @@
 'use strict';
 
 const { Resend } = require('resend');
-const nodemailer = require('nodemailer');
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
-
-let smtpTransporter = null;
-if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-  smtpTransporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD
-    }
-  });
-}
-
-async function sendViaNodemailer({ to, subject, html }) {
-  if (!smtpTransporter) return false;
-  try {
-    const info = await smtpTransporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to,
-      subject,
-      html
-    });
-    console.log('[Email] Nodemailer message sent:', info.messageId);
-    return true;
-  } catch (error) {
-    console.error('[Email] Nodemailer send failed:', error);
-    return false;
-  }
-}
 
 async function sendViaResend({ to, subject, html }) {
   if (!resend) return false;
@@ -56,15 +27,10 @@ async function sendViaResend({ to, subject, html }) {
 }
 
 async function dispatchEmail({ to, subject, html }) {
-  // Try SMTP first for higher deliverability if credentials exist.
-  if (await sendViaNodemailer({ to, subject, html })) {
-    return true;
-  }
-  // Fallback to Resend if SMTP unavailable or fails.
   if (await sendViaResend({ to, subject, html })) {
     return true;
   }
-  console.error('[Email] All providers failed for', subject, to);
+  console.error('[Email] Resend provider unavailable or failed for', subject, to);
   return false;
 }
 
