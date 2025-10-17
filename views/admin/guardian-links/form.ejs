@@ -1,18 +1,29 @@
-<div class="modal-content-wrapper">
-  <div class="modal-header">
-    <h5 class="modal-title">
-      <i class="fas fa-link me-2"></i><%= title %>
-    </h5>
-  </div>
-  
-  <div class="modal-body">
-    <form action="<%= action %>" method="POST" id="guardianLinkForm">
-      <% if (method === 'PUT') { %>
-        <input type="hidden" name="_method" value="PUT">
-      <% } %>
+<%- include('../../partials/modal-styles') %>
 
-      <!-- Guardian Selection -->
-      <div class="mb-4">
+<% const isEditingLink = method === 'PUT'; %>
+
+<div class="modal-content-wrapper">
+  <div class="modal-title-section d-flex align-items-center gap-3 mb-4">
+    <div class="title-icon rounded-circle d-flex align-items-center justify-content-center">
+      <i class="fas fa-link"></i>
+    </div>
+    <div>
+      <h2 class="mb-1"><%= title %></h2>
+      <p class="mb-0 text-muted">
+        <%= isEditingLink
+          ? 'Update the guardian and student relationship details.'
+          : 'Create a connection between a guardian and a student.' %>
+      </p>
+    </div>
+  </div>
+
+  <form action="<%= action %>" method="POST" id="guardianLinkForm">
+    <% if (isEditingLink) { %>
+      <input type="hidden" name="_method" value="PUT">
+    <% } %>
+
+    <!-- Guardian Selection -->
+    <div class="mb-4">
         <label for="guardian_search" class="form-label">
           <i class="fas fa-user-shield me-1"></i>Guardian <span class="text-danger">*</span>
         </label>
@@ -57,10 +68,10 @@
             </div>
           </div>
         </div>
-      </div>
+    </div>
 
-      <!-- Student Selection -->
-      <div class="mb-4">
+    <!-- Student Selection -->
+    <div class="mb-4">
         <label for="student_search" class="form-label">
           <i class="fas fa-graduation-cap me-1"></i>Student <span class="text-danger">*</span>
         </label>
@@ -108,10 +119,10 @@
             </div>
           </div>
         </div>
-      </div>
+    </div>
 
-      <!-- Relationship Details (Optional) -->
-      <div class="mb-4">
+    <!-- Relationship Details (Optional) -->
+    <div class="mb-4">
         <label for="relationship_type" class="form-label">
           <i class="fas fa-heart me-1"></i>Relationship Type (Optional)
         </label>
@@ -124,10 +135,10 @@
           <option value="other" <%= typeof link !== 'undefined' && link.relationship_type === 'other' ? 'selected' : '' %>>Other</option>
         </select>
         <div class="form-text">Specify the type of relationship between the guardian and student</div>
-      </div>
+    </div>
 
-      <!-- Contact Preferences -->
-      <div class="mb-4">
+    <!-- Contact Preferences -->
+    <div class="mb-4">
         <label class="form-label">
           <i class="fas fa-bell me-1"></i>Contact Preferences (Optional)
         </label>
@@ -152,10 +163,10 @@
           </div>
         </div>
         <div class="form-text">Configure how and when this guardian should be contacted</div>
-      </div>
+    </div>
 
-      <!-- Priority Level -->
-      <div class="mb-4">
+    <!-- Priority Level -->
+    <div class="mb-4">
         <label for="priority_level" class="form-label">
           <i class="fas fa-star me-1"></i>Priority Level (Optional)
         </label>
@@ -166,10 +177,10 @@
           <option value="emergency" <%= typeof link !== 'undefined' && link.priority_level === 'emergency' ? 'selected' : '' %>>Emergency Contact Only</option>
         </select>
         <div class="form-text">Set the priority level for this guardian relationship</div>
-      </div>
+    </div>
 
-      <!-- Notes (Optional) -->
-      <div class="mb-4">
+    <!-- Notes (Optional) -->
+    <div class="mb-4">
         <label for="notes" class="form-label">
           <i class="fas fa-sticky-note me-1"></i>Notes (Optional)
         </label>
@@ -179,10 +190,10 @@
         <div class="form-text">
           <span id="notesCounter">0</span>/500 characters
         </div>
-      </div>
+    </div>
 
-      <!-- Effective Date Range (Advanced) -->
-      <div class="mb-4">
+    <!-- Effective Date Range (Advanced) -->
+    <div class="mb-4">
         <div class="card border-secondary">
           <div class="card-header">
             <h6 class="mb-0">
@@ -207,24 +218,23 @@
             </div>
           </div>
         </div>
-      </div>
+    </div>
 
-      <!-- Form Validation Summary -->
-      <div id="validationSummary" class="alert alert-danger d-none">
-        <h6><i class="fas fa-exclamation-triangle me-1"></i>Please fix the following errors:</h6>
-        <ul id="validationErrors"></ul>
-      </div>
-    </form>
-  </div>
+    <!-- Form Validation Summary -->
+    <div id="validationSummary" class="alert alert-danger d-none">
+      <h6><i class="fas fa-exclamation-triangle me-1"></i>Please fix the following errors:</h6>
+      <ul id="validationErrors"></ul>
+    </div>
 
-  <div class="modal-footer">
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-      <i class="fas fa-times me-1"></i>Cancel
-    </button>
-    <button type="submit" form="guardianLinkForm" class="btn btn-primary" id="submitBtn">
-      <i class="fas fa-save me-1"></i><%= submitLabel %>
-    </button>
-  </div>
+    <div class="d-flex justify-content-end gap-2 button-group mt-4">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="fas fa-times me-1"></i>Cancel
+      </button>
+      <button type="submit" class="btn btn-primary" id="submitBtn">
+        <i class="fas fa-save me-1"></i><%= submitLabel %>
+      </button>
+    </div>
+  </form>
 </div>
   
 
@@ -407,22 +417,29 @@ function displayGuardianSuggestions(guardians) {
     $('#guardian_suggestions').html('<div class="suggestion-item text-muted">No guardians found</div>').show();
     return;
   }
-  
+
   let html = '';
   guardians.forEach(function(guardian) {
+    const firstName = guardian.first_name || '';
+    const lastName = guardian.last_name || '';
+    const email = guardian.email || '';
+    const displayName = [firstName, lastName].filter(Boolean).join(' ') || email || 'Unknown Guardian';
+    const role = guardian.role || '';
+    const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || email.charAt(0).toUpperCase() || '?';
+
     html += `
       <div class="suggestion-item" data-guardian='${JSON.stringify(guardian)}'>
         <div class="d-flex align-items-center">
           <div class="suggestion-avatar me-2">
-            ${guardian.profile_picture ? 
+            ${guardian.profile_picture ?
               `<img src="/${guardian.profile_picture}" alt="Profile" class="suggestion-thumbnail">` :
-              `<div class="suggestion-initials">${guardian.first_name.charAt(0)}${guardian.last_name.charAt(0)}</div>`
+              `<div class="suggestion-initials">${initials}</div>`
             }
           </div>
           <div>
-            <div class="fw-bold">${guardian.first_name} ${guardian.last_name}</div>
-            <small class="text-muted">${guardian.email}</small>
-            ${guardian.role ? `<br><span class="badge bg-info">${guardian.role}</span>` : ''}
+            <div class="fw-bold">${displayName}</div>
+            <small class="text-muted">${email}</small>
+            ${role ? `<br><span class="badge bg-info">${role}</span>` : ''}
           </div>
         </div>
       </div>
@@ -437,23 +454,31 @@ function displayStudentSuggestions(students) {
     $('#student_suggestions').html('<div class="suggestion-item text-muted">No students found</div>').show();
     return;
   }
-  
+
   let html = '';
   students.forEach(function(student) {
+    const firstName = student.first_name || '';
+    const lastName = student.last_name || '';
+    const email = student.email || '';
+    const displayName = [firstName, lastName].filter(Boolean).join(' ') || email || 'Unknown Student';
+    const department = student.department || '';
+    const schoolId = student.school_id || '';
+    const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || email.charAt(0).toUpperCase() || '?';
+
     html += `
       <div class="suggestion-item" data-student='${JSON.stringify(student)}'>
         <div class="d-flex align-items-center">
           <div class="suggestion-avatar me-2">
-            ${student.profile_picture ? 
+            ${student.profile_picture ?
               `<img src="/${student.profile_picture}" alt="Profile" class="suggestion-thumbnail">` :
-              `<div class="suggestion-initials">${student.first_name.charAt(0)}${student.last_name.charAt(0)}</div>`
+              `<div class="suggestion-initials">${initials}</div>`
             }
           </div>
           <div>
-            <div class="fw-bold">${student.first_name} ${student.last_name}</div>
-            <small class="text-muted">${student.email}</small>
-            ${student.school_id ? `<br><small class="text-muted">ID: ${student.school_id}</small>` : ''}
-            ${student.department ? `<br><span class="badge bg-secondary">${student.department}</span>` : ''}
+            <div class="fw-bold">${displayName}</div>
+            <small class="text-muted">${email}</small>
+            ${schoolId ? `<br><small class="text-muted">ID: ${schoolId}</small>` : ''}
+            ${department ? `<br><span class="badge bg-secondary">${department}</span>` : ''}
           </div>
         </div>
       </div>
@@ -464,64 +489,95 @@ function displayStudentSuggestions(students) {
 }
 
 function selectGuardian(guardian) {
+  const firstName = guardian.first_name || '';
+  const lastName = guardian.last_name || '';
+  const email = guardian.email || '';
+  const displayName = [firstName, lastName].filter(Boolean).join(' ');
+  const searchValue = displayName
+    ? `${displayName}${email ? ' (' + email + ')' : ''}`
+    : (email || 'Selected Guardian');
+
   $('#guardianId').val(guardian.id);
-  $('#guardian_search').val(`${guardian.first_name} ${guardian.last_name} (${guardian.email})`);
-  
+  $('#guardian_search').val(searchValue.trim());
+
   // Update guardian preview
   updateGuardianPreview(guardian);
   $('#guardianPreview').show();
-  
+
   // Clear validation errors
   $('#guardian_search').removeClass('is-invalid');
 }
 
 function selectStudent(student) {
+  const firstName = student.first_name || '';
+  const lastName = student.last_name || '';
+  const email = student.email || '';
+  const displayName = [firstName, lastName].filter(Boolean).join(' ');
+  const searchValue = displayName
+    ? `${displayName}${email ? ' (' + email + ')' : ''}`
+    : (email || 'Selected Student');
+
   $('#studentId').val(student.id);
-  $('#student_search').val(`${student.first_name} ${student.last_name} (${student.email})`);
-  
+  $('#student_search').val(searchValue.trim());
+
   // Update student preview
   updateStudentPreview(student);
   $('#studentPreview').show();
-  
+
   // Clear validation errors
   $('#student_search').removeClass('is-invalid');
 }
 
 function updateGuardianPreview(guardian) {
-  $('.guardian-name').text(`${guardian.first_name} ${guardian.last_name}`);
-  $('.guardian-email').text(guardian.email);
-  
+  const firstName = guardian.first_name || '';
+  const lastName = guardian.last_name || '';
+  const email = guardian.email || '';
+  const role = guardian.role || '';
+  const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || email.charAt(0).toUpperCase() || '?';
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || email || 'Guardian';
+
+  $('.guardian-name').text(displayName);
+  $('.guardian-email').text(email);
+
   if (guardian.profile_picture) {
     $('.guardian-profile-picture').html(`<img src="/${guardian.profile_picture}" alt="Profile" class="profile-thumbnail-small">`);
   } else {
-    $('.guardian-profile-picture').html(`<div class="profile-initials-small">${guardian.first_name.charAt(0)}${guardian.last_name.charAt(0)}</div>`);
+    $('.guardian-profile-picture').html(`<div class="profile-initials-small">${initials}</div>`);
   }
-  
-  if (guardian.role) {
-    $('.guardian-role').text(guardian.role).show();
+
+  if (role) {
+    $('.guardian-role').text(role).show();
   } else {
     $('.guardian-role').hide();
   }
 }
 
 function updateStudentPreview(student) {
-  $('.student-name').text(`${student.first_name} ${student.last_name}`);
-  $('.student-email').text(student.email);
-  
+  const firstName = student.first_name || '';
+  const lastName = student.last_name || '';
+  const email = student.email || '';
+  const department = student.department || '';
+  const schoolId = student.school_id || '';
+  const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || email.charAt(0).toUpperCase() || '?';
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || email || 'Student';
+
+  $('.student-name').text(displayName);
+  $('.student-email').text(email);
+
   if (student.profile_picture) {
     $('.student-profile-picture').html(`<img src="/${student.profile_picture}" alt="Profile" class="profile-thumbnail-small">`);
   } else {
-    $('.student-profile-picture').html(`<div class="profile-initials-small">${student.first_name.charAt(0)}${student.last_name.charAt(0)}</div>`);
+    $('.student-profile-picture').html(`<div class="profile-initials-small">${initials}</div>`);
   }
-  
-  if (student.school_id) {
-    $('.student-id').text(`ID: ${student.school_id}`).show();
+
+  if (schoolId) {
+    $('.student-id').text(`ID: ${schoolId}`).show();
   } else {
     $('.student-id').hide();
   }
-  
-  if (student.department) {
-    $('.student-department').text(student.department).show();
+
+  if (department) {
+    $('.student-department').text(department).show();
   } else {
     $('.student-department').hide();
   }
@@ -616,11 +672,29 @@ function debounce(func, wait) {
 </script>
 
 <style>
-.autocomplete-container {
+.modal-content-wrapper {
+  padding: 1.5rem;
+}
+
+.modal-title-section .title-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary);
+  font-size: 1.25rem;
+  border-radius: 50%;
+}
+
+.modal-content-wrapper .section-heading {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.modal-content-wrapper .autocomplete-container {
   position: relative;
 }
 
-.suggestions {
+.modal-content-wrapper .suggestions {
   position: absolute;
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
@@ -633,27 +707,27 @@ function debounce(func, wait) {
   display: none;
 }
 
-.suggestion-item {
+.modal-content-wrapper .suggestion-item {
   padding: 12px;
   cursor: pointer;
   border-bottom: 1px solid var(--bs-border-color-translucent);
   transition: background-color 0.2s;
 }
 
-.suggestion-item:hover {
+.modal-content-wrapper .suggestion-item:hover {
   background-color: var(--bs-primary-bg-subtle);
 }
 
-.suggestion-item:last-child {
+.modal-content-wrapper .suggestion-item:last-child {
   border-bottom: none;
 }
 
-.suggestion-avatar {
+.modal-content-wrapper .suggestion-avatar {
   width: 32px;
   height: 32px;
 }
 
-.suggestion-thumbnail {
+.modal-content-wrapper .suggestion-thumbnail {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -661,7 +735,8 @@ function debounce(func, wait) {
   border: 2px solid var(--bs-border-color);
 }
 
-.suggestion-initials {
+.modal-content-wrapper .suggestion-initials,
+.modal-content-wrapper .profile-initials-small {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -675,7 +750,7 @@ function debounce(func, wait) {
   border: 2px solid var(--bs-border-color);
 }
 
-.profile-thumbnail-small {
+.modal-content-wrapper .profile-thumbnail-small {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -683,70 +758,60 @@ function debounce(func, wait) {
   border: 2px solid var(--bs-border-color);
 }
 
-.profile-initials-small {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 12px;
-  border: 2px solid var(--bs-border-color);
+.modal-content-wrapper .button-group .btn {
+  min-width: 120px;
 }
 
 /* Dark mode support */
-[data-bs-theme="dark"] .suggestions {
+[data-bs-theme="dark"] .modal-content-wrapper .suggestions {
   background: var(--bs-dark);
   border-color: var(--bs-border-color);
 }
 
-[data-bs-theme="dark"] .suggestion-item:hover {
+[data-bs-theme="dark"] .modal-content-wrapper .suggestion-item:hover {
   background-color: var(--bs-primary-bg-subtle);
 }
 
 /* Form validation styling */
-.is-invalid {
+.modal-content-wrapper .is-invalid {
   border-color: var(--bs-form-invalid-border-color);
 }
 
-.invalid-feedback {
+.modal-content-wrapper .invalid-feedback {
   display: block;
 }
 
 /* Preview cards styling */
-.card.border-success {
+.modal-content-wrapper .card.border-success {
   border-color: var(--bs-success) !important;
 }
 
-.card.border-primary {
+.modal-content-wrapper .card.border-primary {
   border-color: var(--bs-primary) !important;
 }
 
 /* Loading state */
-.btn:disabled {
+.modal-content-wrapper .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .modal-body {
+  .modal-content-wrapper {
     padding: 1rem;
   }
-  
-  .suggestion-item {
+
+  .modal-content-wrapper .suggestion-item {
     padding: 8px;
   }
-  
-  .d-flex.align-items-center {
+
+  .modal-content-wrapper .d-flex.align-items-center {
     flex-direction: column;
     align-items: flex-start !important;
   }
-  
-  .suggestion-avatar {
+
+  .modal-content-wrapper .suggestion-avatar {
     margin-bottom: 0.5rem;
   }
 }
