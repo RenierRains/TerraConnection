@@ -269,14 +269,22 @@ function initializeGuardianLinksForm() {
   
   // Guardian suggestion selection
   $('#guardian_suggestions').on('click', '.suggestion-item', function() {
-    const guardianData = $(this).data('guardian');
+    const guardianData = parseSuggestionPayload($(this).attr('data-guardian'), 'guardian');
+    if (!guardianData) {
+      return;
+    }
+
     selectGuardian(guardianData);
     $('#guardian_suggestions').empty().hide();
   });
-  
+
   // Student suggestion selection
   $('#student_suggestions').on('click', '.suggestion-item', function() {
-    const studentData = $(this).data('student');
+    const studentData = parseSuggestionPayload($(this).attr('data-student'), 'student');
+    if (!studentData) {
+      return;
+    }
+
     selectStudent(studentData);
     $('#student_suggestions').empty().hide();
   });
@@ -307,22 +315,26 @@ function initializeGuardianLinksForm() {
   });
 
   // Notes character counter
-  $('#notes').on('input', function() {
-    const length = $(this).val().length;
-    $('#notesCounter').text(length);
-    
-    if (length > 450) {
-      $('#notesCounter').addClass('text-warning');
-    } else {
-      $('#notesCounter').removeClass('text-warning');
-    }
-    
-    if (length >= 500) {
-      $('#notesCounter').addClass('text-danger').removeClass('text-warning');
-    } else {
-      $('#notesCounter').removeClass('text-danger');
-    }
-  });
+  const notesField = $('#notes');
+  if (notesField.length) {
+    notesField.on('input', function() {
+      const value = $(this).val() || '';
+      const length = value.length;
+      $('#notesCounter').text(length);
+
+      if (length > 450) {
+        $('#notesCounter').addClass('text-warning');
+      } else {
+        $('#notesCounter').removeClass('text-warning');
+      }
+
+      if (length >= 500) {
+        $('#notesCounter').addClass('text-danger').removeClass('text-warning');
+      } else {
+        $('#notesCounter').removeClass('text-danger');
+      }
+    });
+  }
 
   // Date validation
   $('#effective_from, #effective_to').on('change', function() {
@@ -372,8 +384,13 @@ function clearValidationError(fieldId) {
 }
 
 function updateNotesCounter() {
-  const length = $('#notes').val().length;
-  $('#notesCounter').text(length);
+  const notesField = $('#notes');
+  if (!notesField.length) {
+    return;
+  }
+
+  const value = notesField.val() || '';
+  $('#notesCounter').text(value.length);
 }
 
 function searchGuardians(query) {
@@ -426,9 +443,10 @@ function displayGuardianSuggestions(guardians) {
     const displayName = [firstName, lastName].filter(Boolean).join(' ') || email || 'Unknown Guardian';
     const role = guardian.role || '';
     const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || email.charAt(0).toUpperCase() || '?';
+    const guardianJson = encodeURIComponent(JSON.stringify(guardian));
 
     html += `
-      <div class="suggestion-item" data-guardian='${JSON.stringify(guardian)}'>
+      <div class="suggestion-item" data-guardian="${guardianJson}">
         <div class="d-flex align-items-center">
           <div class="suggestion-avatar me-2">
             ${guardian.profile_picture ?
@@ -464,9 +482,10 @@ function displayStudentSuggestions(students) {
     const department = student.department || '';
     const schoolId = student.school_id || '';
     const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || email.charAt(0).toUpperCase() || '?';
+    const studentJson = encodeURIComponent(JSON.stringify(student));
 
     html += `
-      <div class="suggestion-item" data-student='${JSON.stringify(student)}'>
+      <div class="suggestion-item" data-student="${studentJson}">
         <div class="d-flex align-items-center">
           <div class="suggestion-avatar me-2">
             ${student.profile_picture ?
@@ -486,6 +505,19 @@ function displayStudentSuggestions(students) {
   });
   
   $('#student_suggestions').html(html).show();
+}
+
+function parseSuggestionPayload(value, type) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(decodeURIComponent(value));
+  } catch (error) {
+    console.error(`Failed to parse ${type} suggestion payload`, error);
+    return null;
+  }
 }
 
 function selectGuardian(guardian) {
