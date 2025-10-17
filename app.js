@@ -29,6 +29,7 @@ const locationRoutes = require('./routes/locationRoutes');
 const visitorKioskRoutes = require('./routes/visitorKiosk');
 const visitorAdminRoutes = require('./routes/visitorAdmin');
 const kioskRoutes = require('./routes/kiosk');
+const { apiRateLimiter, adminWebRateLimiter } = require('./middleware/rateLimiters');
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -205,19 +206,19 @@ app.use((req, res, next) => {
 });
 
 // use mount
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/admin', adminWebRoutes);
-app.use('/api/rfid', rfidRoutes);
+app.use('/api/auth', apiRateLimiter, authRoutes);
+app.use('/api/admin', apiRateLimiter, adminRoutes);
+app.use('/api/rfid', apiRateLimiter, rfidRoutes);
 app.use('/scangate', scanRoutes);
-app.use('/api/gps', gpsRoutes);
-app.use('/api/student', studentRoutes);
-app.use('/api/professor', professorRoutes);
-app.use('/api/guardian', guardianRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/location', locationRoutes);
-app.use('/api/kiosk/visitor', visitorKioskRoutes);
-app.use('/admin/visitors', visitorAdminRoutes);
+app.use('/api/gps', apiRateLimiter, gpsRoutes);
+app.use('/api/student', apiRateLimiter, studentRoutes);
+app.use('/api/professor', apiRateLimiter, professorRoutes);
+app.use('/api/guardian', apiRateLimiter, guardianRoutes);
+app.use('/api/user', apiRateLimiter, userRoutes);
+app.use('/api/location', apiRateLimiter, locationRoutes);
+app.use('/api/kiosk/visitor', apiRateLimiter, visitorKioskRoutes);
+app.use('/admin/visitors', adminWebRateLimiter, visitorAdminRoutes);
+app.use('/admin', adminWebRateLimiter, adminWebRoutes);
 app.use('/kiosk', kioskRoutes);
 // Serve uploads directory with proper headers
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
