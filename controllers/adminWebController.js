@@ -237,9 +237,262 @@ exports.searchGuardians = async (req, res) => {
   }
 };
 
+exports.getAnomalyNotifications = async (req, res) => {
+  if (!req.session?.admin) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+
+  try {
+    const { Op } = db.Sequelize;
+
+    const windowMap = {
+      hour: { durationMs: 60 * 60 * 1000, label: 'hour' },
+      '6h': { durationMs: 6 * 60 * 60 * 1000, label: '6 hours' },
+      day: { durationMs: 24 * 60 * 60 * 1000, label: '24 hours' },
+      week: { durationMs: 7 * 24 * 60 * 60 * 1000, label: '7 days' }
+    };
+
+    const requestedWindow = (req.query.window || 'hour').toLowerCase();
+    const windowConfig = windowMap[requestedWindow] || windowMap.hour;
+    const windowKey = windowMap[requestedWindow] ? requestedWindow : 'hour';
+
+    const now = Date.now();
+    const windowStart = new Date(now - windowConfig.durationMs);
+    const previousStart = new Date(now - windowConfig.durationMs * 2);
+    const previousEnd = new Date(now - windowConfig.durationMs);
+
+    const toNumberOrNull = (value) => {
+      if (value === undefined || value === null || value === '') return null;
+      const parsed = parseInt(value, 10);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const baseTrigger = toNumberOrNull(req.query.threshold) ?? 20;
+    const departmentTrigger = Math.max(
+      toNumberOrNull(req.query.departmentThreshold) ?? Math.max(Math.floor(baseTrigger / 2), 10),
+      5
+    );
+    const globalTrigger = Math.max(
+      toNumberOrNull(req.query.globalThreshold) ?? baseTrigger * 2,
+      baseTrigger + 5
+    );
+    const limit = Math.min(toNumberOrNull(req.query.limit) ?? 5, 20);
+
+    const anomalyFilter = {
+      [Op.or]: [
+        { action_type: { [Op.like]: 'ANOMALY_%' } },
+        { action_type: { [Op.like]: 'SECURITY_%' } }
+      ]
+    };
+
+    const overallCurrent = await db.Audit_Log.count({
+      where: {
+        [Op.and]: [
+          anomalyFilter,
+          { timestamp: { [Op.gte]: windowStart } }
+        ]
+      }
+    });
+
+    const overallPrevious = await db.Audit_Log.count({
+      where: {
+        [Op.and]: [
+          anomalyFilter,
+          { timestamp: { [Op.gte]: previousStart, [Op.lt]: previousEnd } }
+        ]
+      }
+    });
+
+    const latestAnomaly = await db.Audit_Log.findOne({
+      where: {
+        [Op.and]: [
+          anomalyFilter,
+          { timestamp: { [Op.gte]: windowStart } }
+        ]
+      },
+      include: [{
+        model: db.User,
+        attributes: ['first_name', 'last_name', 'department'],
+        required: false
+      }],
+      order: [['timestamp', 'DESC']]
+    });
+
+    const toIsoString = (value) => {
+      if (!value) return null;
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date.toISOString();
+    };
+
+    const notifications = [];
+    const windowLabel = windowConfig.label;
+    const overallCounts = {
+      current: Number(overallCurrent) || 0,
+      previous: Number(overallPrevious) || 0
+    };
+
+    const meetsAbsoluteGlobal = overallCounts.current >= globalTrigger;
+    const meetsRelativeGlobal = overallCounts.previous > 0 &&
+      overallCounts.current >= Math.ceil(overallCounts.previous * 1.5) &&
+      (overallCounts.current - overallCounts.previous) >= 5;
+    const meetsBaseWithoutHistory = overallCounts.previous === 0 && overallCounts.current >= baseTrigger;
+
+    if (meetsAbsoluteGlobal || meetsRelativeGlobal || meetsBaseWithoutHistory) {
+      let latestSummary = null;
+      if (latestAnomaly) {
+        const actor = latestAnomaly.User
+          ? `${latestAnomaly.User.first_name || ''} ${latestAnomaly.User.last_name || ''}`.trim()
+          : '';
+        const detailSnippet = latestAnomaly.details
+          ? latestAnomaly.details.slice(0, 160)
+          : latestAnomaly.action_type;
+        latestSummary = actor ? `${actor} — ${detailSnippet}` : detailSnippet;
+      }
+
+      const anomalyLabel = overallCounts.current === 1 ? 'anomaly' : 'anomalies';
+      const previousLabel = overallCounts.previous === 1 ? 'anomaly' : 'anomalies';
+
+      notifications.push({
+        id: `overall-${Date.now()}`,
+        severity: meetsAbsoluteGlobal ? 'critical' : 'warning',
+        title: 'Spike in anomalies detected',
+        message: `${overallCounts.current} ${anomalyLabel} recorded in the last ${windowLabel}. Previous ${windowLabel}: ${overallCounts.previous} ${previousLabel}.`,
+        count: overallCounts.current,
+        previousCount: overallCounts.previous,
+        window: windowLabel,
+        lastOccurrence: latestAnomaly ? toIsoString(latestAnomaly.timestamp) : null,
+        url: `/admin/audit-logs?actionType=ANOMALY_&range=${encodeURIComponent(windowKey)}`,
+        metadata: {
+          threshold: globalTrigger,
+          latestActionType: latestAnomaly?.action_type || null,
+          latestSummary
+        }
+      });
+    }
+
+    const [departmentAggregates] = await db.sequelize.query(`
+      SELECT
+        u.department AS department_code,
+        COALESCE(d.name, u.department, 'Unassigned') AS department_name,
+        COUNT(*) AS anomaly_count,
+        MAX(al.timestamp) AS last_seen,
+        MIN(al.timestamp) AS first_seen
+      FROM Audit_Logs al
+      LEFT JOIN Users u ON al.user_id = u.id
+      LEFT JOIN Departments d ON u.department = d.code
+      WHERE al.timestamp >= :windowStart
+        AND (al.action_type LIKE 'ANOMALY_%' OR al.action_type LIKE 'SECURITY_%')
+      GROUP BY u.department, d.name
+      ORDER BY anomaly_count DESC
+    `, {
+      replacements: { windowStart },
+      type: db.Sequelize.QueryTypes.SELECT
+    });
+
+    const [previousDepartmentRows] = await db.sequelize.query(`
+      SELECT
+        u.department AS department_code,
+        COUNT(*) AS anomaly_count
+      FROM Audit_Logs al
+      LEFT JOIN Users u ON al.user_id = u.id
+      WHERE al.timestamp >= :previousStart
+        AND al.timestamp < :previousEnd
+        AND (al.action_type LIKE 'ANOMALY_%' OR al.action_type LIKE 'SECURITY_%')
+      GROUP BY u.department
+    `, {
+      replacements: { previousStart, previousEnd },
+      type: db.Sequelize.QueryTypes.SELECT
+    });
+
+    const previousDepartmentMap = previousDepartmentRows.reduce((acc, row) => {
+      const key = row.department_code || '__unassigned__';
+      acc[key] = Number(row.anomaly_count) || 0;
+      return acc;
+    }, {});
+
+    departmentAggregates
+      .filter(row => (Number(row.anomaly_count) || 0) >= departmentTrigger)
+      .slice(0, limit)
+      .forEach((row, index) => {
+        const count = Number(row.anomaly_count) || 0;
+        const key = row.department_code || '__unassigned__';
+        const previousCount = previousDepartmentMap[key] || 0;
+
+        const meetsRelative = previousCount > 0 &&
+          count >= Math.ceil(previousCount * 1.5) &&
+          (count - previousCount) >= 3;
+
+        const severity = count >= Math.max(departmentTrigger * 2, Math.floor(globalTrigger / 2))
+          ? 'critical'
+          : meetsRelative
+            ? 'warning'
+            : 'info';
+
+        const departmentName = row.department_name || 'Unassigned';
+        const anomalyLabel = count === 1 ? 'anomaly' : 'anomalies';
+        const previousLabel = previousCount === 1 ? 'anomaly' : 'anomalies';
+        const messageParts = [`${count} ${anomalyLabel} detected in ${departmentName} during the last ${windowLabel}`];
+        if (previousCount > 0) {
+          messageParts.push(`previous ${windowLabel}: ${previousCount} ${previousLabel}`);
+        }
+
+        const queryParts = [`actionType=ANOMALY_`, `range=${encodeURIComponent(windowKey)}`];
+        if (row.department_code) {
+          queryParts.push(`department=${encodeURIComponent(row.department_code)}`);
+        }
+
+        notifications.push({
+          id: `department-${row.department_code || 'unassigned'}-${index}`,
+          severity,
+          title: `High anomalies in ${departmentName}`,
+          message: `${messageParts.join('. ')}.`,
+          count,
+          previousCount,
+          window: windowLabel,
+          lastOccurrence: toIsoString(row.last_seen),
+          firstOccurrence: toIsoString(row.first_seen),
+          url: `/admin/audit-logs?${queryParts.join('&')}`,
+          metadata: {
+            department: {
+              code: row.department_code || null,
+              name: departmentName
+            },
+            threshold: departmentTrigger
+          }
+        });
+      });
+
+    return res.json({
+      success: true,
+      notifications,
+      badgeCount: notifications.length,
+      meta: {
+        window: windowKey,
+        windowLabel,
+        generatedAt: new Date().toISOString(),
+        thresholds: {
+          base: baseTrigger,
+          global: globalTrigger,
+          department: departmentTrigger
+        },
+        counts: {
+          overall: overallCounts.current,
+          previousOverall: overallCounts.previous
+        },
+        windowStart: toIsoString(windowStart),
+        previousWindowStart: toIsoString(previousStart),
+        previousWindowEnd: toIsoString(previousEnd)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching anomaly notifications:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load anomaly notifications' });
+  }
+};
+
 exports.showLoginForm = (req, res) => {
-  res.render('admin/login', { 
-    title: 'Admin Login', 
+  res.render('admin/login', {
+    title: 'Admin Login',
     layout: false,
     recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || ''
   });
