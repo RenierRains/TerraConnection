@@ -4,13 +4,14 @@ const multer = require('multer');
 const adminWebController = require('../controllers/adminWebController');
 const exportController = require('../controllers/exportController');
 const upload = require('../middleware/upload');
+const { adminWebRateLimiter } = require('../middleware/rateLimiters');
 const { upload: profileUpload } = require('../middleware/profileUpload');
 
 // Create multer instance for handling multipart forms without file uploads
 const formUpload = multer();
 
 router.get('/login', adminWebController.showLoginForm);
-router.post('/login', adminWebController.login);
+router.post('/login', adminWebRateLimiter, adminWebController.login);
 
 router.use((req, res, next) => {
   if (!req.session.admin) {
