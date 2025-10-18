@@ -21,7 +21,7 @@
         </button>
         
         <!-- Notification Bell -->
-        <div class="dropdown">
+        <div class="dropdown" id="notificationDropdown">
             <button class="btn btn-link text-decoration-none position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="color: var(--text-light);">
                 <i class="fas fa-bell"></i>
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notificationBadge" style="display: none;">
@@ -31,10 +31,12 @@
             <ul class="dropdown-menu dropdown-menu-end" style="width: 300px;">
                 <li><h6 class="dropdown-header">Notifications</h6></li>
                 <li><hr class="dropdown-divider"></li>
-                <li id="notificationList">
-                    <div class="text-center text-muted py-3">
-                        <i class="fas fa-bell-slash mb-2"></i>
-                        <p class="mb-0">No new notifications</p>
+                <li class="notification-list">
+                    <div id="notificationList" class="notification-items">
+                        <div class="text-center text-muted py-3" id="notificationEmptyState">
+                            <i class="fas fa-circle-notch fa-spin mb-2"></i>
+                            <p class="mb-0">Checking for alerts...</p>
+                        </div>
                     </div>
                 </li>
                 <li><hr class="dropdown-divider"></li>
@@ -169,62 +171,196 @@ $(document).ready(function() {
         updateThemeIcon();
     });
     
-    // Mock notifications (replace with real API call)
-    function loadNotifications() {
-        // Simulate loading notifications
-        setTimeout(() => {
-            const mockNotifications = [
-                {
-                    id: 1,
-                    title: 'New user registered',
-                    message: 'John Doe has been added to the system',
-                    time: '2 minutes ago',
-                    type: 'info'
-                },
-                {
-                    id: 2,
-                    title: 'System alert',
-                    message: 'RFID scanner #1 is offline',
-                    time: '5 minutes ago',
-                    type: 'warning'
-                }
-            ];
-            
-            if (mockNotifications.length > 0) {
-                $('#notificationBadge').text(mockNotifications.length).show();
-                
-                let notificationHtml = '';
-                mockNotifications.forEach(notification => {
-                    const iconClass = {
-                        'info': 'fas fa-info-circle text-info',
-                        'warning': 'fas fa-exclamation-triangle text-warning',
-                        'error': 'fas fa-exclamation-circle text-danger',
-                        'success': 'fas fa-check-circle text-success'
-                    }[notification.type] || 'fas fa-info-circle text-info';
-                    
-                    notificationHtml += `
-                        <li>
-                            <a class="dropdown-item" href="#">
-                                <div class="d-flex align-items-start">
-                                    <i class="${iconClass} me-2 mt-1"></i>
-                                    <div class="flex-grow-1">
-                                        <div class="fw-bold">${notification.title}</div>
-                                        <div class="small text-muted">${notification.message}</div>
-                                        <div class="small text-muted">${notification.time}</div>
-                                    </div>
-                                </div>
-                            </a>
-                        </li>
-                    `;
-                });
-                
-                $('#notificationList').html(notificationHtml);
-            }
-        }, 1000);
+    // Notification handling
+    const notificationBadge = $('#notificationBadge');
+    const notificationListContainer = $('#notificationList');
+    const notificationDropdown = $('#notificationDropdown');
+    let lastNotificationFetch = 0;
+    let notificationFetchInProgress = false;
+
+    function escapeHtml(text) {
+        if (text === null || text === undefined) {
+            return '';
+        }
+        return String(text).replace(/[&<>"'`]/g, function(match) {
+            const escapeMap = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;',
+                '`': '&#x60;'
+            };
+            return escapeMap[match] || match;
+        });
     }
-    
-    // Load notifications on page load
-    loadNotifications();
+
+    function formatTimeAgo(dateInput) {
+        if (!dateInput) return 'Just now';
+        const date = new Date(dateInput);
+        if (Number.isNaN(date.getTime())) return 'Just now';
+
+        const diffMs = Date.now() - date.getTime();
+        if (diffMs < 60000) return 'Just now';
+
+        const diffMinutes = Math.floor(diffMs / 60000);
+        if (diffMinutes < 60) {
+            return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+        }
+
+        const diffHours = Math.floor(diffMinutes / 60);
+        if (diffHours < 24) {
+            return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+        }
+
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays < 7) {
+            return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+        }
+
+        return date.toLocaleDateString();
+    }
+
+    function getSeverityIcon(severity) {
+        const map = {
+            'critical': 'fas fa-exclamation-circle text-danger',
+            'warning': 'fas fa-exclamation-triangle text-warning',
+            'info': 'fas fa-info-circle text-info'
+        };
+        return map[severity] || map.warning;
+    }
+
+    function getSeverityBadgeClass(severity) {
+        const map = {
+            'critical': 'badge bg-danger',
+            'warning': 'badge bg-warning text-dark',
+            'info': 'badge bg-info text-dark'
+        };
+        return map[severity] || 'badge bg-secondary';
+    }
+
+    function updateNotificationBadge(count) {
+        const parsedCount = Number(count) || 0;
+        if (parsedCount > 0) {
+            const displayValue = parsedCount > 99 ? '99+' : parsedCount;
+            notificationBadge.text(displayValue).show();
+        } else {
+            notificationBadge.hide();
+        }
+    }
+
+    function showNotificationLoading() {
+        notificationListContainer.html(`
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-circle-notch fa-spin mb-2"></i>
+                <p class="mb-0">Loading alerts...</p>
+            </div>
+        `);
+    }
+
+    function renderNotificationError(message) {
+        notificationListContainer.html(`
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-triangle-exclamation text-warning mb-2"></i>
+                <p class="mb-0">${escapeHtml(message)}</p>
+            </div>
+        `);
+    }
+
+    function renderNotifications(notifications, meta) {
+        if (!Array.isArray(notifications) || notifications.length === 0) {
+            const windowLabel = (meta && typeof meta.windowLabel === 'string') ? meta.windowLabel : 'hour';
+            notificationListContainer.html(`
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-bell-slash mb-2"></i>
+                    <p class="mb-0">No anomaly spikes in the last ${escapeHtml(windowLabel)}.</p>
+                </div>
+            `);
+            return;
+        }
+
+        const itemsHtml = notifications.map(notification => {
+            const iconClass = getSeverityIcon(notification.severity);
+            const badgeClass = getSeverityBadgeClass(notification.severity);
+            const countValue = Number(notification.count);
+            const hasCount = Number.isFinite(countValue) && countValue > 0;
+            const countBadge = hasCount ? `<span class="${badgeClass} ms-2 align-self-start">${countValue}</span>` : '';
+            const timeAgo = formatTimeAgo(notification.lastOccurrence || notification.firstOccurrence || notification.timestamp);
+            const previousCount = notification.previousCount !== undefined && notification.previousCount !== null
+                ? `<div class="small text-muted">Previous: ${escapeHtml(notification.previousCount)}</div>`
+                : '';
+            const summary = notification.metadata && notification.metadata.latestSummary
+                ? `<div class="small text-muted">${escapeHtml(notification.metadata.latestSummary)}</div>`
+                : '';
+            const departmentInfo = notification.metadata && notification.metadata.department && notification.metadata.department.name
+                ? `<div class="small text-muted">${escapeHtml(notification.metadata.department.name)}${notification.metadata.department.code ? ` (${escapeHtml(notification.metadata.department.code)})` : ''}</div>`
+                : '';
+            const targetUrl = notification.url || '/admin/audit-logs?actionType=ANOMALY_';
+
+            return `
+                <a class="dropdown-item d-flex align-items-start gap-2 py-2" href="${targetUrl}">
+                    <i class="${iconClass} mt-1"></i>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">${escapeHtml(notification.title || 'Alert')}</div>
+                        <div class="small text-muted">${escapeHtml(notification.message || '')}</div>
+                        ${summary}
+                        ${departmentInfo}
+                        ${previousCount}
+                        <div class="small text-muted">${timeAgo}</div>
+                    </div>
+                    ${countBadge}
+                </a>
+            `;
+        }).join('');
+
+        notificationListContainer.html(itemsHtml);
+    }
+
+    function loadNotifications(forceRefresh = false) {
+        if (notificationFetchInProgress) {
+            return;
+        }
+
+        const now = Date.now();
+        if (!forceRefresh && now - lastNotificationFetch < 60000) {
+            return;
+        }
+
+        notificationFetchInProgress = true;
+        showNotificationLoading();
+
+        $.ajax({
+            url: '/admin/api/notifications/anomalies',
+            method: 'GET',
+            data: { window: 'hour' },
+            success: function(response) {
+                lastNotificationFetch = Date.now();
+                notificationFetchInProgress = false;
+
+                if (!response || response.success !== true) {
+                    renderNotificationError('Notifications are temporarily unavailable');
+                    updateNotificationBadge(0);
+                    return;
+                }
+
+                const notifications = Array.isArray(response.notifications) ? response.notifications : [];
+                updateNotificationBadge(response.badgeCount ?? notifications.length);
+                renderNotifications(notifications, response.meta || {});
+            },
+            error: function() {
+                notificationFetchInProgress = false;
+                renderNotificationError('Notifications are temporarily unavailable');
+                updateNotificationBadge(0);
+            }
+        });
+    }
+
+    notificationDropdown.on('show.bs.dropdown', function() {
+        loadNotifications(true);
+    });
+
+    loadNotifications(true);
+    setInterval(() => loadNotifications(false), 120000);
 });
 </script>
   
