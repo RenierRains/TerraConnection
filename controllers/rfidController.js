@@ -52,7 +52,9 @@ exports.processScan = async (req, res) => {
       face_verification_status: newType === 'exit' ? 'skipped' : 'pending'
     });
 
-    await logRFIDAudit(rfidCard.user_id, 'RFID_SCAN', {
+    const auditAction = newType === 'exit' ? 'EXIT' : 'CARD_SCAN';
+
+    await logRFIDAudit(rfidCard.user_id, auditAction, {
       card_uid,
       deviceId: device_id,
       location,
