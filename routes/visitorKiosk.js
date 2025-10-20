@@ -18,17 +18,10 @@ router.post('/register', visitorKioskController.registerVisitor);
 
 /**
  * @route POST /api/kiosk/visitor/exit
- * @desc Process visitor exit with face verification
+ * @desc Process visitor exit using RFID visitor pass
  * @access Restricted (IP-based)
  */
 router.post('/exit', visitorKioskController.processExit);
-
-/**
- * @route POST /api/kiosk/visitor/exit/complete
- * @desc Complete visitor exit after frontend face matching
- * @access Restricted (IP-based)
- */
-router.post('/exit/complete', visitorKioskController.completeExit);
 
 /**
  * @route GET /api/kiosk/visitor/status

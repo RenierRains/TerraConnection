@@ -197,7 +197,7 @@
                                 <th>Entry Time</th>
                                 <th>Exit Time</th>
                                 <th>Duration</th>
-                                <th>Face Verification</th>
+                                <th>Visitor Pass</th>
                                 <th width="120">Actions</th>
                             </tr>
                         </thead>
@@ -269,11 +269,11 @@
                                             <span class="text-warning"><%= minutes %> min</span>
                                         <% } %>
                                     </td>
-                                    <td class="text-center">
-                                        <% if (visitor.faceImagePath) { %>
-                                            <i class="fas fa-check-circle text-success" title="Face verification enabled"></i>
+                                    <td>
+                                        <% if (visitor.rfidCardUid) { %>
+                                            <code><%= visitor.rfidCardUid %></code>
                                         <% } else { %>
-                                            <i class="fas fa-times-circle text-muted" title="No face verification"></i>
+                                            <span class="text-muted">Not assigned</span>
                                         <% } %>
                                     </td>
                                     <td>

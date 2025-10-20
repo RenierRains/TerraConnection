@@ -102,6 +102,12 @@ rfid-backend/
 - `GET /api/rfid/history` - Get scan history
 - `PUT /api/rfid/update` - Update RFID data
 
+### Visitor Kiosk
+- `POST /api/kiosk/visitor/register` - Register a visitor after collecting form details and scanning an RFID visitor pass
+- `POST /api/kiosk/visitor/exit` - Complete visitor exit by scanning the same RFID visitor pass
+- `GET /api/kiosk/visitor/status` - Dashboard metrics for kiosk displays
+- `GET /api/kiosk/visitor/:id` - Retrieve a visitor record for verification
+
 ### Data Management
 - `GET /api/data` - Fetch data
 - `POST /api/data` - Create new data

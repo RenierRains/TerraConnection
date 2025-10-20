@@ -348,11 +348,11 @@ async function exportLogs(req, res) {
             const fields = [
                 { label: 'ID', value: 'id' },
                 { label: 'Name', value: 'name' },
+                { label: 'Visitor Pass', value: 'rfidCardUid' },
                 { label: 'Purpose', value: 'purpose' },
                 { label: 'Status', value: 'status' },
                 { label: 'Entry Time', value: 'entryTime' },
                 { label: 'Exit Time', value: 'exitTime' },
-                { label: 'Has Face Image', value: (row) => row.faceImagePath ? 'Yes' : 'No' },
                 { label: 'Created At', value: 'createdAt' },
                 { label: 'Updated At', value: 'updatedAt' }
             ];
@@ -428,6 +428,7 @@ async function bulkAction(req, res) {
                 const fields = [
                     { label: 'ID', value: 'id' },
                     { label: 'Name', value: 'name' },
+                    { label: 'Visitor Pass', value: 'rfidCardUid' },
                     { label: 'Purpose', value: 'purpose' },
                     { label: 'Status', value: 'status' },
                     { label: 'Entry Time', value: 'entryTime' },

@@ -1,138 +1,143 @@
 const { Visitor } = require('../models');
-const VisitorFaceService = require('../services/visitorFaceService');
 const { Op } = require('sequelize');
 
-// Create a single instance of the face service
-const faceService = new VisitorFaceService();
+const MIN_CARD_UID_LENGTH = 4;
+const MAX_CARD_UID_LENGTH = 128;
+
+const ALLOWED_PURPOSES = [
+    'Finance',
+    'Admission/Enrollment',
+    'Seminar/Workshop/Conference',
+    'Guest Lecture',
+    'Research Collaboration / Data Gathering',
+    'Campus Tour',
+    'Visiting a Student / Relative',
+    'Alumni Visit',
+    'Dropping Off or Picking Up Items'
+];
 
 /**
- * Register a new visitor
+ * Normalize raw RFID input from scanner into a consistent value for storage/lookup.
+ * Removes whitespace and non-alphanumeric characters, then uppercases the result.
+ */
+function normalizeCardUid(value) {
+    if (value === undefined || value === null) {
+        return '';
+    }
+
+    const normalized = String(value)
+        .trim()
+        .replace(/[^0-9a-z]/gi, '')
+        .toUpperCase();
+
+    return normalized;
+}
+
+function validateBasicFields(name, purpose, cardUid) {
+    if (!name || !purpose || !cardUid) {
+        return 'Name, purpose, and visitor pass are required fields';
+    }
+
+    const sanitizedName = name.trim();
+    const sanitizedPurpose = purpose.trim();
+
+    if (sanitizedName.length < 2 || sanitizedName.length > 100) {
+        return 'Name must be between 2 and 100 characters';
+    }
+
+    if (!ALLOWED_PURPOSES.includes(sanitizedPurpose)) {
+        return 'Select a valid purpose from the list';
+    }
+
+    if (cardUid.length < MIN_CARD_UID_LENGTH || cardUid.length > MAX_CARD_UID_LENGTH) {
+        return `Visitor pass must be between ${MIN_CARD_UID_LENGTH} and ${MAX_CARD_UID_LENGTH} characters`;
+    }
+
+    return null;
+}
+
+function calculateVisitDurationMinutes(entryTime, exitTime) {
+    if (!entryTime || !exitTime) {
+        return 0;
+    }
+
+    const start = new Date(entryTime);
+    const end = new Date(exitTime);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return 0;
+    }
+
+    const durationMs = end.getTime() - start.getTime();
+    return Math.max(0, Math.round(durationMs / (1000 * 60)));
+}
+
+/**
+ * Register a new visitor with an RFID visitor pass
  * POST /api/kiosk/visitor/register
  */
 async function registerVisitor(req, res) {
     try {
-        const { name, purpose, faceImage } = req.body;
+        const { name, purpose, rfidCardUid } = req.body;
 
-        // Validate required fields
-        if (!name || !purpose) {
+        const normalizedCardUid = normalizeCardUid(rfidCardUid);
+        const validationError = validateBasicFields(name, purpose, normalizedCardUid);
+
+        if (validationError) {
             return res.status(400).json({
                 success: false,
-                error: 'Name and purpose are required fields'
+                error: validationError
             });
         }
 
-        // Validate name
-        if (name.length < 2 || name.length > 100) {
-            return res.status(400).json({
-                success: false,
-                error: 'Name must be between 2 and 100 characters'
-            });
-        }
-
-        // Validate purpose
-        if (purpose.length < 5 || purpose.length > 500) {
-            return res.status(400).json({
-                success: false,
-                error: 'Purpose must be between 5 and 500 characters'
-            });
-        }
-
-        // Sanitize inputs
         const sanitizedName = name.trim();
         const sanitizedPurpose = purpose.trim();
 
-        let faceImagePath = null;
-
-        // Process face image if provided
-        if (faceImage) {
-            try {
-                // Validate face image
-                const validation = faceService.validateFaceImage(faceImage);
-                if (!validation.valid) {
-                    return res.status(400).json({
-                        success: false,
-                        error: validation.error
-                    });
-                }
-
-                // Create visitor first to get ID for image naming
-                const tempVisitor = await Visitor.create({
-                    name: sanitizedName,
-                    purpose: sanitizedPurpose,
-                    status: 'active'
-                });
-
-                // Save face image
-                faceImagePath = await faceService.saveFaceImage(faceImage, tempVisitor.id);
-                
-                // Update visitor with face image path
-                await tempVisitor.update({ faceImagePath });
-
-                // Audit log
-                req.auditLog = {
-                    action: 'VISITOR_REGISTER',
-                    details: `Visitor registered: ${sanitizedName}`,
-                    metadata: {
-                        visitorId: tempVisitor.id,
-                        name: sanitizedName,
-                        purpose: sanitizedPurpose,
-                        hasFaceImage: !!faceImagePath
-                    }
-                };
-
-                return res.status(201).json({
-                    success: true,
-                    message: 'Visitor registered successfully',
-                    data: {
-                        id: tempVisitor.id,
-                        name: tempVisitor.name,
-                        purpose: tempVisitor.purpose,
-                        entryTime: tempVisitor.entryTime,
-                        status: tempVisitor.status,
-                        hasFaceImage: !!faceImagePath
-                    }
-                });
-
-            } catch (imageError) {
-                console.error('Error processing face image:', imageError);
-                return res.status(400).json({
-                    success: false,
-                    error: 'Failed to process face image: ' + imageError.message
-                });
+        // Ensure the visitor pass is not already assigned to an active visitor
+        const existingActive = await Visitor.findOne({
+            where: {
+                status: 'active',
+                rfidCardUid: normalizedCardUid
             }
-        } else {
-            // Register visitor without face image
-            const visitor = await Visitor.create({
-                name: sanitizedName,
-                purpose: sanitizedPurpose,
-                status: 'active'
-            });
+        });
 
-            // Audit log
-            req.auditLog = {
-                action: 'VISITOR_REGISTER',
-                details: `Visitor registered without face: ${sanitizedName}`,
-                metadata: {
-                    visitorId: visitor.id,
-                    name: sanitizedName,
-                    purpose: sanitizedPurpose,
-                    hasFaceImage: false
-                }
-            };
-
-            return res.status(201).json({
-                success: true,
-                message: 'Visitor registered successfully (without face verification)',
-                data: {
-                    id: visitor.id,
-                    name: visitor.name,
-                    purpose: visitor.purpose,
-                    entryTime: visitor.entryTime,
-                    status: visitor.status,
-                    hasFaceImage: false
-                }
+        if (existingActive) {
+            return res.status(409).json({
+                success: false,
+                error: 'This visitor pass is already assigned to an active visitor. Please choose a different pass or check the visitor out first.'
             });
         }
+
+        const visitor = await Visitor.create({
+            name: sanitizedName,
+            purpose: sanitizedPurpose,
+            rfidCardUid: normalizedCardUid,
+            status: 'active'
+        });
+
+        req.auditLog = {
+            action: 'VISITOR_REGISTER',
+            details: `Visitor registered via kiosk: ${sanitizedName}`,
+            metadata: {
+                visitorId: visitor.id,
+                name: sanitizedName,
+                purpose: sanitizedPurpose,
+                visitorPass: visitor.rfidCardUid
+            }
+        };
+
+        return res.status(201).json({
+            success: true,
+            message: 'Visitor registered successfully',
+            data: {
+                id: visitor.id,
+                name: visitor.name,
+                purpose: visitor.purpose,
+                entryTime: visitor.entryTime,
+                status: visitor.status,
+                rfidCardUid: visitor.rfidCardUid
+            }
+        });
 
     } catch (error) {
         console.error('Error registering visitor:', error);
@@ -144,75 +149,79 @@ async function registerVisitor(req, res) {
 }
 
 /**
- * Process visitor exit with face verification
+ * Process visitor exit using RFID visitor pass
  * POST /api/kiosk/visitor/exit
  */
 async function processExit(req, res) {
     try {
-        const { faceImage, faceDescriptor } = req.body;
+        const { rfidCardUid } = req.body;
 
-        if (!faceImage) {
+        const normalizedCardUid = normalizeCardUid(rfidCardUid);
+
+        if (!normalizedCardUid) {
             return res.status(400).json({
                 success: false,
-                error: 'Face image is required for exit verification'
+                error: 'Visitor pass is required to process exit'
             });
         }
 
-        if (!faceDescriptor || !Array.isArray(faceDescriptor)) {
+        if (normalizedCardUid.length < MIN_CARD_UID_LENGTH || normalizedCardUid.length > MAX_CARD_UID_LENGTH) {
             return res.status(400).json({
                 success: false,
-                error: 'Face descriptor is required for verification. Please ensure face detection is working properly.'
+                error: `Visitor pass must be between ${MIN_CARD_UID_LENGTH} and ${MAX_CARD_UID_LENGTH} characters`
             });
         }
 
-        // Validate face image format
-        const validation = faceService.validateFaceImage(faceImage);
-        if (!validation.valid) {
-            return res.status(400).json({
-                success: false,
-                error: validation.error
-            });
-        }
-
-        // Find all active visitors with face images
-        const activeVisitors = await Visitor.findAll({
+        const visitor = await Visitor.findOne({
             where: {
                 status: 'active',
-                faceImagePath: {
-                    [Op.ne]: null
-                }
+                rfidCardUid: normalizedCardUid
             },
-            order: [['entryTime', 'DESC']] // Most recent first
+            order: [['entryTime', 'ASC']]
         });
 
-        if (activeVisitors.length === 0) {
+        if (!visitor) {
             return res.status(404).json({
                 success: false,
-                error: 'No active visitors found with face verification'
+                error: 'No active visitor found for the scanned pass. Please ensure the visitor registered on entry.'
             });
         }
 
-        console.log(`Processing exit verification for ${activeVisitors.length} active visitors`);
+        const exitTime = new Date();
+        await visitor.update({
+            status: 'exited',
+            exitTime
+        });
 
-        // Since we don't store face descriptors in the database (for privacy/storage reasons),
-        // we need to return the active visitors list so the frontend can compare
-        // the current face descriptor against the stored face images
-        
-        // For security, we'll return minimal visitor info for frontend comparison
-        const visitorList = activeVisitors.map(visitor => ({
-            id: visitor.id,
-            name: visitor.name,
-            faceImagePath: visitor.faceImagePath,
-            entryTime: visitor.entryTime
-        }));
+        const durationMinutes = calculateVisitDurationMinutes(visitor.entryTime, exitTime);
+
+        req.auditLog = {
+            action: 'VISITOR_EXIT',
+            details: `Visitor exit recorded: ${visitor.name}`,
+            metadata: {
+                visitorId: visitor.id,
+                name: visitor.name,
+                entryTime: visitor.entryTime,
+                exitTime,
+                durationMinutes,
+                visitorPass: visitor.rfidCardUid
+            }
+        };
 
         return res.status(200).json({
             success: true,
-            requiresFrontendMatching: true,
-            message: 'Please wait while we verify your identity...',
+            message: 'Visitor checked out successfully. Thank you for visiting!',
             data: {
-                visitors: visitorList,
-                currentFaceDescriptor: faceDescriptor
+                visitor: {
+                    id: visitor.id,
+                    name: visitor.name,
+                    purpose: visitor.purpose,
+                    entryTime: visitor.entryTime,
+                    exitTime,
+                    status: 'exited',
+                    durationMinutes,
+                    rfidCardUid: visitor.rfidCardUid
+                }
             }
         });
 
@@ -221,121 +230,6 @@ async function processExit(req, res) {
         return res.status(500).json({
             success: false,
             error: 'Internal server error while processing exit'
-        });
-    }
-}
-
-/**
- * Complete visitor exit after frontend face matching
- * POST /api/kiosk/visitor/exit/complete
- */
-async function completeExit(req, res) {
-    try {
-        const { visitorId, matchResult } = req.body;
-
-        if (!visitorId || !matchResult) {
-            return res.status(400).json({
-                success: false,
-                error: 'Visitor ID and match result are required'
-            });
-        }
-
-        // Find the visitor
-        const visitor = await Visitor.findByPk(visitorId);
-        if (!visitor) {
-            return res.status(404).json({
-                success: false,
-                error: 'Visitor not found'
-            });
-        }
-
-        if (visitor.status !== 'active') {
-            return res.status(400).json({
-                success: false,
-                error: 'Visitor is not currently active'
-            });
-        }
-
-        // Check if face verification passed
-        if (!matchResult.match || matchResult.distance >= 0.6) {
-            // Face verification failed
-            req.auditLog = {
-                action: 'VISITOR_EXIT_FAILED',
-                details: `Visitor exit verification failed: ${visitor.name}`,
-                metadata: {
-                    visitorId: visitor.id,
-                    name: visitor.name,
-                    reason: 'face_verification_failed',
-                    similarity: matchResult.similarity || 0,
-                    distance: matchResult.distance || 999
-                }
-            };
-
-            return res.status(403).json({
-                success: false,
-                error: 'Face verification failed. Please contact security for assistance.',
-                data: {
-                    verification: {
-                        matched: false,
-                        similarity: matchResult.similarity || 0,
-                        distance: matchResult.distance || 999,
-                        threshold: 0.6
-                    }
-                }
-            });
-        }
-
-        // Face verification passed - complete the exit
-        await visitor.update({
-            status: 'exited',
-            exitTime: new Date()
-        });
-
-        // Calculate visit duration
-        const visitDuration = new Date() - new Date(visitor.entryTime);
-        const durationMinutes = Math.round(visitDuration / (1000 * 60));
-
-        // Audit log
-        req.auditLog = {
-            action: 'VISITOR_EXIT',
-            details: `Visitor exit verified: ${visitor.name}`,
-            metadata: {
-                visitorId: visitor.id,
-                name: visitor.name,
-                entryTime: visitor.entryTime,
-                exitTime: visitor.exitTime,
-                durationMinutes,
-                faceSimilarity: matchResult.similarity,
-                faceDistance: matchResult.distance
-            }
-        };
-
-        return res.status(200).json({
-            success: true,
-            message: 'Exit verified successfully. Thank you for visiting!',
-            data: {
-                visitor: {
-                    id: visitor.id,
-                    name: visitor.name,
-                    purpose: visitor.purpose,
-                    entryTime: visitor.entryTime,
-                    exitTime: visitor.exitTime,
-                    durationMinutes
-                },
-                verification: {
-                    matched: true,
-                    similarity: matchResult.similarity,
-                    distance: matchResult.distance,
-                    threshold: 0.6
-                }
-            }
-        });
-
-    } catch (error) {
-        console.error('Error completing visitor exit:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Internal server error while completing exit'
         });
     }
 }
@@ -375,8 +269,9 @@ async function getVisitorStatus(req, res) {
             data: {
                 activeVisitors: activeCount,
                 todayTotal: todayVisitors,
-                todayExited: todayExited,
-                timestamp: new Date()
+                todayExited,
+                timestamp: new Date(),
+                visitorPassMode: 'rfid-card'
             }
         });
 
@@ -422,7 +317,7 @@ async function getVisitorById(req, res) {
                 entryTime: visitor.entryTime,
                 exitTime: visitor.exitTime,
                 status: visitor.status,
-                hasFaceImage: !!visitor.faceImagePath
+                rfidCardUid: visitor.rfidCardUid
             }
         });
 
@@ -450,7 +345,7 @@ async function healthCheck(req, res) {
             timestamp: new Date(),
             services: {
                 database: 'connected',
-                faceService: 'available'
+                visitorPass: 'available'
             }
         });
 
@@ -468,7 +363,6 @@ async function healthCheck(req, res) {
 module.exports = {
     registerVisitor,
     processExit,
-    completeExit,
     getVisitorStatus,
     getVisitorById,
     healthCheck

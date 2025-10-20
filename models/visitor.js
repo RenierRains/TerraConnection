@@ -30,6 +30,14 @@ module.exports = (sequelize, DataTypes) => {
         len: [5, 500]
       }
     },
+    rfidCardUid: {
+      type: DataTypes.STRING(128),
+      allowNull: true,
+      field: 'rfid_card_uid',
+      validate: {
+        len: [4, 128]
+      }
+    },
     faceImagePath: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -74,6 +82,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       {
         fields: ['exit_time']
+      },
+      {
+        name: 'idx_visitors_rfid_card_uid',
+        fields: ['rfid_card_uid']
       },
       {
         name: 'idx_visitors_created_at',
