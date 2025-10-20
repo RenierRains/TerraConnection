@@ -111,6 +111,22 @@ async function index(req, res) {
         // Get statistics
         const stats = await getVisitorStatistics();
 
+        const purposeAggregation = await Visitor.findAll({
+            where: whereConditions,
+            attributes: [
+                'purpose',
+                [Visitor.sequelize.fn('COUNT', Visitor.sequelize.col('id')), 'count']
+            ],
+            group: ['purpose'],
+            order: [[Visitor.sequelize.literal('count'), 'DESC']],
+            raw: true
+        });
+
+        const purposeStats = purposeAggregation.map(entry => ({
+            purpose: entry.purpose || 'Unspecified',
+            count: parseInt(entry.count, 10) || 0
+        }));
+
         return res.render('admin/visitors/index', {
             title: 'Visitor Logs',
             visitors,
@@ -129,6 +145,7 @@ async function index(req, res) {
                 dateTo
             },
             stats,
+            purposeStats,
             admin: req.session.admin,
             layout: 'layout'
         });
@@ -159,6 +176,7 @@ async function index(req, res) {
                 total: 0,
                 averageVisitMinutes: 0
             },
+            purposeStats: [],
             admin: req.session.admin,
             layout: 'layout',
             error: 'Error loading visitor logs'

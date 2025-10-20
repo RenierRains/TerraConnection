@@ -36,6 +36,11 @@ exports.getLinkedStudents = async (req, res) => {
       }]
     });
 
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
     // get status for each student
     const students = await Promise.all(relations.map(async (relation) => {
       const student = relation.student;
@@ -79,6 +84,22 @@ exports.getLinkedStudents = async (req, res) => {
         generalArea: lastGPS?.general_area
       });
 
+      // count today's entry/exit activity
+      const todaysLogs = await db.Entry_Exit_Log.findAll({
+        where: {
+          user_id: student.id,
+          timestamp: {
+            [Op.between]: [startOfDay, endOfDay]
+          }
+        },
+        attributes: ['type', 'timestamp'],
+        order: [['timestamp', 'ASC']]
+      });
+
+      const entryCount = todaysLogs.filter(log => log.type === 'entry').length;
+      const exitCount = todaysLogs.filter(log => log.type === 'exit').length;
+      const hasMultipleEntryExit = entryCount >= 2 && exitCount >= 2;
+
       return {
         id: student.id,
         first_name: student.first_name,
@@ -87,7 +108,10 @@ exports.getLinkedStudents = async (req, res) => {
         profile_picture: student.profile_picture,
         onCampus,
         lastLog,
-        lastGPS
+        lastGPS,
+        dailyEntryCount: entryCount,
+        dailyExitCount: exitCount,
+        hasMultipleEntryExit
       };
     }));
 

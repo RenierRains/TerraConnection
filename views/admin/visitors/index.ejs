@@ -2,6 +2,8 @@
   <% title = 'Visitor Logs'; %>
 <% } %>
 
+<% const topPurpose = (typeof purposeStats !== 'undefined' && purposeStats.length) ? purposeStats[0] : null; %>
+
 <div class="container-fluid">
     <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -99,6 +101,89 @@
                             <i class="fas fa-clock fa-2x" style="color: #ffc107; opacity: 0.3;"></i>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-left-secondary shadow h-100 py-2" style="border-left: 4px solid #6c757d !important; cursor: pointer;"
+                 role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#purposeModal" id="purposeInsightsCard" aria-describedby="purposeCardDescription">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #6c757d;">
+                                Purpose Insights
+                            </div>
+                            <% if (topPurpose) { %>
+                                <div class="h5 mb-0 font-weight-bold" style="color: var(--bs-body-color);">
+                                    <%= topPurpose.count %> visitors
+                                </div>
+                                <div class="small text-muted" id="purposeCardDescription">
+                                    Top purpose: <strong><%= topPurpose.purpose %></strong>
+                                </div>
+                            <% } else { %>
+                                <div class="h5 mb-0 font-weight-bold" style="color: var(--bs-body-color);">
+                                    No data yet
+                                </div>
+                                <div class="small text-muted" id="purposeCardDescription">
+                                    Click to view visitor purposes
+                                </div>
+                            <% } %>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-pie fa-2x" style="color: #6c757d; opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%
+        let purposePeriodLabel = 'All recorded visits';
+        if (filters && filters.dateFrom && filters.dateTo) {
+            purposePeriodLabel = `Visits from ${filters.dateFrom} to ${filters.dateTo}`;
+        } else if (filters && filters.dateFrom) {
+            purposePeriodLabel = `Visits on or after ${filters.dateFrom}`;
+        } else if (filters && filters.dateTo) {
+            purposePeriodLabel = `Visits on or before ${filters.dateTo}`;
+        }
+    %>
+
+    <div class="modal fade" id="purposeModal" tabindex="-1" aria-labelledby="purposeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="purposeModalLabel">
+                        <i class="fas fa-chart-pie me-2 text-secondary"></i>Visitor Purpose Breakdown
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3"><%= purposePeriodLabel %></p>
+                    <div id="purposeEmptyState" class="text-center text-muted d-none">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i>
+                        <p class="mb-0">No visitor data available for the selected filters.</p>
+                    </div>
+                    <div id="purposeChartContainer" class="mb-4" style="min-height: 320px;">
+                        <canvas id="purposeChart" height="320"></canvas>
+                    </div>
+                    <% if (typeof purposeStats !== 'undefined' && purposeStats.length) { %>
+                        <div class="mt-3">
+                            <h6 class="fw-semibold">Purpose totals</h6>
+                            <ul class="list-group list-group-flush">
+                                <% purposeStats.forEach(function(item) { %>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span><i class="fas fa-dot-circle text-secondary me-2"></i><%= item.purpose %></span>
+                                        <span class="badge bg-primary rounded-pill"><%= item.count %></span>
+                                    </li>
+                                <% }); %>
+                            </ul>
+                        </div>
+                    <% } %>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -327,8 +412,97 @@
 </div>
 
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const purposeStatsData = <%- JSON.stringify(purposeStats || []) %>;
+    const purposeModalEl = document.getElementById('purposeModal');
+    const purposeChartContainer = document.getElementById('purposeChartContainer');
+    const purposeEmptyState = document.getElementById('purposeEmptyState');
+    const purposeInsightsCard = document.getElementById('purposeInsightsCard');
+    let purposeChartInstance = null;
+
+    function renderPurposeChart() {
+        if (!purposeModalEl) {
+            return;
+        }
+
+        if (!purposeStatsData.length) {
+            if (purposeEmptyState) {
+                purposeEmptyState.classList.remove('d-none');
+            }
+            if (purposeChartContainer) {
+                purposeChartContainer.classList.add('d-none');
+            }
+            return;
+        }
+
+        if (purposeEmptyState) {
+            purposeEmptyState.classList.add('d-none');
+        }
+        if (purposeChartContainer) {
+            purposeChartContainer.classList.remove('d-none');
+        }
+
+        if (purposeChartInstance) {
+            return;
+        }
+
+        const canvas = document.getElementById('purposeChart');
+        if (!canvas) {
+            return;
+        }
+
+        const labels = purposeStatsData.map(item => item.purpose);
+        const dataPoints = purposeStatsData.map(item => item.count);
+        const palette = ['#6a0dad', '#4b0082', '#8a2be2', '#9400d3', '#17a2b8', '#ffc107', '#28a745', '#fd7e14', '#dc3545', '#20c997'];
+
+        purposeChartInstance = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data: dataPoints,
+                    backgroundColor: labels.map((_, idx) => palette[idx % palette.length]),
+                    borderWidth: 1,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const value = context.raw || 0;
+                                const total = dataPoints.reduce((sum, item) => sum + item, 0);
+                                const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${context.label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    if (purposeModalEl) {
+        purposeModalEl.addEventListener('shown.bs.modal', renderPurposeChart);
+    }
+
+    if (purposeInsightsCard) {
+        purposeInsightsCard.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                purposeInsightsCard.click();
+            }
+        });
+    }
     // Select all checkbox functionality
     const selectAllCheckbox = document.getElementById('selectAll');
     const visitorCheckboxes = document.querySelectorAll('.visitor-checkbox');
