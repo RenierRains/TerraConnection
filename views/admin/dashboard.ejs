@@ -862,13 +862,6 @@
             </div>
           </div>
           <div class="health-item">
-            <span class="health-label">Face Recognition</span>
-            <div class="health-status" id="health-face">
-              <span class="health-indicator indicator-warning"></span>
-              <span>Checking...</span>
-            </div>
-          </div>
-          <div class="health-item">
             <span class="health-label">API Response</span>
             <div class="health-status" id="health-api">
               <span class="health-indicator indicator-good"></span>
@@ -1298,7 +1291,6 @@ class Dashboard {
     const healthItems = {
       'database': healthData.database,
       'rfid': healthData.rfidScanners,
-      'face': healthData.faceRecognition,
       'api': healthData.apiResponse,
       'storage': healthData.storage
     };

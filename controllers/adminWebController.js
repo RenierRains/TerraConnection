@@ -4326,8 +4326,8 @@ function formatActionType(actionType) {
     'RFID_EXIT': 'RFID Exit',
     'USER_LOGIN': 'User Login',
     'USER_LOGOUT': 'User Logout',
-    'FACE_VERIFICATION_SUCCESS': 'Face Verified',
-    'FACE_VERIFICATION_FAILED': 'Face Verification Failed'
+    'FACE_VERIFICATION_SUCCESS': 'Access Granted',
+    'FACE_VERIFICATION_FAILED': 'Access Denied'
   };
   return actionMap[actionType] || actionType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
 }

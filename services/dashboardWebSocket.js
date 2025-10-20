@@ -204,13 +204,9 @@ class DashboardWebSocketService {
       // Get storage usage (mock for now)
       const storageHealth = await this.getStorageHealth();
 
-      // Get face recognition health based on recent verification attempts
-      const faceRecognitionHealth = await this.getFaceRecognitionHealth();
-
       return {
         database: dbHealth,
         rfidScanners: rfidHealth,
-        faceRecognition: faceRecognitionHealth,
         apiResponse: apiHealth,
         storage: storageHealth,
         timestamp: new Date()
@@ -220,7 +216,6 @@ class DashboardWebSocketService {
       return {
         database: { status: 'unknown', message: 'Unable to check' },
         rfidScanners: { status: 'unknown', message: 'Unable to check' },
-        faceRecognition: { status: 'unknown', message: 'Unable to check' },
         apiResponse: { status: 'unknown', message: 'Unable to check' },
         storage: { status: 'unknown', message: 'Unable to check' }
       };
@@ -336,49 +331,6 @@ class DashboardWebSocketService {
     }
   }
 
-  async getFaceRecognitionHealth() {
-    try {
-      // Check face verification activity in recent logs
-      const [faceVerificationStats] = await db.sequelize.query(`
-        SELECT 
-          COUNT(*) as total_attempts,
-          SUM(CASE WHEN details LIKE '%verified%' THEN 1 ELSE 0 END) as successful_verifications,
-          SUM(CASE WHEN details LIKE '%failed%' THEN 1 ELSE 0 END) as failed_verifications
-        FROM Audit_Logs 
-        WHERE action_type LIKE '%FACE%' 
-        AND timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-      `);
-      
-      const stats = faceVerificationStats[0] || { total_attempts: 0, successful_verifications: 0, failed_verifications: 0 };
-      const successRate = stats.total_attempts > 0 ? (stats.successful_verifications / stats.total_attempts) * 100 : 100;
-      
-      let status = 'good';
-      let message = 'Operational';
-      
-      if (stats.total_attempts === 0) {
-        status = 'warning';
-        message = 'No Recent Activity';
-      } else if (successRate < 80) {
-        status = 'critical';
-        message = 'High Failure Rate';
-      } else if (successRate < 95) {
-        status = 'warning'; 
-        message = 'Degraded Performance';
-      }
-      
-      return {
-        status,
-        message,
-        details: `${stats.total_attempts} attempts, ${successRate.toFixed(1)}% success rate`
-      };
-    } catch (error) {
-      return {
-        status: 'critical',
-        message: 'Face Recognition Check Failed',
-        details: error.message
-      };
-    }
-  }
 
   // Method to trigger immediate dashboard update (for external calls)
   async triggerDashboardUpdate() {

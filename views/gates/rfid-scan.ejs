@@ -303,175 +303,9 @@
       border: 1px solid rgba(106, 13, 173, 0.2);
     }
 
-    /* Face Verification Modal Styling */
-    .face-verification-card {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      padding: 2rem;
-      max-width: 700px;
-      width: 100%;
-      text-align: center;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    }
-
-    .face-verification-header {
-      margin-bottom: 2rem;
-    }
-
-    .face-verification-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #2c3e50;
-      margin-bottom: 0.5rem;
-    }
-
-    .face-verification-subtitle {
-      color: #6c757d;
-      font-size: 1rem;
-    }
-
-    .face-comparison {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 2rem;
-      margin: 2rem 0;
-      flex-wrap: wrap;
-    }
-
-    .face-container {
-      text-align: center;
-    }
-
-    .face-container h5 {
-      color: #495057;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      font-size: 1rem;
-    }
-
-    #referenceImage {
-      width: 200px;
-      height: 200px;
-      border-radius: 15px;
-      object-fit: cover;
-      border: 3px solid #6a0dad;
-      box-shadow: 0 4px 15px rgba(106, 13, 173, 0.2);
-    }
-
-    #faceVideo {
-      width: 200px;
-      height: 200px;
-      border-radius: 15px;
-      border: 3px solid #8a2be2;
-      box-shadow: 0 4px 15px rgba(138, 43, 226, 0.2);
-      object-fit: cover;
-      background: #f8f9fa;
-      display: block;
-    }
-
-    #faceCanvas {
-      display: none;
-    }
-
-    .vs-indicator {
-      font-size: 1.5rem;
-      color: #6c757d;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 50px;
-      height: 50px;
-      background: rgba(108, 117, 125, 0.1);
-      border-radius: 50%;
-      margin: 0 1rem;
-    }
-
-    .face-status-card {
-      background: #f8f9fa;
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin: 1.5rem 0;
-      border-left: 4px solid #6a0dad;
-    }
-
-    .face-status-card.loading {
-      border-left-color: #6a0dad;
-      background: rgba(106, 13, 173, 0.05);
-    }
-
-    .face-status-card.analyzing {
-      border-left-color: #8a2be2;
-      background: rgba(138, 43, 226, 0.05);
-    }
-
-    .face-status-card.verified {
-      border-left-color: #28a745;
-      background: rgba(40, 167, 69, 0.05);
-    }
-
-    .face-status-card.failed {
-      border-left-color: #dc3545;
-      background: rgba(220, 53, 69, 0.05);
-    }
-
-    .face-status-text {
-      font-size: 1.1rem;
-      font-weight: 500;
-      margin-bottom: 0.5rem;
-    }
-
-    .match-confidence {
-      font-size: 0.9rem;
-      opacity: 0.8;
-      margin-top: 0.5rem;
-    }
-
-    .verification-actions {
-      margin-top: 2rem;
-    }
-
-    .btn-skip {
-      background: linear-gradient(135deg, #6c757d, #95a5a6);
-      border: none;
-      color: white;
-      padding: 0.75rem 1.5rem;
-      border-radius: 50px;
-      font-weight: 500;
-      transition: all 0.3s ease;
-    }
-
-    .btn-skip:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
-      color: white;
-    }
-
-    @media (max-width: 768px) {
-      .face-comparison {
-        flex-direction: column;
-        gap: 1rem;
-      }
-      
-      .vs-indicator {
-        transform: rotate(90deg);
-        margin: 1rem 0;
-      }
-      
-      #referenceImage, #faceVideo {
-        width: 150px;
-        height: 150px;
-      }
-    }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Face-API.js CDN -->
-  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js" 
-          onload="console.log('✅ Face-API.js loaded successfully'); window.faceApiLoaded = true;" 
-          onerror="console.error('❌ Failed to load Face-API.js'); window.faceApiLoaded = false;"></script>
 </head>
 <body>
   <div class="main-container">
@@ -512,910 +346,183 @@
     </div>
   </div>
 
-  <!-- Face Verification Modal -->
-  <div class="modal fade" id="faceVerificationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="fas fa-camera me-2"></i>
-            Face Verification Required
-          </h5>
-        </div>
-        <div class="modal-body">
-          <div class="face-verification-header">
-            <h4 class="face-verification-title">Verify Your Identity</h4>
-            <p class="face-verification-subtitle">Position your face in front of the camera for verification</p>
-          </div>
-          
-          <div class="face-comparison">
-            <div class="face-container">
-              <h5><i class="fas fa-image me-2 text-primary"></i>Your Profile</h5>
-              <img id="referenceImage" alt="Profile Picture">
-            </div>
-            
-            <div class="vs-indicator">VS</div>
-            
-            <div class="face-container">
-              <h5><i class="fas fa-video me-2 text-success"></i>Live Camera</h5>
-              <video id="faceVideo" autoplay muted></video>
-            </div>
-          </div>
-          
-          <canvas id="faceCanvas"></canvas>
-          
-          <div class="face-status-card loading" id="faceStatusCard">
-            <div class="face-status-text" id="faceStatusText">Loading face recognition models...</div>
-            <div class="match-confidence" id="matchConfidence" style="display: none;"></div>
-          </div>
-
-          <div class="verification-actions">
-            <button class="btn btn-skip" onclick="skipFaceVerification()">
-              <i class="fas fa-times me-2"></i>Skip Verification
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Alert Container -->
   <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050;">
     <div id="alertContainer"></div>
   </div>
 
+  
   <script>
     $(document).ready(function() {
-      let scanning = false;
-      let faceDetectionInitialized = false;
-      let usingTinyDetector = true; // prefer tiny by default
-      let currentLogId = null;
-      let currentUser = null;
-      let referenceDescriptor = null;
-      let faceVerificationStartTime = null;
-      let lowSimilarityCount = 0;
-      let noDetectionCount = 0;
-      let comparisonActive = false;
-      let lastFrameTime = 0;
-      const descriptorCache = new Map(); // key: profile_picture URL -> Float32Array
-      // Telemetry
-      let telemetry = {
-        modelLoadStart: 0,
-        modelLoadEnd: 0,
-        firstDetectionAt: 0,
-        verificationCompletedAt: 0
-      };
-
-      // Feature flag: allow override via localStorage
-      const storedTinyPref = localStorage.getItem('face_use_tiny');
-      if (storedTinyPref === 'false') usingTinyDetector = false;
-      
-      // UI Elements
       const $rfidInput = $('#rfidInput');
       const $scanArea = $('#scanArea');
       const $statusBadge = $('#statusBadge');
       const $statusText = $('#statusText');
       const $alertContainer = $('#alertContainer');
+      const studentModalElement = document.getElementById('studentModal');
+      const studentModal = studentModalElement ? new bootstrap.Modal(studentModalElement, {
+        backdrop: 'static',
+        keyboard: false
+      }) : null;
 
-      // Bootstrap Modals
-      let studentModal, faceVerificationModal;
-      
-      // Face detection variables
-      let video, canvas, ctx, faceDetectionInterval;
-      
-      // Face matching threshold (lower = more strict)
-      const FACE_MATCH_THRESHOLD = 0.4; // Reduced from 0.6 for stricter matching (same as kiosks)
-      const TINY_INPUT_SIZE = 320; // 224 for very low-end
-      const TINY_SCORE_THRESHOLD = 0.65; // Increased from 0.55 for better detection quality (same as kiosks)
-      const MAX_NO_DETECTION_ATTEMPTS = 20;
-      const TARGET_FPS = 10; // throttle rAF loop
-      
-      // Face verification timeout and retry settings
-      const FACE_VERIFICATION_TIMEOUT = 30000; // 30 seconds
-      const MAX_LOW_SIMILARITY_ATTEMPTS = 20; // Max attempts with low similarity before failing
+      let scanning = false;
+      let debounceTimer = null;
 
-      // Initialize Bootstrap modals
-      function initializeModals() {
-        console.log('DEBUG: Initializing modals...');
-        
-        const studentModalElement = $('#studentModal')[0];
-        const faceVerificationModalElement = $('#faceVerificationModal')[0];
-        
-        console.log('DEBUG: Student modal element found:', !!studentModalElement);
-        console.log('DEBUG: Face verification modal element found:', !!faceVerificationModalElement);
-        
-        if (!studentModalElement) {
-          console.error('❌ Student modal element not found in DOM!');
-          return;
+      function setBadgeState(state) {
+        $statusBadge.removeClass('ready processing error');
+        if (state) {
+          $statusBadge.addClass(state);
         }
-        
-        if (!faceVerificationModalElement) {
-          console.error('❌ Face verification modal element not found in DOM!');
-          return;
-        }
-        
-        try {
-          studentModal = new bootstrap.Modal(studentModalElement, {
-            backdrop: true,
-            keyboard: true
-          });
-          console.log('✅ Student modal initialized successfully');
-        } catch (error) {
-          console.error('❌ Error initializing student modal:', error);
-        }
-        
-        try {
-          faceVerificationModal = new bootstrap.Modal(faceVerificationModalElement, {
-            backdrop: 'static',
-            keyboard: false
-          });
-          console.log('✅ Face verification modal initialized successfully');
-        } catch (error) {
-          console.error('❌ Error initializing face verification modal:', error);
-        }
-        
-        // Test if Bootstrap is available
-        console.log('DEBUG: Bootstrap available:', typeof bootstrap !== 'undefined');
-        console.log('DEBUG: Bootstrap.Modal available:', !!(bootstrap && bootstrap.Modal));
       }
 
-      // Show Bootstrap alert
+      function updateStatus(message, state = 'ready') {
+        $statusText.text(message);
+        setBadgeState(state);
+      }
+
       function showAlert(message, type = 'danger', duration = 5000) {
-        const alertId = 'alert-' + Date.now();
-        const alertHtml = `
-          <div class="alert alert-${type} alert-dismissible fade show" role="alert" id="${alertId}">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'info' ? 'info-circle' : 'exclamation-triangle'} me-2"></i>
-            ${message}
+        const id = `alert-${Date.now()}`;
+        const icon = type === 'success' ? 'check-circle' : type === 'info' ? 'info-circle' : 'exclamation-triangle';
+        const markup = `
+          <div class="alert alert-${type} alert-dismissible fade show" role="alert" id="${id}">
+            <i class="fas fa-${icon} me-2"></i>${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         `;
-        
-        $alertContainer.append(alertHtml);
-        
-        // Auto-dismiss after duration
+        $alertContainer.append(markup);
+        setTimeout(() => $(`#${id}`).alert('close'), duration);
+      }
+
+      function resetScanner() {
+        scanning = false;
+        $scanArea.removeClass('scanning');
+        updateStatus('Scanner Ready');
+        $rfidInput.val('').focus();
+        if (studentModalElement) {
+          const modalTitle = studentModalElement.querySelector('.modal-title');
+          if (modalTitle) {
+            modalTitle.innerHTML = '<i class="fas fa-user me-2"></i>Access Granted';
+          }
+        }
+      }
+
+      function finalizeModal(delay = 4000) {
         setTimeout(() => {
-          $(`#${alertId}`).alert('close');
-        }, duration);
-      }
-
-      // Update scanner status
-      function updateStatus(text, type = 'ready') {
-        $statusText.text(text);
-        $statusBadge.removeClass('ready processing error').addClass(type);
-        
-        // Update scan area state
-        if (type === 'processing') {
-          $scanArea.addClass('active scanning');
-        } else if (type === 'error') {
-          $scanArea.removeClass('active scanning');
-        } else {
-          $scanArea.removeClass('active scanning');
-        }
-      }
-
-      // Initialize face-api.js models (prefer tiny, fallback to SSD)
-      async function initializeFaceDetection() {
-        if (faceDetectionInitialized) {
-          console.log('Face detection already initialized, skipping...');
-          return;
-        }
-        
-        try {
-          updateFaceStatus('Loading face recognition models...', 'loading');
-          
-          // Check if face-api is available
-          if (typeof faceapi === 'undefined') {
-            throw new Error('Face-API.js library not loaded');
-          }
-          // Set TF backend to WebGL for performance (fallback to cpu)
-          try {
-            if (faceapi.tf && typeof faceapi.tf.setBackend === 'function') {
-              telemetry.modelLoadStart = performance.now();
-              await faceapi.tf.setBackend('webgl');
-              await faceapi.tf.ready();
-              console.log('✅ TFJS backend set to WebGL');
-            }
-          } catch (e) {
-            console.warn('WebGL backend not available, falling back to CPU:', e.message);
-            try {
-              await faceapi.tf.setBackend('cpu');
-              await faceapi.tf.ready();
-            } catch (e2) {
-              console.warn('CPU backend setup warning:', e2.message);
-            }
-          }
-
-          // Load models from local files (fast)
-          console.log('Loading face detection models from /models ...');
-
-          let tinyLoaded = false;
-          if (usingTinyDetector) {
-            try {
-              console.log('Attempt tinyFaceDetector + tiny landmarks...');
-              await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-              // Try tiny landmarks first; will fallback if missing
-              if (faceapi.nets.faceLandmark68TinyNet) {
-                await faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models');
-              } else {
-                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-              }
-              await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-              tinyLoaded = true;
-              usingTinyDetector = true;
-              console.log('✅ Tiny models loaded');
-            } catch (e) {
-              console.warn('Tiny models not available, will fallback to SSD:', e.message);
-              usingTinyDetector = false;
-            }
-          }
-
-          if (!tinyLoaded) {
-            console.log('Loading SSD MobileNet v1 + full landmarks...');
-            await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
-            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-            console.log('✅ SSD + landmarks + recognition loaded');
-          }
-
-          // Warm-up pass to reduce first-frame latency
-          try {
-            const tmp = document.createElement('canvas');
-            tmp.width = 64; tmp.height = 64;
-            const opts = usingTinyDetector
-              ? new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.6 })
-              : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 });
-            await faceapi.detectSingleFace(tmp, opts);
-            console.log('✅ Warm-up pass complete');
-          } catch (e) {
-            console.warn('Warm-up pass failed (non-fatal):', e.message);
-          }
-
-          faceDetectionInitialized = true;
-          console.log('✅ All Face-API models loaded successfully');
-          telemetry.modelLoadEnd = performance.now();
-          console.log(`⏱️ Model load time: ${(telemetry.modelLoadEnd - telemetry.modelLoadStart).toFixed(0)} ms`);
-          updateFaceStatus('Models loaded. Analyzing profile picture...', 'loading');
-          
-        } catch (error) {
-          console.error('❌ Error loading face-api models:', error);
-          console.error('Error details:', error.message);
-          console.error('Error stack:', error.stack);
-          faceDetectionInitialized = false;
-          updateFaceStatus('Failed to load face recognition models: ' + error.message, 'failed');
-          throw error;
-        }
-      }
-
-      // Load and analyze reference image (profile picture)
-      async function analyzeReferenceImage(imageUrl) {
-        try {
-          console.log('=== ANALYZING REFERENCE IMAGE ===');
-          console.log('Image URL:', imageUrl);
-          
-          const img = document.getElementById('referenceImage');
-          
-          // Debug: check if image element exists
-          if (!img) {
-            console.error('❌ Reference image element not found!');
-            updateFaceStatus('Reference image element missing', 'failed');
-            return false;
-          }
-          
-          // Debug: log current src before setting
-          console.log('Current img.src before setting:', img.src);
-          
-          // Clear any previous image first
-          img.src = '';
-          
-          // Force image to be visible for debugging
-          img.style.display = 'block';
-          img.style.visibility = 'visible';
-          img.style.width = '250px';
-          img.style.height = '250px';
-          img.style.objectFit = 'cover';
-          
-          // Set the image source
-          img.src = imageUrl;
-          console.log('✅ Set img.src to:', img.src);
-          
-          return new Promise((resolve, reject) => {
-            img.onload = async () => {
-              console.log('Reference image loaded successfully!');
-              console.log('Image dimensions:', img.naturalWidth, 'x', img.naturalHeight);
-              console.log('Image src:', img.src);
-              try {
-                // Check descriptor cache first
-                if (descriptorCache.has(imageUrl)) {
-                  referenceDescriptor = descriptorCache.get(imageUrl);
-                  console.log('✅ Loaded reference descriptor from cache');
-                  updateFaceStatus('Profile picture analyzed. Please look at the camera...', 'analyzing');
-                  resolve(true);
-                  return;
-                }
-                // Wait a bit for the image to fully render
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                const opts = usingTinyDetector
-                  ? new faceapi.TinyFaceDetectorOptions({ inputSize: TINY_INPUT_SIZE, scoreThreshold: TINY_SCORE_THRESHOLD })
-                  : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.6 });
-
-                const detections = await faceapi.detectSingleFace(img, opts)
-                  .withFaceLandmarks(usingTinyDetector)
-                  .withFaceDescriptor();
-                
-                if (detections) {
-                  referenceDescriptor = detections.descriptor;
-                  descriptorCache.set(imageUrl, referenceDescriptor);
-                  console.log('Face detected in profile picture, descriptor created');
-                  updateFaceStatus('Profile picture analyzed. Please look at the camera...', 'analyzing');
-                  resolve(true);
-                } else {
-                  console.error('No face detected in profile picture');
-                  updateFaceStatus('No face detected in your profile picture. Please contact admin.', 'failed');
-                  resolve(false);
-                }
-              } catch (error) {
-                console.error('Error analyzing reference image:', error);
-                updateFaceStatus('Error analyzing profile picture: ' + error.message, 'failed');
-                reject(error);
-              }
-            };
-            
-            img.onerror = (e) => {
-              console.error('Image load error details:', {
-                event: e,
-                src: img.src,
-                naturalWidth: img.naturalWidth,
-                naturalHeight: img.naturalHeight,
-                complete: img.complete
-              });
-              updateFaceStatus('Could not load your profile picture. Check console for details.', 'failed');
-              reject(new Error('Image load failed'));
-            };
-            
-            // Add timeout for image loading
-            setTimeout(() => {
-              reject(new Error('Image load timeout'));
-            }, 10000);
-          });
-        } catch (error) {
-          console.error('Reference image analysis error:', error);
-          updateFaceStatus('Error setting up face verification', 'failed');
-          return false;
-        }
-      }
-
-      // Start camera helper (start early so user sees video immediately)
-      async function startCamera() {
-        video = document.getElementById('faceVideo');
-        canvas = document.getElementById('faceCanvas');
-        ctx = canvas.getContext('2d');
-
-        console.log('Requesting camera access...');
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('Camera access not supported by this browser');
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 640, max: 1280 },
-            height: { ideal: 480, max: 720 },
-            facingMode: 'user'
-          },
-          audio: false
-        });
-
-        console.log('Camera stream obtained');
-        video.srcObject = stream;
-
-        await new Promise((resolve, reject) => {
-          video.onloadedmetadata = () => {
-            console.log('Video metadata loaded');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            resolve();
-          };
-          video.onerror = (e) => {
-            console.error('Video error:', e);
-            reject(new Error('Video failed to load'));
-          };
-          setTimeout(() => reject(new Error('Video load timeout')), 10000);
-        });
-      }
-
-      // Start face verification process
-      async function startFaceVerification(logId, user) {
-        try {
-          console.log('=== STARTING FACE VERIFICATION ===');
-          console.log('DEBUG: startFaceVerification called with logId:', logId);
-          console.log('User:', user.first_name, user.last_name);
-          console.log('Profile picture URL:', user.profile_picture);
-          
-          currentLogId = logId;
-          currentUser = user;
-          faceVerificationStartTime = Date.now();
-          lowSimilarityCount = 0;
-          
-          // Check if modals are initialized
-          console.log('DEBUG: Checking modal initialization...');
-          console.log('DEBUG: studentModal exists:', !!studentModal);
-          console.log('DEBUG: faceVerificationModal exists:', !!faceVerificationModal);
-          
-          if (!faceVerificationModal) {
-            console.error('❌ Face verification modal not initialized!');
-            showAlert('Face verification modal not available. Please refresh the page.', 'danger');
-            return;
-          }
-          
-          // Check if face-api is loaded
-          if (typeof faceapi === 'undefined') {
-            console.error('❌ Face-API.js not loaded!');
-            updateFaceStatus('Face detection library not loaded. Please refresh the page.', 'failed');
-            setTimeout(() => skipFaceVerification(), 5000);
-            return;
-          }
-          console.log('✅ Face-API.js is loaded');
-          
-          // Hide student modal first
           if (studentModal) {
-            console.log('DEBUG: Hiding student modal...');
             studentModal.hide();
           }
-          
-          // Show the face verification modal
-          console.log('DEBUG: About to show face verification modal...');
-          console.log('DEBUG: faceVerificationModal object:', faceVerificationModal);
-          
-          try {
-            faceVerificationModal.show();
-            console.log('✅ Face verification modal.show() called successfully');
-          } catch (modalError) {
-            console.error('❌ Error showing face verification modal:', modalError);
-            showAlert('Error showing face verification modal: ' + modalError.message, 'danger');
-            return;
-          }
-          
-          // Set the reference image immediately when modal opens
-          const referenceImg = document.getElementById('referenceImage');
-          if (referenceImg) {
-            console.log('Setting reference image src to:', user.profile_picture);
-            referenceImg.src = user.profile_picture;
-            referenceImg.style.display = 'block';
-            referenceImg.style.visibility = 'visible';
-          } else {
-            console.error('❌ Reference image element not found!');
-            updateFaceStatus('Reference image element missing', 'failed');
-            setTimeout(() => skipFaceVerification(), 3000);
-            return;
-          }
-          
-          // Start camera ASAP so user sees the live feed immediately
-          let cameraReady = false;
-          const cameraPromise = startCamera()
-            .then(() => { cameraReady = true; })
-            .catch((err) => { console.error('Camera access error:', err); updateFaceStatus(err.message || 'Camera access failed', 'failed'); });
-
-          // Initialize face detection models in parallel with camera
-          console.log('Checking if face detection models are initialized...');
-          if (!faceDetectionInitialized) {
-            console.log('Models not initialized, loading now...');
-            try {
-              await initializeFaceDetection();
-              console.log('✅ Models initialized successfully');
-            } catch (modelError) {
-              console.error('❌ Error loading face detection models:', modelError);
-              updateFaceStatus('Failed to load face recognition models: ' + modelError.message, 'failed');
-              setTimeout(() => skipFaceVerification(), 5000);
-              return;
-            }
-          } else {
-            console.log('✅ Models already initialized');
-          }
-
-          // Analyze the user's profile picture
-          console.log('Starting profile picture analysis...');
-          try {
-            const referenceAnalyzed = await analyzeReferenceImage(user.profile_picture);
-            if (!referenceAnalyzed) {
-              console.error('❌ Failed to analyze reference image');
-              setTimeout(() => skipFaceVerification(), 5000);
-              return;
-            }
-            console.log('✅ Profile picture analyzed successfully');
-          } catch (analysisError) {
-            console.error('❌ Error analyzing reference image:', analysisError);
-            updateFaceStatus('Error analyzing your profile picture: ' + analysisError.message, 'failed');
-            setTimeout(() => skipFaceVerification(), 5000);
-            return;
-          }
-          
-        } catch (error) {
-          console.error('❌ CRITICAL ERROR in startFaceVerification:', error);
-          console.error('Error stack:', error.stack);
-          updateFaceStatus('Critical error: ' + error.message, 'failed');
-          setTimeout(() => skipFaceVerification(), 3000);
-        }
-
-        // Ensure camera is ready before comparison, then start
-        try {
-          await startCamera(); // if it was already started, this will be quick
-          console.log('Starting face comparison...');
-          await startFaceComparison();
-        } catch (error) {
-          console.error('Camera access error:', error);
-          const errorMessage = error.message || 'Camera access failed';
-          updateFaceStatus(errorMessage, 'failed');
-          setTimeout(() => skipFaceVerification(), 5000);
-        }
+          setTimeout(resetScanner, 500);
+        }, delay);
       }
 
-      // Compare faces continuously
-      async function startFaceComparison() {
-        if (!video || video.readyState !== 4 || !referenceDescriptor) return;
-
-        if (comparisonActive) return; // prevent multiple loops
-        comparisonActive = true;
-
-        const loop = async (timestamp) => {
-          if (!comparisonActive) return;
-
-          // Throttle to TARGET_FPS
-          const minInterval = 1000 / TARGET_FPS;
-          if (timestamp && timestamp - lastFrameTime < minInterval) {
-            return requestAnimationFrame(loop);
-          }
-          lastFrameTime = timestamp || performance.now();
-
-          // Check for timeout
-          const elapsedTime = Date.now() - faceVerificationStartTime;
-          if (elapsedTime > FACE_VERIFICATION_TIMEOUT) {
-            console.log('Face verification timeout reached');
-            updateFaceStatus('Face verification timed out. Please try again.', 'failed');
-            comparisonActive = false;
-            completeFaceVerification('failed');
-            return;
-          }
-
-          try {
-            const opts = usingTinyDetector
-              ? new faceapi.TinyFaceDetectorOptions({ inputSize: TINY_INPUT_SIZE, scoreThreshold: TINY_SCORE_THRESHOLD })
-              : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
-
-            const detections = await faceapi.detectSingleFace(video, opts)
-              .withFaceLandmarks(usingTinyDetector)
-              .withFaceDescriptor();
-
-            if (detections) {
-              noDetectionCount = 0;
-              const distance = faceapi.euclideanDistance(referenceDescriptor, detections.descriptor);
-              const similarity = Math.max(0, (1 - distance) * 100);
-              // console.log(`Face comparison - Distance: ${distance.toFixed(3)}, Similarity: ${similarity.toFixed(1)}%`);
-
-              if (distance < FACE_MATCH_THRESHOLD) {
-                updateFaceStatus(`Face verified successfully!`, 'verified', similarity);
-                comparisonActive = false;
-                completeFaceVerification('verified');
-                return;
-              } else {
-                lowSimilarityCount++;
-                if (lowSimilarityCount >= MAX_LOW_SIMILARITY_ATTEMPTS) {
-                  console.log('Too many low similarity attempts, failing verification');
-                  updateFaceStatus(`Face verification failed. Similarity too low (${similarity.toFixed(1)}%).`, 'failed');
-                  comparisonActive = false;
-                  completeFaceVerification('failed');
-                  return;
-                }
-                const remainingTime = Math.ceil((FACE_VERIFICATION_TIMEOUT - elapsedTime) / 1000);
-                updateFaceStatus(`Analyzing face... (${similarity.toFixed(1)}% match, ${remainingTime}s remaining)`, 'analyzing', similarity);
-              }
-            } else {
-              noDetectionCount++;
-              const remainingTime = Math.ceil((FACE_VERIFICATION_TIMEOUT - elapsedTime) / 1000);
-              updateFaceStatus(`Position your face in the camera frame (${remainingTime}s remaining)`, 'analyzing');
-
-              // Automatic fallback: if tiny is in use but we repeatedly fail to detect, switch to SSD once
-              if (usingTinyDetector && (noDetectionCount >= MAX_NO_DETECTION_ATTEMPTS || elapsedTime > 8000)) {
-                console.log('Switching to SSD MobileNet for fallback due to repeated no detections/slow progress');
-                usingTinyDetector = false;
-                // One-time load if not already
-                try {
-                  if (!faceapi.nets.ssdMobilenetv1.params) {
-                    await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
-                  }
-                  if (!faceapi.nets.faceLandmark68Net.params) {
-                    await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-                  }
-                } catch (e) {
-                  console.warn('SSD fallback load failed:', e.message);
-                }
-              }
-            }
-          } catch (error) {
-            console.error('Face comparison error:', error);
-            updateFaceStatus('Face comparison failed due to technical error', 'failed');
-            comparisonActive = false;
-            completeFaceVerification('failed');
-            return;
-          }
-
-          requestAnimationFrame(loop);
-        };
-
-        requestAnimationFrame(loop);
-      }
-
-      // Update face verification status
-      function updateFaceStatus(message, status, confidence = null) {
-        const $statusCard = $('#faceStatusCard');
-        const $statusText = $('#faceStatusText');
-        const $matchConfidence = $('#matchConfidence');
-        
-        $statusText.text(message);
-        $statusCard.removeClass('loading analyzing verified failed').addClass(status);
-        
-        if (confidence !== null && status === 'verified') {
-          $matchConfidence.text(`Confidence: ${confidence.toFixed(1)}%`).show();
-        } else if (confidence !== null && status === 'analyzing') {
-          $matchConfidence.text(`Similarity: ${confidence.toFixed(1)}%`).show();
-        } else {
-          $matchConfidence.hide();
-        }
-      }
-
-      // Complete face verification
-      function completeFaceVerification(status) {
-        // Stop camera
-        if (video && video.srcObject) {
-          video.srcObject.getTracks().forEach(track => track.stop());
+      function handleSuccess(response) {
+        if (!response || !response.user) {
+          showAlert('Student information not found', 'danger');
+          resetScanner();
+          return;
         }
 
-        // Send verification result to backend
+        const user = response.user;
+        const eventType = (response.event || 'entry').toLowerCase();
+        const icon = eventType === 'exit' ? 'sign-out-alt' : 'sign-in-alt';
+        const title = eventType === 'exit' ? 'Exit Recorded' : 'Entry Recorded';
+
+        $('#studentInfo').html(`
+          <img src="${user.profile_picture || '/images/default-avatar.png'}" alt="${user.first_name}'s photo"
+               class="student-avatar" onerror="this.src='/images/default-avatar.png'">
+          <h3 class="student-name">${user.first_name} ${user.last_name}</h3>
+          <p class="student-id">ID: ${user.school_id}</p>
+          <div class="event-badge ${eventType}">
+            <i class="fas fa-${icon} me-2"></i>${response.event || 'Entry'}
+          </div>
+        `);
+
+        if (studentModal) {
+          const modalTitle = studentModalElement.querySelector('.modal-title');
+          if (modalTitle) {
+            modalTitle.innerHTML = `<i class="fas fa-user-check me-2"></i>${title}`;
+          }
+          studentModal.show();
+        }
+
+        updateStatus(eventType === 'exit' ? 'Exit recorded successfully' : 'Entry recorded successfully', 'ready');
+        finalizeModal();
+      }
+
+      function processScan(uid) {
+        if (!uid) {
+          return;
+        }
+
+        scanning = true;
+        updateStatus('Processing scan...', 'processing');
+        $scanArea.addClass('scanning');
+
         $.ajax({
-          url: '/api/rfid/face-verify',
+          url: '/api/rfid/scan',
           method: 'POST',
           contentType: 'application/json',
-          data: JSON.stringify({ 
-            log_id: currentLogId, 
-            verification_status: status 
-          }),
-          success: function(response) {
-            console.log('Face verification recorded:', response);
-            
-            // Show appropriate message based on verification result
-            if (response.access_granted) {
-              updateFaceStatus(
-                `✅ ${response.message}`, 
-                'verified'
-              );
-            } else {
-              updateFaceStatus(
-                `❌ ${response.message}`, 
-                'failed'
-              );
-            }
-            
-                        // Close modal after showing result
-            setTimeout(() => {
-              faceVerificationModal.hide();
-              updateStatus('Scanner Ready');
-              referenceDescriptor = null;
-              currentUser = null;
-              faceVerificationStartTime = null;
-              lowSimilarityCount = 0;
-              noDetectionCount = 0;
-              comparisonActive = false;
-            }, 3000);
-          },
+          data: JSON.stringify({ card_uid: uid }),
+          success: handleSuccess,
           error: function(err) {
-            console.error('Error recording face verification:', err);
-            updateFaceStatus('Error recording verification result', 'failed');
-            showAlert('Network error. Verification status may not be recorded.', 'danger');
-            
-            // Try to update the status to 'failed' as a fallback
-            // This ensures the record doesn't stay 'pending' forever
-            $.ajax({
-              url: '/api/rfid/face-verify',
-              method: 'POST',
-              contentType: 'application/json',
-              data: JSON.stringify({ 
-                log_id: currentLogId, 
-                verification_status: 'failed' 
-              }),
-              success: function(response) {
-                console.log('Fallback status update successful:', response);
-              },
-              error: function(fallbackErr) {
-                console.error('Fallback status update also failed:', fallbackErr);
-                showAlert('Critical: Unable to update verification status. Please contact admin.', 'danger');
-              }
-            });
-            
+            let message = 'Error processing scan. Please try again.';
+            if (err && err.responseJSON) {
+              message = err.responseJSON.message || err.responseJSON.error || message;
+            }
+            showAlert(message, 'danger');
+            updateStatus('Scan failed', 'error');
+            setTimeout(resetScanner, 1500);
+          },
+          complete: function() {
+            $scanArea.removeClass('scanning');
+            scanning = false;
             setTimeout(() => {
-              faceVerificationModal.hide();
-              updateStatus('Scanner Ready');
-              referenceDescriptor = null;
-              currentUser = null;
-              faceVerificationStartTime = null;
-              lowSimilarityCount = 0;
-              noDetectionCount = 0;
-              comparisonActive = false;
-            }, 3000);
+              if (document.activeElement !== $rfidInput[0]) {
+                $rfidInput.focus();
+              }
+            }, 100);
           }
         });
       }
 
-      // Skip face verification
-      window.skipFaceVerification = function() {
-        console.log('Skipping face verification...');
-        // Stop camera first
-        if (video && video.srcObject) {
-          video.srcObject.getTracks().forEach(track => track.stop());
-        }
-        completeFaceVerification('skipped');
-      };
-
-      // Initialize when page loads
-      initializeModals();
-      
-      // Add a test function to manually trigger face verification modal
-      window.testFaceModal = function() {
-        console.log('DEBUG: Testing face verification modal manually...');
-        if (faceVerificationModal) {
-          faceVerificationModal.show();
-          console.log('✅ Manual test: Face verification modal.show() called');
-        } else {
-          console.error('❌ Manual test: faceVerificationModal not available');
-        }
-      };
-      
-      console.log('DEBUG: Test function added. You can call testFaceModal() in console to test the modal.');
-      
-      $rfidInput.focus();
-      $(document).click(function() {
-        $rfidInput.focus();
+      $rfidInput.on('focus', function() {
+        $scanArea.addClass('active');
+      }).on('blur', function() {
+        $scanArea.removeClass('active');
       });
 
-      $rfidInput.on('keypress', function(e) {
-        if (e.which === 13 && !scanning) {
-          e.preventDefault();
-          scanning = true;
-          const uid = $(this).val().trim();
+      $rfidInput.on('input', function() {
+        if (scanning) {
+          return;
+        }
+        const value = $(this).val().trim();
+        clearTimeout(debounceTimer);
+
+        if (!value) {
+          return;
+        }
+
+        debounceTimer = setTimeout(() => {
+          processScan(value);
           $(this).val('');
-          
-          if (!uid) {
-            showAlert('No RFID data detected', 'warning');
-            scanning = false;
-            return;
-          }
+        }, 150);
+      });
 
-          updateStatus('Processing scan...', 'processing');
-
-          $.ajax({
-            url: '/api/rfid/scan',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ card_uid: uid }),
-            success: function(response) {
-              console.log('DEBUG: RFID scan response received:', response);
-              
-              if (response && response.user) {
-                const user = response.user;
-                
-                // Debug: log the full user object and event
-                console.log('DEBUG: Event type from backend:', response.event);
-                console.log('DEBUG: Event type lowercase:', response.event.toLowerCase());
-                console.log('Full user object from RFID scan:', user);
-                console.log('Profile picture URL:', user.profile_picture);
-                
-                // Check if user has profile picture
-                if (!user.profile_picture || user.profile_picture === '/images/default-avatar.png') {
-                  console.error('No valid profile picture found:', user.profile_picture);
-                  showAlert('No profile picture found. Please contact admin to add your photo.', 'warning');
-                  updateStatus('Scanner Ready');
-                  scanning = false;
-                  return;
-                }
-                
-                // Update student modal content
-                $('#studentInfo').html(`
-                  <img src="${user.profile_picture}" alt="${user.first_name}'s photo" 
-                       class="student-avatar" onerror="this.src='/images/default-avatar.png'">
-                  <h3 class="student-name">${user.first_name} ${user.last_name}</h3>
-                  <p class="student-id">ID: ${user.school_id}</p>
-                  <div class="event-badge ${response.event.toLowerCase()}">
-                    <i class="fas fa-${response.event.toLowerCase() === 'entry' ? 'sign-in-alt' : 'sign-out-alt'} me-2"></i>
-                    ${response.event}
-                  </div>
-                `);
-                
-                // Show student modal
-                studentModal.show();
-                updateStatus('RFID scan successful', 'ready');
-                
-                // Check if this is an exit event - no face verification needed for exits
-                if (response.event.toLowerCase() === 'exit') {
-                  console.log('Exit event detected - skipping face verification');
-                  // Wait to show student info, then close modal and reset
-                  setTimeout(() => {
-                    studentModal.hide();
-                    setTimeout(() => {
-                      updateStatus('Scanner Ready');
-                      scanning = false;
-                    }, 500);
-                  }, 4000);
-                } else {
-                  // Entry event - require face verification
-                  console.log('Entry event detected - face verification required');
-                  console.log('DEBUG: About to set 4-second timeout before starting face verification');
-                  // Wait to show student info, then start face verification
-                  setTimeout(() => {
-                    console.log('DEBUG: 4-second timeout completed, hiding student modal');
-                    studentModal.hide();
-                    
-                    // Start face verification after modal is hidden
-                    $('#studentModal').on('hidden.bs.modal', function() {
-                      console.log('DEBUG: Student modal hidden event fired');
-                      console.log('Student modal hidden, starting face verification with user:', user);
-                      if (user.profile_picture && user.profile_picture !== '/images/default-avatar.png') {
-                        updateStatus('Preparing face verification...', 'processing');
-                        setTimeout(() => {
-                          startFaceVerification(response.log.id, user);
-                        }, 500);
-                      } else {
-                        console.error('No profile picture available for face verification:', user.profile_picture);
-                        showAlert('No profile picture available for face verification', 'warning');
-                        updateStatus('Scanner Ready');
-                      }
-                      
-                      // Remove the event listener to prevent multiple bindings
-                      $(this).off('hidden.bs.modal');
-                    });
-                  }, 4000);
-                }
-              } else {
-                showAlert('Student information not found', 'danger');
-                updateStatus('Scanner Ready');
-              }
-            },
-            error: function(err) {
-              console.error("Scan error:", err);
-              let errorMessage = 'Error processing scan. Please try again.';
-              if (err.responseJSON && err.responseJSON.message) {
-                errorMessage = err.responseJSON.message;
-              }
-              showAlert(errorMessage, 'danger');
-              updateStatus('Scanner Ready', 'error');
-            },
-            complete: function() {
-              scanning = false;
-            }
-          });
+      $(document).on('click', function() {
+        if (document.activeElement !== $rfidInput[0]) {
+          $rfidInput.focus();
         }
       });
 
-      // Handle window focus/blur
-      $(window).on('focus', function() {
+      $(window).on('focus', () => {
         updateStatus('Scanner Ready');
         $rfidInput.focus();
-      }).on('blur', function() {
+      }).on('blur', () => {
         updateStatus('Scanner Inactive', 'ready');
       });
 
-      // Pre-load face-api models when page loads
-      $(window).on('load', function() {
-        console.log('Page loaded, pre-loading face detection models...');
-        // Pre-load models in the background to improve performance
-        setTimeout(() => {
-          if (typeof faceapi !== 'undefined') {
-            initializeFaceDetection().catch(err => {
-              console.log('Pre-loading models failed (this is ok):', err.message);
-            });
-          } else {
-            console.log('Face-API not yet loaded, will load models when needed');
-          }
-        }, 2000);
-      });
+      updateStatus('Scanner Ready');
+      $rfidInput.focus();
     });
   </script>
 </body>
