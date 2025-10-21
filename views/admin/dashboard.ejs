@@ -722,23 +722,6 @@
           <span class="trend-label">vs last period</span>
         </div>
       </div>
-      <div class="stat-card exits">
-        <div class="stat-header">
-          <div class="stat-icon-pill">
-            <i class="fas fa-sign-out-alt"></i>
-          </div>
-          <span class="stat-badge">exits</span>
-        </div>
-        <div class="stat-number" id="exitsCount"><%= stats.totalExits || 0 %></div>
-        <div class="stat-label">Total Exits</div>
-        <div class="stat-trend">
-          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.exitsTrend : 0) %>">
-            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.exitsTrend : 0) %>"></i>
-            <span><%= formatTrend(stats.trends ? stats.trends.exitsTrend : 0) %>%</span>
-          </span>
-          <span class="trend-label">vs last period</span>
-        </div>
-      </div>
       <div class="stat-card anomalies">
         <div class="stat-header">
           <div class="stat-icon-pill">
@@ -1233,7 +1216,6 @@ class Dashboard {
   updateStatistics(stats) {
     if (stats) {
       document.getElementById('entriesCount').textContent = stats.totalEntries || 0;
-      document.getElementById('exitsCount').textContent = stats.totalExits || 0;
       document.getElementById('anomaliesCount').textContent = stats.totalAnomalies || 0;
       document.getElementById('usersCount').textContent = stats.activeUsers || 0;
 
