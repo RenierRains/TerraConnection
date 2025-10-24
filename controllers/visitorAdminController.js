@@ -6,6 +6,9 @@ const VisitorFaceService = require('../services/visitorFaceService');
 // Create a single instance of the face service
 const faceService = new VisitorFaceService();
 
+const CREATED_AT_FIELD = Visitor.rawAttributes?.created_at ? 'created_at' : 'createdAt';
+const UPDATED_AT_FIELD = Visitor.rawAttributes?.updated_at ? 'updated_at' : 'updatedAt';
+
 // Helper function to get visitor statistics
 async function getVisitorStatistics() {
     try {
@@ -15,8 +18,16 @@ async function getVisitorStatistics() {
 
         const [active, today, month, total] = await Promise.all([
             Visitor.count({ where: { status: 'active' } }),
-            Visitor.count({ where: { createdAt: { [Op.gte]: todayStart } } }),
-            Visitor.count({ where: { createdAt: { [Op.gte]: monthStart } } }),
+            Visitor.count({
+                where: {
+                    [CREATED_AT_FIELD]: { [Op.gte]: todayStart }
+                }
+            }),
+            Visitor.count({
+                where: {
+                    [CREATED_AT_FIELD]: { [Op.gte]: monthStart }
+                }
+            }),
             Visitor.count()
         ]);
 
@@ -88,20 +99,20 @@ async function index(req, res) {
 
         // Date range filter
         if (dateFrom || dateTo) {
-            whereConditions.createdAt = {};
+            whereConditions[CREATED_AT_FIELD] = whereConditions[CREATED_AT_FIELD] || {};
             if (dateFrom) {
-                whereConditions.createdAt[Op.gte] = new Date(dateFrom);
+                whereConditions[CREATED_AT_FIELD][Op.gte] = new Date(dateFrom);
             }
             if (dateTo) {
                 const endDate = new Date(dateTo);
                 endDate.setHours(23, 59, 59, 999);
-                whereConditions.createdAt[Op.lte] = endDate;
+                whereConditions[CREATED_AT_FIELD][Op.lte] = endDate;
             }
         }
 
         const { count, rows: visitors } = await Visitor.findAndCountAll({
             where: whereConditions,
-            order: [['createdAt', 'DESC']],
+            order: [[CREATED_AT_FIELD, 'DESC']],
             limit,
             offset
         });
@@ -341,26 +352,28 @@ async function exportLogs(req, res) {
         }
 
         if (dateFrom || dateTo) {
-            whereConditions.createdAt = {};
+            whereConditions[CREATED_AT_FIELD] = whereConditions[CREATED_AT_FIELD] || {};
             if (dateFrom) {
-                whereConditions.createdAt[Op.gte] = new Date(dateFrom);
+                whereConditions[CREATED_AT_FIELD][Op.gte] = new Date(dateFrom);
             }
             if (dateTo) {
                 const endDate = new Date(dateTo);
                 endDate.setHours(23, 59, 59, 999);
-                whereConditions.createdAt[Op.lte] = endDate;
+                whereConditions[CREATED_AT_FIELD][Op.lte] = endDate;
             }
         }
 
         const visitors = await Visitor.findAll({
             where: whereConditions,
-            order: [['createdAt', 'DESC']]
+            order: [[CREATED_AT_FIELD, 'DESC']]
         });
+
+        const plainVisitors = visitors.map((visitor) => visitor.toJSON());
 
         if (format === 'json') {
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Content-Disposition', 'attachment; filename=visitor-logs.json');
-            return res.json(visitors);
+            return res.json(plainVisitors);
         } else {
             // CSV export
             const fields = [
@@ -371,12 +384,12 @@ async function exportLogs(req, res) {
                 { label: 'Status', value: 'status' },
                 { label: 'Entry Time', value: 'entryTime' },
                 { label: 'Exit Time', value: 'exitTime' },
-                { label: 'Created At', value: 'createdAt' },
-                { label: 'Updated At', value: 'updatedAt' }
+                { label: 'Created At', value: CREATED_AT_FIELD },
+                { label: 'Updated At', value: UPDATED_AT_FIELD }
             ];
 
             const parser = new Parser({ fields });
-            const csv = parser.parse(visitors);
+            const csv = parser.parse(plainVisitors);
 
             res.setHeader('Content-Type', 'text/csv');
             res.setHeader('Content-Disposition', 'attachment; filename=visitor-logs.csv');
@@ -440,8 +453,10 @@ async function bulkAction(req, res) {
             case 'export':
                 const visitors = await Visitor.findAll({
                     where: { id: { [Op.in]: visitorIds } },
-                    order: [['createdAt', 'DESC']]
+                    order: [[CREATED_AT_FIELD, 'DESC']]
                 });
+
+                const exportedVisitors = visitors.map((visitor) => visitor.toJSON());
 
                 const fields = [
                     { label: 'ID', value: 'id' },
@@ -451,11 +466,11 @@ async function bulkAction(req, res) {
                     { label: 'Status', value: 'status' },
                     { label: 'Entry Time', value: 'entryTime' },
                     { label: 'Exit Time', value: 'exitTime' },
-                    { label: 'Created At', value: 'createdAt' }
+                    { label: 'Created At', value: CREATED_AT_FIELD }
                 ];
 
                 const parser = new Parser({ fields });
-                const csv = parser.parse(visitors);
+                const csv = parser.parse(exportedVisitors);
 
                 return res.json({
                     success: true,
