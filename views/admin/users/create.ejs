@@ -11,38 +11,41 @@
 
   <div class="modal-content-wrapper">
     <h2>Create User</h2>
+    <% if (typeof errorMessage !== 'undefined' && errorMessage) { %>
+      <div class="alert alert-danger"><%= errorMessage %></div>
+    <% } %>
     <form action="/admin/users" method="POST" enctype="multipart/form-data">
       <div class="form-group">
         <label for="first_name">First Name</label>
-        <input id="first_name" type="text" name="first_name" class="form-control" required>
+        <input id="first_name" type="text" name="first_name" class="form-control" value="<%= formData && formData.first_name ? formData.first_name : '' %>" required>
       </div>
       <div class="form-group">
         <label for="last_name">Last Name</label>
-        <input id="last_name" type="text" name="last_name" class="form-control" required>
+        <input id="last_name" type="text" name="last_name" class="form-control" value="<%= formData && formData.last_name ? formData.last_name : '' %>" required>
       </div>
       <div class="form-group">
         <label for="email">Email</label>
-        <input id="email" type="email" name="email" class="form-control" required>
+        <input id="email" type="email" name="email" class="form-control" value="<%= formData && formData.email ? formData.email : '' %>" required>
       </div>
       <div class="form-group">
         <label for="role">Role</label>
         <select id="role" name="role" class="form-control" required>
-          <option value="student">Student</option>
-          <option value="professor">Professor</option>
-          <option value="guardian">Guardian</option>
-          <option value="admin">Admin</option>
+          <option value="student" <%= formData && formData.role === 'student' ? 'selected' : '' %>>Student</option>
+          <option value="professor" <%= formData && formData.role === 'professor' ? 'selected' : '' %>>Professor</option>
+          <option value="guardian" <%= formData && formData.role === 'guardian' ? 'selected' : '' %>>Guardian</option>
+          <option value="admin" <%= formData && formData.role === 'admin' ? 'selected' : '' %>>Admin</option>
         </select>
       </div>
       <div class="form-group">
         <label for="school_id">School ID (if applicable)</label>
-        <input id="school_id" type="text" name="school_id" class="form-control">
+        <input id="school_id" type="text" name="school_id" class="form-control" value="<%= formData && formData.school_id ? formData.school_id : '' %>">
       </div>
       <div class="form-group">
         <label for="department">Department</label>
         <select id="department" name="department" class="form-control">
           <option value="">Select Department</option>
           <% departments.forEach(function(dept){ %>
-            <option value="<%= dept.code %>"><%= dept.name %> (<%= dept.code %>)</option>
+            <option value="<%= dept.code %>" <%= formData && formData.department === dept.code ? 'selected' : '' %>><%= dept.name %> (<%= dept.code %>)</option>
           <% }) %>
         </select>
       </div>
@@ -67,7 +70,22 @@
 
   <script>
     // Image preview functionality
-    document.getElementById('profile_picture').addEventListener('change', function(e) {
+    const profileInput = document.getElementById('profile_picture');
+    const roleSelect = document.getElementById('role');
+
+    function toggleProfileRequirement() {
+      if (roleSelect.value === 'student') {
+        profileInput.setAttribute('required', 'required');
+      } else {
+        profileInput.removeAttribute('required');
+      }
+    }
+
+    toggleProfileRequirement();
+
+    roleSelect.addEventListener('change', toggleProfileRequirement);
+
+    profileInput.addEventListener('change', function(e) {
       const file = e.target.files[0];
       const preview = document.getElementById('imagePreview');
       const previewImg = document.getElementById('previewImg');
