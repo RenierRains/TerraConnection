@@ -8,6 +8,11 @@ router.get('/linked-students',
   guardianController.getLinkedStudents
 );
 
+router.get('/child-attendance/:studentId',
+  guardianController.verifyToken,
+  guardianController.getChildAttendance
+);
+
 // For getting child status
 router.get('/child-status/:studentId',
   guardianController.verifyToken,

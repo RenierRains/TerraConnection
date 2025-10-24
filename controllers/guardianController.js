@@ -122,6 +122,56 @@ exports.getLinkedStudents = async (req, res) => {
   }
 };
 
+exports.getChildAttendance = async (req, res) => {
+  try {
+    if (req.user.role !== 'guardian' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const guardianId = req.user.userId;
+    const { studentId } = req.params;
+    const { date } = req.query;
+
+    const relation = await db.Guardian_Student.findOne({
+      where: { guardian_id: guardianId, student_id: studentId }
+    });
+
+    if (!relation) {
+      return res.status(403).json({ error: 'You are not a guardian for this student' });
+    }
+
+    const targetDate = date ? new Date(date) : new Date();
+    if (isNaN(targetDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const attendanceLogs = await db.Entry_Exit_Log.findAll({
+      where: {
+        user_id: studentId,
+        timestamp: {
+          [Op.between]: [startOfDay, endOfDay]
+        }
+      },
+      order: [['timestamp', 'ASC']],
+      include: [{
+        model: db.User,
+        as: 'user',
+        attributes: ['id', 'first_name', 'last_name', 'school_id', 'profile_picture']
+      }]
+    });
+
+    return res.json({ attendance: attendanceLogs });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get child attendance' });
+  }
+};
+
 // guardian queries child by userId and checks relaton
 exports.getChildStatus = async (req, res) => {
   try {
