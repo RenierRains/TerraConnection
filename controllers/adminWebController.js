@@ -1012,6 +1012,22 @@ exports.usersCreateForm = async (req, res) => {
 exports.usersCreate = async (req, res) => {
   try {
     const { first_name, last_name, email, role, school_id, department, password } = req.body;
+
+    if (role === 'student' && !req.file) {
+      const departments = await db.Department.findAll({
+        where: { is_active: true },
+        order: [['code', 'ASC']]
+      });
+
+      return res.status(400).render('admin/users/create', {
+        title: 'Create User',
+        admin: req.session.admin,
+        departments,
+        errorMessage: 'Profile picture is required for student accounts.',
+        formData: { first_name, last_name, email, role, school_id, department }
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Handle profile picture upload
