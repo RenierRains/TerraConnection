@@ -715,9 +715,9 @@
         <div class="stat-number" id="entriesCount"><%= stats.totalEntries || 0 %></div>
         <div class="stat-label">Total Entries</div>
         <div class="stat-trend">
-          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.entriesTrend : 0) %>">
-            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.entriesTrend : 0) %>"></i>
-            <span><%= formatTrend(stats.trends ? stats.trends.entriesTrend : 0) %>%</span>
+          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.entriesTrend : 0) %>" id="entriesTrendChip">
+            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.entriesTrend : 0) %>" id="entriesTrendIcon"></i>
+            <span id="entriesTrendValue"><%= formatTrend(stats.trends ? stats.trends.entriesTrend : 0) %>%</span>
           </span>
           <span class="trend-label">vs last period</span>
         </div>
@@ -732,9 +732,9 @@
         <div class="stat-number" id="anomaliesCount"><%= stats.totalAnomalies || 0 %></div>
         <div class="stat-label">Security Anomalies</div>
         <div class="stat-trend">
-          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>">
-            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>"></i>
-            <span><%= formatTrend(stats.trends ? stats.trends.anomaliesTrend : 0) %>%</span>
+          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>" id="anomaliesTrendChip">
+            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.anomaliesTrend : 0, true) %>" id="anomaliesTrendIcon"></i>
+            <span id="anomaliesTrendValue"><%= formatTrend(stats.trends ? stats.trends.anomaliesTrend : 0) %>%</span>
           </span>
           <span class="trend-label">vs last period</span>
         </div>
@@ -749,9 +749,9 @@
         <div class="stat-number" id="usersCount"><%= stats.activeUsers || 0 %></div>
         <div class="stat-label">Active Users</div>
         <div class="stat-trend">
-          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.usersTrend : 0) %>">
-            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.usersTrend : 0) %>"></i>
-            <span><%= formatTrend(stats.trends ? stats.trends.usersTrend : 0) %>%</span>
+          <span class="trend-chip <%= getTrendClass(stats.trends ? stats.trends.usersTrend : 0) %>" id="usersTrendChip">
+            <i class="fas <%= getTrendIcon(stats.trends ? stats.trends.usersTrend : 0) %>" id="usersTrendIcon"></i>
+            <span id="usersTrendValue"><%= formatTrend(stats.trends ? stats.trends.usersTrend : 0) %>%</span>
           </span>
           <span class="trend-label">vs last period</span>
         </div>
@@ -1063,9 +1063,9 @@ class Dashboard {
           return;
         }
         lastUpdate = now;
-        
+
         console.log('Dashboard update received:', data);
-        this.updateStatistics(data.stats);
+        this.refreshStatsFromServer();
         this.updateActivities(data.activities);
       });
 
@@ -1108,14 +1108,18 @@ class Dashboard {
     });
 
     // Refresh button
-    document.getElementById('refreshDashboard').addEventListener('click', () => {
-      this.refreshData();
-    });
+    const refreshButton = document.getElementById('refreshDashboard');
+    if (refreshButton) {
+      refreshButton.addEventListener('click', () => {
+        this.refreshData();
+      });
+    }
   }
 
   async loadInitialData() {
     await this.loadChartData('24h');
     await this.loadDepartmentData();
+    await this.refreshStatsFromServer();
   }
 
   async loadChartData(range = '24h') {
@@ -1135,7 +1139,7 @@ class Dashboard {
     try {
       const response = await fetch('/admin/dashboard/departments');
       const result = await response.json();
-      
+
       if (result.success && result.data && result.data.labels && result.data.datasets) {
         // Check if data has actually changed
         const currentLabels = JSON.stringify(this.departmentChart.data.labels);
@@ -1168,6 +1172,41 @@ class Dashboard {
         this.departmentChart.data.datasets[0].data = [1];
         this.departmentChart.update('none');
       }
+    }
+  }
+
+  getActiveFilters() {
+    const departmentSelect = document.getElementById('department');
+    const dateRangeSelect = document.getElementById('dateRange');
+
+    return {
+      department: departmentSelect ? departmentSelect.value : '',
+      dateRange: dateRangeSelect ? dateRangeSelect.value : 'week'
+    };
+  }
+
+  async refreshStatsFromServer() {
+    try {
+      const { department, dateRange } = this.getActiveFilters();
+      const params = new URLSearchParams();
+
+      if (department) {
+        params.append('department', department);
+      }
+
+      if (dateRange) {
+        params.append('dateRange', dateRange);
+      }
+
+      const queryString = params.toString();
+      const response = await fetch(`/admin/dashboard/stats${queryString ? `?${queryString}` : ''}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        this.updateStatistics(result.data);
+      }
+    } catch (error) {
+      console.error('Error refreshing dashboard stats:', error);
     }
   }
 
@@ -1219,11 +1258,71 @@ class Dashboard {
       document.getElementById('anomaliesCount').textContent = stats.totalAnomalies || 0;
       document.getElementById('usersCount').textContent = stats.activeUsers || 0;
 
+      if (stats.trends) {
+        this.updateTrendDisplay('entries', stats.trends.entriesTrend);
+        this.updateTrendDisplay('anomalies', stats.trends.anomaliesTrend, true);
+        this.updateTrendDisplay('users', stats.trends.usersTrend);
+      }
+
       const lastUpdated = document.getElementById('dashboardLastUpdated');
       if (lastUpdated) {
         lastUpdated.textContent = new Date().toLocaleString();
       }
     }
+  }
+
+  updateTrendDisplay(metric, value, inverse = false) {
+    const chip = document.getElementById(`${metric}TrendChip`);
+    const icon = document.getElementById(`${metric}TrendIcon`);
+    const valueElement = document.getElementById(`${metric}TrendValue`);
+
+    if (!chip || !icon || !valueElement) {
+      return;
+    }
+
+    chip.classList.remove('trend-up', 'trend-down', 'trend-neutral');
+    chip.classList.add(this.getTrendClass(value, inverse));
+
+    icon.className = `fas ${this.getTrendIcon(value, inverse)}`;
+    valueElement.textContent = `${this.formatTrendValue(value)}%`;
+  }
+
+  getTrendClass(value, inverse = false) {
+    const numericValue = parseFloat(value);
+
+    if (Number.isNaN(numericValue) || numericValue === 0) {
+      return 'trend-neutral';
+    }
+
+    if (inverse) {
+      return numericValue > 0 ? 'trend-down' : 'trend-up';
+    }
+
+    return numericValue > 0 ? 'trend-up' : 'trend-down';
+  }
+
+  getTrendIcon(value, inverse = false) {
+    const numericValue = parseFloat(value);
+
+    if (Number.isNaN(numericValue) || numericValue === 0) {
+      return 'fa-minus';
+    }
+
+    if (inverse) {
+      return numericValue > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+    }
+
+    return numericValue > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+  }
+
+  formatTrendValue(value) {
+    const numericValue = parseFloat(value);
+
+    if (Number.isNaN(numericValue) || numericValue === 0 || !Number.isFinite(numericValue)) {
+      return '0';
+    }
+
+    return numericValue > 0 ? `+${numericValue}` : `${numericValue}`;
   }
 
   updateActivities(activities) {
@@ -1337,6 +1436,9 @@ class Dashboard {
 
   refreshData() {
     const refreshBtn = document.getElementById('refreshDashboard');
+    if (!refreshBtn) {
+      return;
+    }
     const icon = refreshBtn.querySelector('i');
     
     // Prevent multiple refreshes
