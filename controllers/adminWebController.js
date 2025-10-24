@@ -730,7 +730,7 @@ exports.dashboard = async (req, res) => {
 
 exports.getDepartmentData = async (req, res) => {
   if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
-  
+
   try {
     // Get department activity breakdown
     const [departmentStats] = await db.sequelize.query(`
@@ -776,9 +776,120 @@ exports.getDepartmentData = async (req, res) => {
   }
 };
 
+exports.getDashboardStatsData = async (req, res) => {
+  if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  try {
+    const { department, dateRange } = req.query;
+    const selectedDepartment = department || '';
+    const selectedDateRange = dateRange || 'week';
+
+    let dateFilter = '';
+    switch (selectedDateRange) {
+      case 'today':
+        dateFilter = `AND DATE(al.timestamp) = CURDATE()`;
+        break;
+      case 'week':
+        dateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+        break;
+      case 'month':
+        dateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)`;
+        break;
+      default:
+        dateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+    }
+
+    let departmentFilter = '';
+    if (selectedDepartment) {
+      departmentFilter = `AND u.department = '${selectedDepartment}'`;
+    }
+
+    const [statsResult] = await db.sequelize.query(`
+      SELECT
+        SUM(CASE WHEN al.action_type LIKE '%ENTRY_%' OR al.action_type LIKE '%ACCESS_GRANTED%' THEN 1 ELSE 0 END) as totalEntries,
+        SUM(CASE WHEN al.action_type LIKE '%EXIT_%' OR al.action_type LIKE '%LOGOUT%' THEN 1 ELSE 0 END) as totalExits,
+        SUM(CASE WHEN al.action_type LIKE 'ANOMALY_%' OR al.action_type LIKE 'SECURITY_%' THEN 1 ELSE 0 END) as totalAnomalies,
+        COUNT(DISTINCT u.id) as activeUsers
+      FROM Audit_Logs al
+      LEFT JOIN Users u ON al.user_id = u.id
+      WHERE 1=1 ${dateFilter} ${departmentFilter}
+    `);
+
+    let previousDateFilter = '';
+    switch (selectedDateRange) {
+      case 'today':
+        previousDateFilter = `AND DATE(al.timestamp) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`;
+        break;
+      case 'week':
+        previousDateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND al.timestamp < DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+        break;
+      case 'month':
+        previousDateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND al.timestamp < DATE_SUB(NOW(), INTERVAL 30 DAY)`;
+        break;
+      default:
+        previousDateFilter = `AND al.timestamp >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND al.timestamp < DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+    }
+
+    const [previousStatsResult] = await db.sequelize.query(`
+      SELECT
+        SUM(CASE WHEN al.action_type LIKE '%ENTRY_%' OR al.action_type LIKE '%ACCESS_GRANTED%' THEN 1 ELSE 0 END) as totalEntries,
+        SUM(CASE WHEN al.action_type LIKE '%EXIT_%' OR al.action_type LIKE '%LOGOUT%' THEN 1 ELSE 0 END) as totalExits,
+        SUM(CASE WHEN al.action_type LIKE 'ANOMALY_%' OR al.action_type LIKE 'SECURITY_%' THEN 1 ELSE 0 END) as totalAnomalies,
+        COUNT(DISTINCT u.id) as activeUsers
+      FROM Audit_Logs al
+      LEFT JOIN Users u ON al.user_id = u.id
+      WHERE 1=1 ${previousDateFilter} ${departmentFilter}
+    `);
+
+    const currentStats = statsResult[0] || {
+      totalEntries: 0,
+      totalExits: 0,
+      totalAnomalies: 0,
+      activeUsers: 0
+    };
+
+    const previousStats = previousStatsResult[0] || {
+      totalEntries: 0,
+      totalExits: 0,
+      totalAnomalies: 0,
+      activeUsers: 0
+    };
+
+    const calculateTrend = (current, previous) => {
+      const currentNum = parseInt(current, 10) || 0;
+      const previousNum = parseInt(previous, 10) || 0;
+
+      if (previousNum === 0) {
+        if (currentNum === 0) return 0;
+        return currentNum > 0 ? 100 : 0;
+      }
+
+      return parseFloat(((currentNum - previousNum) / previousNum * 100).toFixed(1));
+    };
+
+    const stats = {
+      totalEntries: currentStats.totalEntries,
+      totalExits: currentStats.totalExits,
+      totalAnomalies: currentStats.totalAnomalies,
+      activeUsers: currentStats.activeUsers,
+      trends: {
+        entriesTrend: calculateTrend(currentStats.totalEntries, previousStats.totalEntries),
+        exitsTrend: calculateTrend(currentStats.totalExits, previousStats.totalExits),
+        anomaliesTrend: calculateTrend(currentStats.totalAnomalies, previousStats.totalAnomalies),
+        usersTrend: calculateTrend(currentStats.activeUsers, previousStats.activeUsers)
+      }
+    };
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error('Error getting dashboard stats data:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch dashboard stats' });
+  }
+};
+
 exports.getTimeSeriesData = async (req, res) => {
   if (!req.session.admin) return res.status(401).json({ success: false, error: 'Unauthorized' });
-  
+
   try {
     const { range = 'week' } = req.query;
     let dateFilter = '';

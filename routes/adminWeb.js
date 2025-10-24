@@ -26,6 +26,7 @@ router.get('/api/search', adminWebController.globalSearch);
 router.get('/api/notifications/anomalies', adminWebController.getAnomalyNotifications);
 
 router.get('/dashboard/data', adminWebController.getTimeSeriesData);
+router.get('/dashboard/stats', adminWebController.getDashboardStatsData);
 router.get('/dashboard/departments', adminWebController.getDepartmentData);
 router.get('/dashboard/export', exportController.exportDashboardData);
 
